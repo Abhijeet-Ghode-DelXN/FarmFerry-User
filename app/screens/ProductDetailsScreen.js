@@ -5,6 +5,25 @@ import { useAppContext } from '../context/AppContext';
 import { productsAPI, cartAPI } from '../services/api';
 import { LinearGradient } from 'expo-linear-gradient';
 
+// Helper to safely get entries from an object
+function safeObjectEntries(obj) {
+  try {
+    if (
+      obj &&
+      typeof obj === 'object' &&
+      !Array.isArray(obj) &&
+      obj !== null &&
+      Object.prototype.toString.call(obj) === '[object Object]' &&
+      Object.keys(obj).length > 0
+    ) {
+      return Object.entries(obj);
+    }
+  } catch (e) {
+    // ignore
+  }
+  return [];
+}
+
 const ProductDetailsScreen = ({ route, navigation }) => {
   const { productId } = route.params;
   const { cartItems, wishlistItems, updateCartItems, updateWishlistItems } = useAppContext();
@@ -80,6 +99,32 @@ const ProductDetailsScreen = ({ route, navigation }) => {
       });
     }
   };
+
+  // Defensive: always use try/catch for nutritional info block
+  let nutritionalInfoBlock = null;
+  try {
+    const nutritionalInfoEntries = safeObjectEntries(product.nutritionalInfo);
+    if (nutritionalInfoEntries.length > 0) {
+      nutritionalInfoBlock = (
+        <View className="mb-8">
+          <Text className="text-lg font-semibold text-gray-800 mb-3">Nutritional Information</Text>
+          <View className="bg-gray-50 p-4 rounded-lg">
+            {nutritionalInfoEntries.map(([key, value]) => (
+              <View key={key} className="flex-row justify-between py-2 border-b border-gray-200">
+                <Text className="text-gray-600 capitalize">{key.replace(/([A-Z])/g, ' $1')}</Text>
+                <Text className="text-gray-800 font-medium">{value}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      );
+    }
+  } catch (e) {
+    nutritionalInfoBlock = null;
+  }
+
+  // Debug log for nutritionalInfo
+  console.log('nutritionalInfo:', product.nutritionalInfo, typeof product.nutritionalInfo, product);
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
@@ -157,19 +202,7 @@ const ProductDetailsScreen = ({ route, navigation }) => {
           </View>
 
           {/* Nutritional Info */}
-          {product.nutritionalInfo && (
-            <View className="mb-8">
-              <Text className="text-lg font-semibold text-gray-800 mb-3">Nutritional Information</Text>
-              <View className="bg-gray-50 p-4 rounded-lg">
-                {Object.entries(product.nutritionalInfo).map(([key, value]) => (
-                  <View key={key} className="flex-row justify-between py-2 border-b border-gray-200">
-                    <Text className="text-gray-600 capitalize">{key.replace(/([A-Z])/g, ' $1')}</Text>
-                    <Text className="text-gray-800 font-medium">{value}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
+          {nutritionalInfoBlock}
 
           {/* Farmer Info */}
           {product.supplier && (

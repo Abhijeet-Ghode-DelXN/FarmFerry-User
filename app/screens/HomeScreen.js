@@ -504,11 +504,11 @@
 
 
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
 import AppBar from '../components/ui/AppBar';
 import { View, Text, Image, ScrollView, TouchableOpacity, TextInput, Dimensions, FlatList } from 'react-native';
-import { productsAPI } from '../services/api';
+import { productsAPI, categoriesAPI } from '../services/api';
 import { MapPin, Plus, Heart, Search as SearchIcon, Filter, Star, Bell, User, ChevronRight, ArrowRight, Clock, Truck, Leaf, Percent, ShoppingCart} from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { farmers } from '../components/ui/farmers';
@@ -517,7 +517,11 @@ const { width } = Dimensions.get('window');
 
 const HomeScreen = ({ navigation }) => {
   const [currentBanner, setCurrentBanner] = useState(0);
+  const scrollViewRef = useRef(null);
+  const [featuredProductsY, setFeaturedProductsY] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
 
   // ===== Products fetched from backend =====
   const [fetchedProducts, setFetchedProducts] = useState([]);
@@ -527,7 +531,19 @@ const HomeScreen = ({ navigation }) => {
     (async () => {
       try {
         const res = await productsAPI.getProducts();
-        setFetchedProducts(res?.data?.data || []);
+        setFetchedProducts(
+          (res?.data?.data?.products || []).map(p => ({
+            ...p,
+            image: p.images?.[0]?.url || '',
+            discount: p.offerPercentage,
+            rating: p.averageRating,
+            reviews: p.totalReviews,
+            farmer: p.supplierId?.businessName || '',
+            category: p.categoryId?.name || '',
+            price: p.discountedPrice ?? p.price,
+            originalPrice: p.price,
+          }))
+        );
       } catch (err) {
         console.error('Failed to fetch products:', err?.response?.data || err.message);
       } finally {
@@ -535,34 +551,23 @@ const HomeScreen = ({ navigation }) => {
       }
     })();
   }, []);
-  const { cartItems, wishlistItems, updateCartItems, updateWishlistItems } = useAppContext();
 
-  const categories = [
-    {
-      name: 'Vegetables',
-      image: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=200&h=200&fit=crop',
-    },
-    {
-      name: 'Fruits',
-      image: 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=200&h=200&fit=crop',
-    },
-    {
-      name: 'Grains',
-      image: 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=200&h=200&fit=crop',
-    },
-    {
-      name: 'Dairy',
-      image: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=200&h=200&fit=crop',
-    },
-    {
-      name: 'Herbs',
-      image: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=200&h=200&fit=crop',
-    },
-    {
-      name: 'Pulses',
-      image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=200&h=200&fit=crop',
-    },
-  ];
+  // Fetch categories dynamically
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await categoriesAPI.getCategories();
+        // Support both array and object response
+        const cats = res?.data?.data?.categories || res?.data?.data || [];
+        setCategories(cats);
+      } catch (err) {
+        console.error('Failed to fetch categories:', err?.response?.data || err.message);
+      } finally {
+        setLoadingCategories(false);
+      }
+    })();
+  }, []);
+  const { cartItems, wishlistItems, updateCartItems, updateWishlistItems } = useAppContext();
 
   const featuredProducts = [
     {
@@ -654,8 +659,15 @@ const HomeScreen = ({ navigation }) => {
   // Decide which product list to use: fetched from API, otherwise fallback to dummy data
   const allProducts = fetchedProducts.length ? fetchedProducts : featuredProducts;
 
+  // Filter products by selected category ID
   const filteredProducts = selectedCategory
-    ? allProducts.filter((item) => item.category === selectedCategory)
+    ? allProducts.filter((item) => {
+        // item.categoryId may be an object or string, mapped as 'categoryId' or 'category'
+        // Our mapping sets 'category' to category name, but let's use categoryId for accuracy
+        // Support both backend and fallback data
+        const catId = item.categoryId?._id || item.categoryId || item.category_id || item.category;
+        return catId === selectedCategory;
+      })
     : allProducts;
 
   const banners = [
@@ -767,14 +779,24 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
+  // Helper to scroll to Featured Products section
+  const scrollToFeaturedProducts = () => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: featuredProductsY, animated: true });
+    }
+  };
+
   const CategoryItem = ({ item }) => {
-    const isSelected = selectedCategory === item.name;
+    const isSelected = selectedCategory === (item._id || item.id);
     return (
       <View style={{ width: width * 0.23, alignItems: 'center', marginBottom: 16 }}>
         <TouchableOpacity 
           activeOpacity={0.9} 
           style={{ width: '100%' }}
-          onPress={() => setSelectedCategory(item.name)}
+          onPress={() => {
+            setSelectedCategory(item._id || item.id);
+            setTimeout(scrollToFeaturedProducts, 100); // ensure filter applies before scroll
+          }}
         >
           <View style={{ 
             backgroundColor: 'white', 
@@ -791,7 +813,11 @@ const HomeScreen = ({ navigation }) => {
           }}>
             <View style={{ width: '100%', aspectRatio: 1, borderRadius: 12, overflow: 'hidden' }}>
               <Image
-                source={{ uri: item.image }}
+                source={
+                  item.image && typeof item.image === 'string' && item.image.trim() !== ''
+                    ? { uri: item.image }
+                    : { uri: 'https://via.placeholder.com/100' }
+                }
                 style={{ width: '100%', height: '100%' }}
                 resizeMode="cover"
               />
@@ -833,7 +859,7 @@ const HomeScreen = ({ navigation }) => {
 
   const renderProductItem = ({ item }) => (
     <TouchableOpacity
-      onPress={() => navigation.navigate('ProductDetails', { product: item })}
+      onPress={() => navigation.navigate('ProductDetails', { productId: item._id || item.id })}
       activeOpacity={0.9}
     >
       <View className="flex-1 bg-white rounded-3xl overflow-hidden m-1 min-w-[48%] shadow-lg border border-gray-100">
@@ -894,10 +920,16 @@ const HomeScreen = ({ navigation }) => {
             ) : (
               <LinearGradient
                 colors={['#10b981', '#059669']}
-                className="py-2.5 flex-row items-center justify-center rounded-xl"
+                style={{
+                  paddingVertical: 10,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 12,
+                }}
               >
                 <ShoppingCart width={14} height={14} color="#fff" />
-                <Text className="text-white font-semibold text-sm ml-1.5">Add to Cart</Text>
+                <Text style={{ color: 'white', fontWeight: '600', fontSize: 16, marginLeft: 6 }}>Add to Cart</Text>
               </LinearGradient>
             )}
           </TouchableOpacity>
@@ -944,6 +976,7 @@ const HomeScreen = ({ navigation }) => {
 
       {/* Main Content */}
       <ScrollView
+        ref={scrollViewRef}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
@@ -962,11 +995,15 @@ const HomeScreen = ({ navigation }) => {
               </Text>
             </TouchableOpacity>
           </View>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-            {categories.map((item, index) => (
-              <CategoryItem key={index} item={item} />
-            ))}
-          </View>
+          {loadingCategories ? (
+            <Text>Loading categories...</Text>
+          ) : (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+              {categories.map((item, index) => (
+                <CategoryItem key={item._id || item.id || index} item={item} />
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Banner */}
@@ -991,7 +1028,10 @@ const HomeScreen = ({ navigation }) => {
               <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.95)' }}>{banners[currentBanner].description}</Text>
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}>
+              <TouchableOpacity
+                style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
+                onPress={scrollToFeaturedProducts}
+              >
                 <Text style={{ color: '#1f2937', fontWeight: '600', marginRight: 8 }}>Shop Now</Text>
                 <ArrowRight width={18} height={18} color="#1f2937" />
               </TouchableOpacity>
@@ -1046,7 +1086,10 @@ const HomeScreen = ({ navigation }) => {
         </View>
 
         {/* Featured Products */}
-        <View style={{ paddingHorizontal: 16, marginBottom: 24 }}>
+        <View
+          onLayout={event => setFeaturedProductsY(event.nativeEvent.layout.y)}
+          style={{ paddingHorizontal: 16, marginBottom: 24 }}
+        >
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1f2937' }}>Featured Products</Text>
             <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -1076,7 +1119,7 @@ const HomeScreen = ({ navigation }) => {
           <FlatList
             data={filteredProducts}
             renderItem={renderProductItem}
-            keyExtractor={(item) => item.id.toString()}
+            keyExtractor={(item) => (item._id || item.id).toString()}
             numColumns={2}
             scrollEnabled={false}
             contentContainerStyle={{ gap: 8 }}

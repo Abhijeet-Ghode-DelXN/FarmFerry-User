@@ -83,7 +83,8 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: 'SET_LOADING', payload: true });
       const response = await authAPI.login({ email, password });
       console.log('LOGIN RESPONSE:', response.data); // <-- Added for debugging
-      const { user, accessToken, refreshToken } = response.data.data;
+      const { customer, accessToken, refreshToken } = response.data.data;
+      const user = customer;
 
       await AsyncStorage.setItem(CONFIG.STORAGE_KEYS.ACCESS_TOKEN, accessToken);
       await AsyncStorage.setItem(CONFIG.STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
