@@ -60,6 +60,7 @@ export default function CartScreen({ navigation }) {
   const recommendedProducts = [
     {
       id: 101,
+      _id: 101, // Ensure unique _id for consistency
       name: 'Organic Bananas',
       price: 35,
       originalPrice: 45,
@@ -73,6 +74,7 @@ export default function CartScreen({ navigation }) {
     },
     {
       id: 102,
+      _id: 102,
       name: 'Cherry Tomatoes',
       price: 60,
       originalPrice: 80,
@@ -89,6 +91,7 @@ export default function CartScreen({ navigation }) {
   const frequentlyBoughtProducts = [
     {
       id: 201,
+      _id: 201,
       name: 'Fresh Milk',
       price: 50,
       originalPrice: 60,
@@ -102,6 +105,7 @@ export default function CartScreen({ navigation }) {
     },
     {
       id: 202,
+      _id: 202,
       name: 'Brown Bread',
       price: 40,
       originalPrice: 55,
@@ -146,30 +150,39 @@ export default function CartScreen({ navigation }) {
   };
 
   const toggleWishlist = (product) => {
+    console.log('Wishlist button clicked for product:', product);
     if (!product || !product.name) return;
-    if (isInWishlist(product.id)) {
-      removeFromWishlist(product.id);
+    const productId = product._id || product.id;
+    if (isInWishlist(productId)) {
+      removeFromWishlist(productId);
       Alert.alert('Removed from Wishlist', `${product.name} has been removed from your wishlist`);
     } else {
-      addToWishlist({ ...product, image: product.image.uri });
+      addToWishlist({ ...product, _id: productId, image: product.image.uri });
       Alert.alert('Added to Wishlist', `${product.name} has been added to your wishlist`);
     }
   };
 
   const isInWishlist = (id) => {
-    return wishlistItems.some((item) => item._id === id);
+    if (!id) {
+      console.warn('isInWishlist called with invalid id:', id);
+      return false;
+    }
+    console.log('Checking if in wishlist:', id, wishlistItems.map(item => item && item._id));
+    return wishlistItems.some((item) => item && item._id === id);
   };
 
   const moveToWishlist = (product) => {
     if (!product || !product.name) return;
-    if (!isInWishlist(product.id)) {
-      addToWishlist(product);
+    const productId = product._id || product.id;
+    if (!isInWishlist(productId)) {
+      addToWishlist({ ...product, _id: productId });
     }
-    removeFromCart(product.id);
+    removeFromCart(productId);
     Alert.alert('Moved to Wishlist', `${product.name} has been moved to your wishlist`);
   };
 
   const handleAddRecommended = async (product) => {
+    console.log('Add to Cart clicked for product:', product);
     if (!product || !product.name) return;
     try {
         await cartAPI.addToCart({ productId: product.id, quantity: 1 });
@@ -212,10 +225,15 @@ export default function CartScreen({ navigation }) {
       return sum;
     }, 0);
 
-  const renderRecommendedProduct = (product) => (
-    (!product || !product.name) ? null : (
+  const renderRecommendedProduct = (product) => {
+    if (!product || !product.name) {
+      console.warn('renderRecommendedProduct called with invalid product:', product);
+      return null;
+    }
+    console.log('Rendering recommended product:', product._id || product.id);
+    return (
       <View
-        key={product.id}
+        key={product._id ? `recommended-${product._id}` : `recommended-${product.id}`}
         className="bg-white rounded-2xl p-3 mr-3 shadow-sm border border-green-100"
         style={{ width: 160 }}
       >
@@ -230,8 +248,8 @@ export default function CartScreen({ navigation }) {
           >
             <Heart
               size={12}
-              color={isInWishlist(product.id) ? 'red' : '#059669'}
-              fill={isInWishlist(product.id) ? 'red' : 'none'}
+              color={isInWishlist(product._id || product.id) ? 'red' : '#059669'}
+              fill={isInWishlist(product._id || product.id) ? 'red' : 'none'}
             />
           </TouchableOpacity>
         </View>
@@ -260,8 +278,8 @@ export default function CartScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       </View>
-    )
-  );
+    );
+  };
 
   if (isLoading) {
     return (

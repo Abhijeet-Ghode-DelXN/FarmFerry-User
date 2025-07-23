@@ -31,12 +31,17 @@ const ProductDetailsScreen = ({ route, navigation }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    console.log('ProductDetailsScreen: productId param:', productId); // Debug log
     const fetchProductDetails = async () => {
       try {
         const response = await productsAPI.getProductDetails(productId);
+        console.log('ProductDetailsScreen: API response:', response); // Debug log
         setProduct(response.data.data);
       } catch (error) {
         console.error('Failed to fetch product details:', error);
+        if (error.response) {
+          console.error('Error response data:', error.response.data);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -125,11 +130,13 @@ const ProductDetailsScreen = ({ route, navigation }) => {
 
   // Debug log for nutritionalInfo
   console.log('nutritionalInfo:', product.nutritionalInfo, typeof product.nutritionalInfo, product);
+  // Debug log for images
+  console.log('product.images[0]:', product.images && product.images[0]);
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
       {/* Header */}
-      <View className="bg-white px-4 py-4 flex-row items-center justify-between border-b border-gray-200">
+      {/* <View className="bg-white px-4 py-4 flex-row items-center justify-between border-b border-gray-200">
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <ArrowLeft size={24} color="#059669" />
         </TouchableOpacity>
@@ -140,7 +147,7 @@ const ProductDetailsScreen = ({ route, navigation }) => {
             fill={isInWishlist ? '#ef4444' : 'none'}
           />
         </TouchableOpacity>
-      </View>
+      </View> */}
 
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
         {/* Product Image */}
@@ -157,7 +164,7 @@ const ProductDetailsScreen = ({ route, navigation }) => {
             }}
           >
             <Image
-              source={{ uri: product.images[0]?.url }}
+              source={{ uri: (product.images && (product.images[0]?.url || product.images[0])) ? (product.images[0]?.url || product.images[0]) : 'https://via.placeholder.com/256' }}
               className="w-64 h-64 rounded-2xl"
               resizeMode="contain"
             />
@@ -169,27 +176,27 @@ const ProductDetailsScreen = ({ route, navigation }) => {
         <View className="bg-white p-6 mt-4 rounded-t-3xl shadow-sm">
           <View className="flex-row justify-between items-start mb-2">
             <Text className="text-2xl font-bold text-gray-900">{product.name}</Text>
-            {product.discount > 0 && (
+            {product.offerPercentage > 0 && (
               <View className="bg-red-500 px-3 py-1 rounded-full">
-                <Text className="text-white text-sm font-medium">{product.discount}% OFF</Text>
+                <Text className="text-white text-sm font-medium">{product.offerPercentage}% OFF</Text>
               </View>
             )}
           </View>
 
-          <Text className="text-sm text-green-600 mb-4">by {product.supplier?.name || 'FarmFerry'}</Text>
+          <Text className="text-sm text-green-600 mb-4">by {product.supplierId?.businessName || 'FarmFerry'}</Text>
 
           <View className="flex-row items-center mb-4">
             <View className="flex-row items-center bg-amber-50 rounded-lg px-3 py-1 border border-amber-200 mr-4">
               <Star width={14} height={14} fill="#facc15" color="#facc15" />
-              <Text className="text-sm text-amber-800 ml-1">{product.averageRating.toFixed(1)} ({product.totalReviews} reviews)</Text>
+              <Text className="text-sm text-amber-800 ml-1">{typeof product.averageRating === 'number' ? product.averageRating.toFixed(1) : 'N/A'} ({product.totalReviews || 0} reviews)</Text>
             </View>
-            <Text className="text-sm text-gray-500">{product.unit}</Text>
+            <Text className="text-sm text-gray-500">{product.unit || ''}</Text>
           </View>
 
           <View className="flex-row items-center mb-6">
-            <Text className="text-2xl font-bold text-green-600">₹{product.price}</Text>
-            {product.originalPrice && (
-              <Text className="text-base text-gray-400 line-through ml-3">₹{product.originalPrice}</Text>
+            <Text className="text-2xl font-bold text-green-600">₹{product.discountedPrice ?? product.price ?? 'N/A'}</Text>
+            {product.discountedPrice && (
+              <Text className="text-base text-gray-400 line-through ml-3">₹{product.price}</Text>
             )}
           </View>
 
@@ -197,29 +204,33 @@ const ProductDetailsScreen = ({ route, navigation }) => {
           <View className="mb-8">
             <Text className="text-lg font-semibold text-gray-800 mb-3">Description</Text>
             <Text className="text-gray-600">
-              {product.description}
+              {product.description || 'No description available.'}
             </Text>
           </View>
 
-          {/* Nutritional Info */}
-          {nutritionalInfoBlock}
+          {/* Nutritional Info (show only if present) */}
+          {nutritionalInfoBlock ? nutritionalInfoBlock : (
+            <Text className="text-gray-400 italic mb-8">No nutritional information available.</Text>
+          )}
 
           {/* Farmer Info */}
-          {product.supplier && (
+          {product.supplierId ? (
             <View className="mb-8">
               <Text className="text-lg font-semibold text-gray-800 mb-3">About the Farmer</Text>
               <View className="flex-row items-center bg-green-50 p-4 rounded-lg">
                 <Image
-                  source={{ uri: product.supplier.logo?.url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop' }}
+                  source={{ uri: product.supplierId.logo?.url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop' }}
                   className="w-12 h-12 rounded-full mr-3"
                 />
                 <View>
-                  <Text className="text-gray-800 font-medium">{product.supplier.name}</Text>
-                  <Text className="text-gray-500 text-sm">{product.supplier.farmName || 'Organic Farm'}</Text>
-                  <Text className="text-green-600 text-sm">{product.supplier.address?.city || 'Maharashtra'}</Text>
+                  <Text className="text-gray-800 font-medium">{product.supplierId.businessName || 'Unknown Supplier'}</Text>
+                  <Text className="text-gray-500 text-sm">{product.supplierId.farmName || 'Organic Farm'}</Text>
+                  <Text className="text-green-600 text-sm">{product.supplierId.address?.city || 'Maharashtra'}</Text>
                 </View>
               </View>
             </View>
+          ) : (
+            <Text className="text-gray-400 italic mb-8">No farmer information available.</Text>
           )}
         </View>
       </ScrollView>
@@ -236,7 +247,7 @@ const ProductDetailsScreen = ({ route, navigation }) => {
           ) : (
             <>
               <Plus width={20} height={20} color="#fff" />
-              <Text className="text-white text-lg font-semibold ml-2">Add to Cart - ₹{product.price}</Text>
+              <Text className="text-white text-lg font-semibold ml-2">Add to Cart - ₹{product.discountedPrice ?? product.price}</Text>
             </>
           )}
         </TouchableOpacity>
