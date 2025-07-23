@@ -17,7 +17,6 @@ const Button = ({
 }) => {
   const getVariantStyles = () => {
     const baseStyles = 'rounded-lg flex-row items-center justify-center';
-    
     switch (variant) {
       case 'primary':
         return `${baseStyles} bg-green-600 ${disabled ? 'bg-gray-400' : 'active:bg-green-700'}`;
@@ -49,7 +48,6 @@ const Button = ({
 
   const getTextStyles = () => {
     const baseTextStyles = 'font-semibold text-center';
-    
     switch (variant) {
       case 'primary':
         return `${baseTextStyles} text-white ${disabled ? 'text-gray-500' : ''}`;
@@ -79,12 +77,16 @@ const Button = ({
     }
   };
 
+  // Only use string for className
   const buttonStyles = [
     getVariantStyles(),
     getSizeStyles(),
     fullWidth ? 'w-full' : '',
-    style,
+    typeof style === 'string' ? style : ''
   ].filter(Boolean).join(' ');
+
+  // Only use object/array for style
+  const rnStyle = typeof style === 'object' ? style : undefined;
 
   const textStyles = [
     getTextStyles(),
@@ -125,6 +127,7 @@ const Button = ({
   return (
     <TouchableOpacity
       className={buttonStyles}
+      style={rnStyle}
       onPress={onPress}
       disabled={disabled || loading}
       activeOpacity={0.8}

@@ -8,7 +8,7 @@ import { useUserLocation } from '../../hooks/useUserLocation';
 
 export default function AppBar({ showBack = false, title = "FarmFerry" }) {
   const navigation = useNavigation();
-  const { cartItems } = useAppContext();
+  const { cartItems, unreadNotificationCount } = useAppContext();
   const { address } = useUserLocation(); 
   return (
     <View
@@ -26,7 +26,7 @@ export default function AppBar({ showBack = false, title = "FarmFerry" }) {
         shadowRadius: 2,
         elevation: 3,
       }}
-      className="mt-7"
+      className="mt-0"
     >
       {/* Left: Logo or Back Arrow */}
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -43,29 +43,16 @@ export default function AppBar({ showBack = false, title = "FarmFerry" }) {
             <ArrowLeft size={20} color="#16a34a" />
           </TouchableOpacity>
         ) : (
-          <View
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 12,
-              backgroundColor: '#4b5563',
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginRight: 12,
-              overflow: 'hidden',
-            }}
-          >
+          <TouchableOpacity onPress={() => navigation.navigate('LogoScreen')}>
             <Image
-              source={{
-                uri: 'https://cdn.dribbble.com/userupload/13059119/file/original-b9ef38b6d36a6cdff474156872acdaaa.jpg?format=webp&resize=400x300&vertical=center',
-              }}
-              style={{ width: '100%', height: '100%' }}
+              source={require('../../../assets/images/Icon2.jpeg')}
+              style={{ width: 58, height: 58, borderRadius: 12, marginRight: 12, marginTop: 4 }}
               resizeMode="cover"
             />
-          </View>
+          </TouchableOpacity>
         )}
         <View>
-           <Text className="text-lg font-bold text-green-700">FarmFerry</Text>
+           <Text className="text-lg font-bold text-green-800 mt-4">FarmFerry</Text>
           <View className="flex-row items-center">
             <MapPin size={14} color="green" className="mr-1" />
             <Text className="text-base font-xl text-green-700">
@@ -77,7 +64,7 @@ export default function AppBar({ showBack = false, title = "FarmFerry" }) {
 
       {/* Right: Icons */}
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <View
+        <TouchableOpacity
           style={{
             width: 48,
             height: 48,
@@ -90,8 +77,9 @@ export default function AppBar({ showBack = false, title = "FarmFerry" }) {
             borderWidth: 1,
             borderColor: '#dcfce7',
           }}
+          onPress={() => navigation.navigate('NotificationsScreen')}
         >
-          {cartItems.length > 0 && (
+          {unreadNotificationCount > 0 && (
             <View
               style={{
                 position: 'absolute',
@@ -109,28 +97,12 @@ export default function AppBar({ showBack = false, title = "FarmFerry" }) {
               }}
             >
               <Text style={{ color: 'white', fontSize: 11, fontWeight: '800' }}>
-                {cartItems.length}
+                {unreadNotificationCount}
               </Text>
             </View>
           )}
           <Bell width={22} height={22} color="#16a34a" />
-        </View>
-
-        <View
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: 14,
-            backgroundColor: '#f0fdf4',
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginLeft: 12,
-            borderWidth: 1,
-            borderColor: '#dcfce7',
-          }}
-        >
-          <User width={22} height={22} color="#16a34a" />
-        </View>
+        </TouchableOpacity>
       </View>
     </View>
   );

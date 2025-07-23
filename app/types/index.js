@@ -80,6 +80,7 @@ export const SCREEN_NAMES = {
   // Order Screens
   ORDER_LIST: 'OrderList',
   ORDER_DETAILS: 'OrderDetails',
+  ADD_ADDRESS: 'AddAddress',
   
   // Profile Screens
   EDIT_PROFILE: 'EditProfile',

@@ -90,13 +90,17 @@
 
 
 // context/AppContext.js
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { notificationsAPI } from '../services/api';
 
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
   const [wishlistItems, setWishlistItems] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   const [allProducts, setAllProducts] = useState([
     {
@@ -158,19 +162,44 @@ export const AppProvider = ({ children }) => {
     // Add more products here if needed
   ]);
 
-  // Add to Cart
-  const addToCart = (item) => {
-    const existingItem = cartItems.find((i) => i.id === item.id);
-    if (existingItem) {
-      setCartItems((prevItems) =>
-        prevItems.map((i) =>
-          i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
-        )
-      );
-    } else {
-      setCartItems((prevItems) => [...prevItems, { ...item, quantity: 1 }]);
+  // Load wishlist from AsyncStorage on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const storedWishlist = await AsyncStorage.getItem('wishlist');
+        if (storedWishlist) {
+          setWishlistItems(JSON.parse(storedWishlist));
+        }
+      } catch (e) {
+        console.error('Failed to load wishlist', e);
+      }
+    })();
+  }, []);
+
+  // Save wishlist to AsyncStorage whenever it changes
+  useEffect(() => {
+    AsyncStorage.setItem('wishlist', JSON.stringify(wishlistItems));
+  }, [wishlistItems]);
+
+  // Fetch notifications from backend
+  const fetchNotifications = async () => {
+    try {
+      const response = await notificationsAPI.getNotifications();
+      const notifs = Array.isArray(response.data.data) ? response.data.data : [];
+      setNotifications(notifs);
+      setUnreadNotificationCount(notifs.filter(n => n.unread).length);
+    } catch (error) {
+      setNotifications([]);
+      setUnreadNotificationCount(0);
     }
   };
+
+  // Poll for notifications every 30 seconds
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Increase quantity
   const increaseQty = (id) => {
@@ -223,16 +252,18 @@ export const AppProvider = ({ children }) => {
       value={{
         cartItems,
         wishlistItems,
-        addToCart,
-        removeFromCart,
         increaseQty,
         decreaseQty,
+        removeFromCart,
         addToWishlist,
         removeFromWishlist,
         updateCartItems,
         updateWishlistItems,
         allProducts,
         setAllProducts,
+        notifications,
+        unreadNotificationCount,
+        fetchNotifications,
       }}
     >
       {children}

@@ -13,109 +13,78 @@ import {
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { format } from 'date-fns';
+import { customerAPI, ordersAPI, notificationsAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
+  const { user, logout, updateUser } = useAuth();
+  console.log('ProfileScreen user:', user);
+  const profileUser = user && user.customer ? user.customer : user;
   const [activeTab, setActiveTab] = useState('profile');
   const [showNotifications, setShowNotifications] = useState(false);
-  const [recentOrders, setRecentOrders] = useState([]);
   const [savedAddresses, setSavedAddresses] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [user, setUser] = useState({
-    name: 'John Doe',
-    phone: '+1 234 567 890',
-    email: 'john.doe@example.com'
-  });
-
-  // Mock API functions
-  const ordersAPI = {
-    getMyOrders: async () => ({
-      data: {
-        data: [
-          {
-            id: 'GR2401',
-            _id: '1',
-            status: 'Delivered',
-            createdAt: new Date(),
-            totalAmount: 847,
-            rating: 4,
-            items: [
-              { product: { name: 'Product 1' } },
-              { product: { name: 'Product 2' } }
-            ]
-          }
-        ]
-      }
-    })
-  };
-
-  const customerAPI = {
-    getProfile: async () => ({
-      data: {
-        data: {
-          addresses: [
-            {
-              _id: '1',
-              addressType: 'Home',
-              isDefault: true,
-              street: '123 Main St',
-              city: 'New York',
-              state: 'NY',
-              postalCode: '10001'
-            }
-          ]
-        }
-      }
-    })
-  };
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    if (activeTab === 'orders') {
-      fetchRecentOrders();
-    } else if (activeTab === 'addresses') {
+    if (activeTab === 'addresses') {
       fetchSavedAddresses();
     }
   }, [activeTab]);
 
-  const fetchRecentOrders = async () => {
-    setIsLoading(true);
-    try {
-      const response = await ordersAPI.getMyOrders({ limit: 3, sortBy: 'createdAt:desc' });
-      setRecentOrders(response.data.data);
-    } catch (error) {
-      console.error('Failed to fetch recent orders:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
 
   const fetchSavedAddresses = async () => {
     setIsLoading(true);
     try {
       const response = await customerAPI.getProfile();
-      setSavedAddresses(response.data.data.addresses);
+      setSavedAddresses(Array.isArray(response.data.data.addresses) ? response.data.data.addresses : []);
     } catch (error) {
       console.error('Failed to fetch addresses:', error);
+      setSavedAddresses([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const notifications = [
-    { id: 1, title: 'Order Delivered!', desc: 'Your order #GR2401 has been delivered', time: '5 min ago', unread: true },
-    { id: 2, title: 'New Offer Available', desc: 'Get 20% off on your next order', time: '1 hour ago', unread: true },
-    { id: 3, title: 'Payment Successful', desc: 'Payment of ₹847 completed', time: '2 hours ago', unread: false },
-  ];
+  const fetchNotifications = async () => {
+    try {
+      const response = await notificationsAPI.getNotifications();
+      setNotifications(Array.isArray(response.data.data) ? response.data.data : []);
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error);
+      setNotifications([]);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    if (activeTab === 'addresses') {
+      await fetchSavedAddresses();
+    } else if (activeTab === 'profile') {
+      try {
+        const response = await customerAPI.getProfile();
+        updateUser(response.data.data);
+      } catch (e) {
+        // Optionally show error
+      }
+    }
+    setRefreshing(false);
+  };
 
   const profileMenu = [
-    { icon: Lock, label: 'Change Password', desc: 'Update your password', color: 'red', badge: null },
-    { icon: CreditCard, label: 'Payment Methods', desc: 'Manage cards & wallets', color: 'purple', badge: null },
-    { icon: Star, label: 'Rate & Review', desc: 'Share your experience', color: 'yellow', badge: null },
-    { icon: Settings, label: 'Settings', desc: 'App preferences', color: 'indigo', badge: null },
-    { icon: Headphones, label: 'Help & Support', desc: 'Get assistance', color: 'teal', badge: null },
+    { icon: Lock, label: 'Change Password', desc: 'Update your password', color: 'red', badge: null, onPress: () => navigation.navigate('ChangePassword') },
+    { icon: Star, label: 'Rate & Review', desc: 'Share your experience', color: 'yellow', badge: null, onPress: () => navigation.navigate('RateReview') },
+    { icon: Settings, label: 'Settings', desc: 'App preferences', color: 'indigo', badge: null, onPress: () => navigation.navigate('Settings') },
+    { icon: Headphones, label: 'Help & Support', desc: 'Get assistance', color: 'teal', badge: null, onPress: () => navigation.navigate('Support') },
   ];
 
   const shadowStyle = "shadow-lg shadow-gray-600";
@@ -124,7 +93,11 @@ const ProfileScreen = () => {
     <View className="p-4 space-y-6">
       <View className="space-y-4">
         {profileMenu.map((item, i) => (
-          <TouchableOpacity key={i} className={`w-full bg-white rounded-xl p-4 mb-4 ${shadowStyle}`}>
+          <TouchableOpacity
+            key={i}
+            className={`w-full bg-white rounded-xl p-4 mb-4 ${shadowStyle}`}
+            onPress={item.onPress}
+          >
             <View className="flex flex-row items-center">
               <View className={`w-12 h-12 rounded-xl flex items-center justify-center mr-4 bg-${item.color}-100`}>
                 <item.icon
@@ -152,73 +125,10 @@ const ProfileScreen = () => {
           </TouchableOpacity>
         ))}
       </View>
-      <TouchableOpacity className={`w-full flex flex-row items-center justify-center bg-red-100 p-4 rounded-xl gap-2 ${shadowStyle}`}>
+      <TouchableOpacity onPress={logout} className={`w-full flex flex-row items-center justify-center bg-red-100 p-4 rounded-xl gap-2 ${shadowStyle}`}>
         <LogOut size={20} color="#dc2626" />
         <Text className="text-base font-medium text-red-600">Logout</Text>
       </TouchableOpacity>
-    </View>
-  );
-
-  const renderOrdersTab = () => (
-    <View className="p-4 space-y-6">
-      <View className="space-y-4">
-        {recentOrders.map((item) => (
-          <View key={item.id} className={`bg-white rounded-xl p-4 mb-4 ${shadowStyle}`}>
-            <View className="flex flex-row justify-between mb-3">
-              <View>
-                <View className="flex flex-row items-center">
-                  <Text className="text-base font-bold text-gray-900">#{item.id}</Text>
-                  <View className="bg-green-100 rounded-xl px-2 py-1 ml-2">
-                    <Text className="text-xs text-green-800 font-semibold">{item.status}</Text>
-                  </View>
-                </View>
-                <Text className="text-xs text-gray-500 mt-1">{format(new Date(item.createdAt), 'dd MMM yyyy')}</Text>
-              </View>
-              <View>
-                <Text className="text-base font-bold text-gray-900 text-right">₹{item.totalAmount.toFixed(2)}</Text>
-                <View className="flex flex-row justify-end mt-1">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      size={12}
-                      color={i < (item.rating || 0) ? '#facc15' : '#d1d5db'}
-                      fill={i < (item.rating || 0) ? '#facc15' : 'transparent'}
-                    />
-                  ))}
-                </View>
-              </View>
-            </View>
-            <View className="mb-3">
-              <View className="flex flex-row gap-4">
-                <View className="flex flex-row items-center">
-                  <Package size={14} color="#6b7280" />
-                  <Text className="text-xs text-gray-500 ml-1">{item.items.length} items</Text>
-                </View>
-              </View>
-            </View>
-            <View className="bg-gray-50 rounded-lg p-3 mb-4">
-              <Text className="text-sm text-gray-500">
-                <Text className="font-medium text-gray-900">Items: </Text>
-                {item.items.map(p => p.product.name).join(', ')}
-              </Text>
-            </View>
-            <View className="flex flex-row gap-2">
-              <TouchableOpacity className="flex-1 bg-green-600 rounded-lg p-3 items-center">
-                <Text className="text-white text-sm font-medium">Reorder</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                onPress={() => navigation.navigate('OrderDetails', { orderId: item._id })}
-                className="flex-1 bg-gray-100 rounded-lg p-3 items-center"
-              >
-                <Text className="text-gray-600 text-sm font-medium">View Details</Text>
-              </TouchableOpacity>
-              <TouchableOpacity className="bg-blue-100 rounded-lg p-3 items-center justify-center">
-                <Receipt size={16} color="#2563eb" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        ))}
-      </View>
     </View>
   );
 
@@ -238,7 +148,7 @@ const ProfileScreen = () => {
         {isLoading ? (
           <ActivityIndicator size="large" color="#16a34a" />
         ) : (
-          savedAddresses.map((item) => (
+          Array.isArray(savedAddresses) && savedAddresses.map((item) => (
             <View key={item._id} className={`bg-white rounded-xl p-4 mb-4 ${shadowStyle}`}>
               <View className="flex flex-row justify-between items-center mb-3">
                 <View className="flex flex-row items-center">
@@ -305,7 +215,7 @@ const ProfileScreen = () => {
           >
             <Bell size={20} color="#4b5563" />
             <View className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 items-center justify-center">
-              <Text className="text-white text-xs font-bold">2</Text>
+              <Text className="text-white text-xs font-bold">{Array.isArray(notifications) ? notifications.filter(n => n.unread).length : 0}</Text>
             </View>
           </TouchableOpacity>
           <TouchableOpacity className="p-2 rounded-lg">
@@ -315,26 +225,29 @@ const ProfileScreen = () => {
       </View>
 
       {/* Profile Header */}
-      {user && (
+      {profileUser && (
         <View className="p-4 bg-white">
           <View className="items-center">
             <View className="relative mb-4">
               <View className="w-16 h-16 rounded-2xl bg-green-600 items-center justify-center">
                 <User size={32} color="#ffffff" />
               </View>
-              <TouchableOpacity className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white items-center justify-center border-2 border-gray-200">
+              <TouchableOpacity 
+                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white items-center justify-center border-2 border-gray-200"
+                onPress={() => navigation.navigate('EditProfile', { user })}
+              >
                 <Edit3 size={14} color="#16a34a" />
               </TouchableOpacity>
             </View>
             <View>
-              <Text className="text-lg font-bold text-gray-900 mb-1 text-center">{user.name}</Text>
+              <Text className="text-lg font-bold text-gray-900 mb-1 text-center">{profileUser.firstName || profileUser.lastName ? `${profileUser.firstName || ''} ${profileUser.lastName || ''}`.trim() : profileUser.name}</Text>
               <View className="flex flex-row items-center mb-1 justify-center">
                 <Phone size={12} color="#4b5563" />
-                <Text className="text-xs text-gray-500 ml-2">{user.phone}</Text>
+                <Text className="text-xs text-gray-500 ml-2">{profileUser.phone}</Text>
               </View>
               <View className="flex flex-row items-center mb-1 justify-center">
                 <Mail size={12} color="#4b5563" />
-                <Text className="text-xs text-gray-500 ml-2">{user.email}</Text>
+                <Text className="text-xs text-gray-500 ml-2">{profileUser.email}</Text>
               </View>
             </View>
           </View>
@@ -345,7 +258,6 @@ const ProfileScreen = () => {
       <View className="flex flex-row bg-white border-b border-gray-200">
         {[
           { key: 'profile', label: 'Profile', icon: User },
-          { key: 'orders', label: 'My Orders', icon: ShoppingBag },
           { key: 'addresses', label: 'Addresses', icon: MapPin },
         ].map(tab => (
           <TouchableOpacity
@@ -367,9 +279,13 @@ const ProfileScreen = () => {
       </View>
 
       {/* Tab Content */}
-      <ScrollView className="flex-1 bg-white">
+      <ScrollView
+        className="flex-1 bg-white"
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      >
         {activeTab === 'profile' && renderProfileTab()}
-        {activeTab === 'orders' && renderOrdersTab()}
         {activeTab === 'addresses' && renderAddressesTab()}
       </ScrollView>
 
@@ -391,14 +307,14 @@ const ProfileScreen = () => {
           </View>
           <FlatList
             data={notifications}
-            keyExtractor={(item) => item.id.toString()}
+            keyExtractor={(item) => (item.id || item._id || Math.random().toString())}
             renderItem={({ item }) => (
               <TouchableOpacity
                 className={`p-4 border-b border-gray-100 relative ${item.unread ? 'bg-blue-50' : ''}`}
               >
                 <Text className="text-base font-medium text-gray-900">{item.title}</Text>
-                <Text className="text-sm text-gray-500 mt-1">{item.desc}</Text>
-                <Text className="text-xs text-gray-400 mt-1">{item.time}</Text>
+                <Text className="text-sm text-gray-500 mt-1">{item.desc || item.message}</Text>
+                <Text className="text-xs text-gray-400 mt-1">{item.time || ''}</Text>
                 {item.unread && (
                   <View className="absolute top-4 right-4 w-2 h-2 rounded-full bg-blue-500" />
                 )}

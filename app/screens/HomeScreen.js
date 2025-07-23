@@ -1,12 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
 import AppBar from '../components/ui/AppBar';
-import { View, Text, Image, ScrollView, TouchableOpacity, TextInput, Dimensions, FlatList } from 'react-native';
+import {
+  View,
+  Text,
+  Image,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Dimensions,
+  FlatList,
+  Alert,
+  RefreshControl
+} from 'react-native';
 import { productsAPI, categoriesAPI } from '../services/api';
 import { MapPin, Plus, Heart, Search as SearchIcon, Filter, Star, Bell, User, ChevronRight, ArrowRight, Clock, Truck, Leaf, Percent, ShoppingCart} from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { farmers } from '../components/ui/farmers';
 import { useUserLocation } from '../hooks/useUserLocation';
+import { cartAPI } from '../services/api';
 const { width } = Dimensions.get('window');
 
 const HomeScreen = ({ navigation }) => {
@@ -16,6 +28,7 @@ const HomeScreen = ({ navigation }) => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // ===== Products fetched from backend =====
   const [fetchedProducts, setFetchedProducts] = useState([]);
@@ -338,10 +351,17 @@ const HomeScreen = ({ navigation }) => {
     updateWishlistItems(newWishlist);
   };
 
-  const handleAddToCart = (product) => {
+  const handleAddToCart = async (product) => {
     const productId = product._id || product.id;
     if (!isInCart(productId)) {
-      updateCartItems([...cartItems, { ...product, quantity: 1 }]);
+      try {
+        const response = await cartAPI.addToCart({ productId, quantity: 1 });
+        updateCartItems(response.data.data.cart.items);
+        Alert.alert('Added to Cart', `${product.name} has been added to your cart`);
+      } catch (error) {
+        console.error('Failed to add to cart:', error);
+        Alert.alert('Error', 'Could not add item to cart. Please try again.');
+      }
     }
   };
 
@@ -430,7 +450,10 @@ const HomeScreen = ({ navigation }) => {
     
     return (
       <TouchableOpacity
-        onPress={() => navigation.navigate('ProductDetails', { productId })}
+        onPress={() => {
+          console.log(item);
+          navigation.navigate('ProductDetails', { product: item });
+        }}
         activeOpacity={0.9}
       >
         <View className="flex-1 bg-white rounded-3xl overflow-hidden m-1 min-w-[48%] shadow-lg border border-gray-100">
@@ -525,6 +548,28 @@ const HomeScreen = ({ navigation }) => {
     );
   };
 
+  const fetchAllData = async () => {
+    setLoadingProducts(true);
+    setLoadingCategories(true);
+    try {
+      await Promise.all([
+        productsAPI.getProducts(),
+        categoriesAPI.getCategories(),
+      ]);
+    } catch (err) {
+      console.error('Failed to fetch data:', err?.response?.data || err.message);
+    } finally {
+      setLoadingProducts(false);
+      setLoadingCategories(false);
+      setRefreshing(false);
+    }
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchAllData();
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: '#f9fafb' }}>
       {/* Header */}
@@ -549,9 +594,11 @@ const HomeScreen = ({ navigation }) => {
       {/* Main Content */}
       <ScrollView
         ref={scrollViewRef}
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
+        className="flex-1"
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={["#059669"]} />
+        }
       >
         {/* Categories */}
         <View style={{ paddingHorizontal: 16, marginBottom: 24 }}>

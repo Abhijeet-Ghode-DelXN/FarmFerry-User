@@ -9,6 +9,7 @@ import {
   Animated,
   StatusBar,
   Alert,
+  RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -22,15 +23,17 @@ import {
   ArrowLeft,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { cartAPI } from '../services/api';
 import { useAppContext } from '../context/AppContext';
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = (width - 36) / 2;
 
 export default function WishlistScreen() {
-  const { wishlistItems, addToCart, removeFromWishlist } = useAppContext();
+  const { wishlistItems, removeFromWishlist, updateCartItems, cartItems } = useAppContext();
   const navigation = useNavigation();
   const [animatedValues] = useState(new Map());
+  const [refreshing, setRefreshing] = useState(false);
 
   const getAnimatedValue = (id) => {
     if (!animatedValues.has(id)) {
@@ -39,7 +42,7 @@ export default function WishlistScreen() {
     return animatedValues.get(id);
   };
 
-  const handleAddToCart = (item) => {
+  const handleAddToCart = async (item) => {
     const animatedValue = getAnimatedValue(item.id);
     Animated.sequence([
       Animated.timing(animatedValue, {
@@ -53,7 +56,14 @@ export default function WishlistScreen() {
         useNativeDriver: true,
       }),
     ]).start();
-    addToCart(item);
+    try {
+      const response = await cartAPI.addToCart({ productId: item._id || item.id, quantity: 1 });
+      updateCartItems(response.data.data.cart.items);
+      Alert.alert('Added to Cart', `${item.name} has been added to your cart`);
+    } catch (error) {
+      console.error('Failed to add to cart:', error);
+      Alert.alert('Error', 'Could not add item to cart. Please try again.');
+    }
   };
 
   const handleRemoveFromWishlist = (item) => {
@@ -246,6 +256,23 @@ export default function WishlistScreen() {
     </View>
   );
 
+  const fetchWishlist = async () => {
+    setRefreshing(true);
+    try {
+      // TODO: Replace with actual API call if available
+      // const response = await wishlistAPI.getWishlist();
+      // updateWishlistItems(response.data.data.wishlist.items);
+    } catch (error) {
+      console.error('Failed to fetch wishlist:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleRefresh = () => {
+    fetchWishlist();
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
       <StatusBar barStyle="dark-content" backgroundColor="white" />
@@ -268,19 +295,19 @@ export default function WishlistScreen() {
 
       {/* Wishlist Items */}
       <View className="flex-1 px-4">
-        {wishlistItems.length > 0 ? (
-          <FlatList
-            data={wishlistItems}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={renderItem}
-            numColumns={2}
-            columnWrapperStyle={{ justifyContent: 'space-between' }}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingTop: 16, paddingBottom: 100 }}
-          />
-        ) : (
-          renderEmpty()
-        )}
+        <FlatList
+          data={wishlistItems}
+          keyExtractor={(item) => item._id || item.id}
+          renderItem={renderItem}
+          numColumns={2}
+          columnWrapperStyle={{ justifyContent: 'space-between' }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingTop: 16, paddingBottom: 100 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={["#059669"]} />
+          }
+          ListEmptyComponent={renderEmpty}
+        />
       </View>
     </SafeAreaView>
   );

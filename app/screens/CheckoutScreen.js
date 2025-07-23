@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, Alert, ActivityIndicator } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { ArrowLeft, MapPin, CreditCard, CheckCircle } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { customerAPI, ordersAPI } from '../services/api';
+import { SCREEN_NAMES } from '../types';
 
 const CheckoutScreen = ({ route }) => {
   const navigation = useNavigation();
   const { items, subtotal, shipping, total, savings } = route.params;
-  const { user } = useAppContext();
+  const { updateCartItems } = useAppContext();
+  const { user } = useAuth();
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('COD');
@@ -16,23 +20,32 @@ const CheckoutScreen = ({ route }) => {
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
   useEffect(() => {
-    const fetchAddresses = async () => {
-      setIsLoading(true);
-      try {
-        const response = await customerAPI.getProfile();
-        setAddresses(response.data.data.addresses);
-        if (response.data.data.addresses.length > 0) {
-          setSelectedAddress(response.data.data.addresses[0]._id);
-        }
-      } catch (error) {
-        console.error('Failed to fetch addresses:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchAddresses();
   }, []);
+
+  // Re-fetch addresses when screen is focused (e.g., after adding new address)
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchAddresses();
+    }, [])
+  );
+
+  // Move fetchAddresses outside useEffect for reuse
+  const fetchAddresses = async () => {
+    setIsLoading(true);
+    try {
+      const response = await customerAPI.getProfile();
+      const addresses = response?.data?.data?.addresses;
+      setAddresses(Array.isArray(addresses) ? addresses : []);
+      if (Array.isArray(addresses) && addresses.length > 0) {
+        setSelectedAddress(addresses[0]._id);
+      }
+    } catch (error) {
+      console.error('Failed to fetch addresses:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handlePlaceOrder = async () => {
     if (!selectedAddress) {
@@ -42,10 +55,17 @@ const CheckoutScreen = ({ route }) => {
 
     setIsPlacingOrder(true);
     try {
+      // Send cart items as part of the order if backend expects it
       await ordersAPI.createOrder({
         shippingAddress: selectedAddress,
         paymentMethod,
+        items: items.map(item => ({
+          product: item.product?._id || item.product?.id || item.product,
+          quantity: item.quantity,
+        })),
       });
+      // Clear the cart after successful order
+      updateCartItems([]);
       Alert.alert('Success', 'Your order has been placed successfully!', [
         { text: 'OK', onPress: () => navigation.navigate('Orders') },
       ]);
@@ -80,7 +100,7 @@ const CheckoutScreen = ({ route }) => {
         {/* Shipping Address */}
         <View className="bg-white rounded-2xl p-4 mb-4">
           <Text className="text-lg font-semibold mb-2">Shipping Address</Text>
-          {addresses.map((address) => (
+          {(Array.isArray(addresses) ? addresses : []).map((address) => (
             <TouchableOpacity
               key={address._id}
               className={`border p-4 rounded-lg mb-2 ${
@@ -89,7 +109,7 @@ const CheckoutScreen = ({ route }) => {
               onPress={() => setSelectedAddress(address._id)}
             >
               <View className="flex-row justify-between">
-                <Text className="font-semibold">{user.name}</Text>
+                <Text className="font-semibold">{user ? user.name : ''}</Text>
                 {selectedAddress === address._id && <CheckCircle size={20} color="#059669" />}
               </View>
               <Text>{address.street}, {address.city}</Text>
@@ -98,7 +118,7 @@ const CheckoutScreen = ({ route }) => {
             </TouchableOpacity>
           ))}
           <TouchableOpacity
-            onPress={() => navigation.navigate('AddAddress')}
+            onPress={() => navigation.navigate(SCREEN_NAMES.ADD_ADDRESS)}
             className="mt-2"
           >
             <Text className="text-green-600 font-semibold">Add New Address</Text>
@@ -152,11 +172,17 @@ const CheckoutScreen = ({ route }) => {
         <TouchableOpacity
           onPress={handlePlaceOrder}
           disabled={isPlacingOrder}
-          className="bg-green-500 py-4 rounded-2xl items-center"
+          style={{ borderRadius: 12, overflow: 'hidden' }}
         >
-          <Text className="text-white text-lg font-semibold">
-            {isPlacingOrder ? 'Placing Order...' : `Place Order - ₹${total.toFixed(2)}`}
-          </Text>
+          <LinearGradient
+            colors={["#10b981", "#059669"]}
+            className="py-4 flex-row items-center justify-center rounded-xl"
+          >
+            <CheckCircle width={18} height={18} color="#fff" />
+            <Text className="text-white font-semibold text-sm ml-1.5">
+              {isPlacingOrder ? 'Placing Order...' : `Place Order - ₹${total.toFixed(2)}`}
+            </Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

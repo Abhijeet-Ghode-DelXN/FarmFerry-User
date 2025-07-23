@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Image, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
 import { ArrowLeft, Plus, Minus, Heart, Star, Share2, ChevronRight } from 'lucide-react-native';
 import { useAppContext } from '../context/AppContext';
-import { productsAPI, cartAPI } from '../services/api';
 import { LinearGradient } from 'expo-linear-gradient';
+import { cartAPI } from '../services/api';
 
 // Helper to safely get entries from an object
 function safeObjectEntries(obj) {
@@ -25,38 +25,9 @@ function safeObjectEntries(obj) {
 }
 
 const ProductDetailsScreen = ({ route, navigation }) => {
-  const { productId } = route.params;
+  const { product } = route.params;
   const { cartItems, wishlistItems, updateCartItems, updateWishlistItems } = useAppContext();
-  const [product, setProduct] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    console.log('ProductDetailsScreen: productId param:', productId); // Debug log
-    const fetchProductDetails = async () => {
-      try {
-        const response = await productsAPI.getProductDetails(productId);
-        console.log('ProductDetailsScreen: API response:', response); // Debug log
-        setProduct(response.data.data);
-      } catch (error) {
-        console.error('Failed to fetch product details:', error);
-        if (error.response) {
-          console.error('Error response data:', error.response.data);
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchProductDetails();
-  }, [productId]);
-
-  if (isLoading) {
-    return (
-      <View className="flex-1 justify-center items-center">
-        <ActivityIndicator size="large" color="#059669" />
-      </View>
-    );
-  }
+  const [isLoading, setIsLoading] = useState(false);
 
   if (!product) {
     return (
@@ -66,12 +37,12 @@ const ProductDetailsScreen = ({ route, navigation }) => {
     );
   }
 
-  const isInWishlist = wishlistItems.some(item => item._id === product._id);
-  const isInCart = cartItems.some(item => item.product._id === product._id);
+  const isInWishlist = wishlistItems.some(item => item._id === product._id || item.id === product.id);
+  const isInCart = cartItems.some(item => (item.product?._id || item._id || item.id) === (product._id || product.id));
 
   const toggleWishlist = () => {
     const newWishlist = isInWishlist
-      ? wishlistItems.filter(item => item._id !== product._id)
+      ? wishlistItems.filter(item => (item._id !== product._id && item.id !== product.id))
       : [...wishlistItems, product];
     updateWishlistItems(newWishlist);
   };
@@ -79,77 +50,51 @@ const ProductDetailsScreen = ({ route, navigation }) => {
   const handleAddToCart = async () => {
     if (!isInCart) {
       try {
-        const response = await cartAPI.addToCart({ productId: product._id, quantity: 1 });
-        updateCartItems(response.data.data.items);
+        const response = await cartAPI.addToCart({ productId: product._id || product.id, quantity: 1 });
+        updateCartItems(response.data.data.cart.items);
+        Alert.alert('Added to Cart', `${product.name} has been added to your cart`);
       } catch (error) {
         console.error('Failed to add to cart:', error);
+        Alert.alert('Error', 'Could not add item to cart. Please try again.');
       }
     }
   };
 
   const handleBuyNow = async () => {
     if (!isInCart) {
-      try {
-        const response = await cartAPI.addToCart({ productId: product._id, quantity: 1 });
-        updateCartItems(response.data.data.items);
-        navigation.navigate('Checkout', { 
-          items: response.data.data.items
-        });
-      } catch (error) {
-        console.error('Failed to add to cart and buy now:', error);
-      }
+      updateCartItems([...cartItems, { ...product, quantity: 1 }]);
+      navigation.navigate('Checkout', {
+        items: [...cartItems, { ...product, quantity: 1 }]
+      });
     } else {
-      navigation.navigate('Checkout', { 
+      navigation.navigate('Checkout', {
         items: cartItems
       });
     }
   };
 
-  // Defensive: always use try/catch for nutritional info block
-  let nutritionalInfoBlock = null;
-  try {
-    const nutritionalInfoEntries = safeObjectEntries(product.nutritionalInfo);
-    if (nutritionalInfoEntries.length > 0) {
-      nutritionalInfoBlock = (
-        <View className="mb-8">
-          <Text className="text-lg font-semibold text-gray-800 mb-3">Nutritional Information</Text>
-          <View className="bg-gray-50 p-4 rounded-lg">
-            {nutritionalInfoEntries.map(([key, value]) => (
-              <View key={key} className="flex-row justify-between py-2 border-b border-gray-200">
-                <Text className="text-gray-600 capitalize">{key.replace(/([A-Z])/g, ' $1')}</Text>
-                <Text className="text-gray-800 font-medium">{value}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      );
-    }
-  } catch (e) {
-    nutritionalInfoBlock = null;
-  }
-
-  // Debug log for nutritionalInfo
-  console.log('nutritionalInfo:', product.nutritionalInfo, typeof product.nutritionalInfo, product);
-  // Debug log for images
-  console.log('product.images[0]:', product.images && product.images[0]);
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
-      {/* Header */}
-      {/* <View className="bg-white px-4 py-4 flex-row items-center justify-between border-b border-gray-200">
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <ArrowLeft size={24} color="#059669" />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={toggleWishlist}>
-          <Heart
-            size={24}
-            color={isInWishlist ? '#ef4444' : '#9ca3af'}
-            fill={isInWishlist ? '#ef4444' : 'none'}
-          />
-        </TouchableOpacity>
-      </View> */}
-
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+        {/* Header with back button */}
+        {/* <View className="px-4 pt-4 flex-row items-center">
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <ArrowLeft size={24} color="#4b5563" />
+          </TouchableOpacity>
+          <Text className="text-lg font-semibold text-gray-700 ml-4">Product Details</Text>
+        </View> */}
+
         {/* Product Image */}
         <View className="w-full bg-gray-50 items-center justify-center py-6">
           <View
@@ -164,92 +109,150 @@ const ProductDetailsScreen = ({ route, navigation }) => {
             }}
           >
             <Image
-              source={{ uri: (product.images && (product.images[0]?.url || product.images[0])) ? (product.images[0]?.url || product.images[0]) : 'https://via.placeholder.com/256' }}
+              source={{ uri: product.image || 'https://via.placeholder.com/256' }}
               className="w-64 h-64 rounded-2xl"
               resizeMode="contain"
             />
           </View>
         </View>
 
-
         {/* Product Info */}
         <View className="bg-white p-6 mt-4 rounded-t-3xl shadow-sm">
           <View className="flex-row justify-between items-start mb-2">
             <Text className="text-2xl font-bold text-gray-900">{product.name}</Text>
-            {product.offerPercentage > 0 && (
-              <View className="bg-red-500 px-3 py-1 rounded-full">
-                <Text className="text-white text-sm font-medium">{product.offerPercentage}% OFF</Text>
-              </View>
-            )}
+            <View className="flex-row">
+              {product.discount > 0 && (
+                <View className="bg-red-500 px-3 py-1 rounded-full ml-2">
+                  <Text className="text-white text-sm font-medium">{product.discount}% OFF</Text>
+                </View>
+              )}
+              <TouchableOpacity onPress={toggleWishlist} className="ml-2">
+                <Heart
+                  size={24}
+                  color={isInWishlist ? '#ef4444' : '#9ca3af'}
+                  fill={isInWishlist ? '#ef4444' : 'transparent'}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
 
-          <Text className="text-sm text-green-600 mb-4">by {product.supplierId?.businessName || 'FarmFerry'}</Text>
+          <Text className="text-sm text-green-600 mb-4">by {product.farmer || product.supplierId?.businessName || 'FarmFerry'}</Text>
 
-          <View className="flex-row items-center mb-4">
+          <View className="items-start mb-4 flex flex-col">
+            <Text className="text-sm text-gray-500 ml-1 mb-2">Available: {product.stockQuantity} {product.unit}</Text>
             <View className="flex-row items-center bg-amber-50 rounded-lg px-3 py-1 border border-amber-200 mr-4">
               <Star width={14} height={14} fill="#facc15" color="#facc15" />
-              <Text className="text-sm text-amber-800 ml-1">{typeof product.averageRating === 'number' ? product.averageRating.toFixed(1) : 'N/A'} ({product.totalReviews || 0} reviews)</Text>
+              <Text className="text-sm text-amber-800">
+                {product.averageRating?.toFixed(1) || product.rating?.toFixed(1) || '0.0'}
+                ({product.totalReviews || product.reviews || 0} reviews)
+              </Text>
             </View>
-            <Text className="text-sm text-gray-500">{product.unit || ''}</Text>
+            {/* <Text className="text-sm text-gray-500">Available: {product.stockQuantity} {product.unit}</Text> */}
           </View>
 
           <View className="flex-row items-center mb-6">
-            <Text className="text-2xl font-bold text-green-600">₹{product.discountedPrice ?? product.price ?? 'N/A'}</Text>
-            {product.discountedPrice && (
-              <Text className="text-base text-gray-400 line-through ml-3">₹{product.price}</Text>
+            <Text className="text-2xl font-bold text-green-600">₹{product.discountedPrice || product.price}</Text>
+            {product.discountedPrice && product.originalPrice && (
+              <Text className="text-base text-gray-400 line-through ml-3">₹{product.originalPrice}</Text>
             )}
           </View>
 
           {/* Product Description */}
-          <View className="mb-8">
+          <View className="mb-6">
             <Text className="text-lg font-semibold text-gray-800 mb-3">Description</Text>
             <Text className="text-gray-600">
               {product.description || 'No description available.'}
             </Text>
           </View>
 
-          {/* Nutritional Info (show only if present) */}
-          {nutritionalInfoBlock ? nutritionalInfoBlock : (
-            <Text className="text-gray-400 italic mb-8">No nutritional information available.</Text>
-          )}
-
-          {/* Farmer Info */}
-          {product.supplierId ? (
-            <View className="mb-8">
-              <Text className="text-lg font-semibold text-gray-800 mb-3">About the Farmer</Text>
-              <View className="flex-row items-center bg-green-50 p-4 rounded-lg">
-                <Image
-                  source={{ uri: product.supplierId.logo?.url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop' }}
-                  className="w-12 h-12 rounded-full mr-3"
-                />
-                <View>
-                  <Text className="text-gray-800 font-medium">{product.supplierId.businessName || 'Unknown Supplier'}</Text>
-                  <Text className="text-gray-500 text-sm">{product.supplierId.farmName || 'Organic Farm'}</Text>
-                  <Text className="text-green-600 text-sm">{product.supplierId.address?.city || 'Maharashtra'}</Text>
-                </View>
+          {/* Product Details */}
+          <View className="mb-6">
+            <Text className="text-lg font-semibold text-gray-800 mb-3">Product Details</Text>
+            <View className="bg-gray-50 p-4 rounded-lg">
+              <View className="flex-row justify-between py-2 border-b border-gray-200">
+                <Text className="text-gray-600">Category</Text>
+                <Text className="text-gray-800 font-medium">{product.category || product.categoryId?.name || 'N/A'}</Text>
+              </View>
+              <View className="flex-row justify-between py-2 border-b border-gray-200">
+                <Text className="text-gray-600">Manufacture Date</Text>
+                <Text className="text-gray-800 font-medium">{formatDate(product.manufactureDate)}</Text>
+              </View>
+              <View className="flex-row justify-between py-2">
+                <Text className="text-gray-600">Expiry Date</Text>
+                <Text className="text-gray-800 font-medium">{formatDate(product.expiryDate)}</Text>
               </View>
             </View>
-          ) : (
-            <Text className="text-gray-400 italic mb-8">No farmer information available.</Text>
-          )}
+          </View>
+
+          {/* Farmer Info */}
+          <View className="mb-8">
+            <Text className="text-lg font-semibold text-gray-800 mb-3">About the Farmer</Text>
+            <View className="flex-row items-center bg-green-50 p-4 rounded-lg">
+              <Image
+                source={{ uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop' }}
+                className="w-12 h-12 rounded-full mr-3"
+              />
+              <View>
+                <Text className="text-gray-800 font-medium">{product.farmer || product.supplierId?.businessName || 'Unknown Farmer'}</Text>
+                <Text className="text-gray-500 text-sm">Organic Farm</Text>
+                <Text className="text-green-600 text-sm">Verified Supplier</Text>
+              </View>
+            </View>
+          </View>
         </View>
       </ScrollView>
 
-      {/* Add to Cart Button */}
-      <View className="bg-white border-t border-gray-200 p-4">
+      {/* Action Buttons */}
+      <View className="bg-white border-t border-gray-200 p-4 flex-row">
         <TouchableOpacity
-          className={`flex-row justify-center items-center rounded-xl py-4 shadow-sm ${isInCart ? 'bg-gray-200' : 'bg-green-500'}`}
+          className={`flex-1 justify-center items-center rounded-xl ml-0 shadow-sm ${isInCart ? '' : ''}`}
           onPress={handleAddToCart}
           disabled={isInCart}
+          style={{ overflow: 'hidden', height: 44 }}
         >
           {isInCart ? (
             <Text className="text-gray-600 text-lg font-semibold">Added to Cart</Text>
           ) : (
-            <>
+            <LinearGradient
+              colors={["#10b981", "#059669"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{
+                flex: 1,
+                width: '100%',
+                height: '100%',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 12,
+                flexDirection: 'row',
+              }}
+            >
               <Plus width={20} height={20} color="#fff" />
-              <Text className="text-white text-lg font-semibold ml-2">Add to Cart - ₹{product.discountedPrice ?? product.price}</Text>
-            </>
+              <Text className="text-white text-lg font-semibold ml-2">Add to Cart</Text>
+            </LinearGradient>
           )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          className="flex-1 justify-center items-center rounded-xl ml-4 shadow-sm"
+          onPress={handleBuyNow}
+          style={{ overflow: 'hidden', height: 44 }}
+        >
+          <LinearGradient
+            colors={["#10b981", "#059669"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={{
+              flex: 1,
+              width: '100%',
+              height: '100%',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 12,
+              flexDirection: 'row',
+            }}
+          >
+            <Text className="text-white text-lg font-semibold">Buy Now</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

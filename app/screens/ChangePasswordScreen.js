@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { authAPI } from '../services/api';
 
 export default function ChangePasswordScreen({ navigation }) {
   const [oldPassword, setOldPassword] = useState('');
@@ -9,25 +10,26 @@ export default function ChangePasswordScreen({ navigation }) {
   const [isLoading, setIsLoading] = useState(false);
   const [secure, setSecure] = useState(true);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!oldPassword || !newPassword || !confirmPassword) {
       Alert.alert('Missing Fields', 'Please fill out all fields.');
       return;
     }
-
     if (newPassword !== confirmPassword) {
       Alert.alert('Mismatch', 'New passwords do not match.');
       return;
     }
-
     setIsLoading(true);
-
-    // Simulate API delay
-    setTimeout(() => {
+    try {
+      await authAPI.changePassword(oldPassword, newPassword);
       setIsLoading(false);
-      Alert.alert('Success', 'Password changed successfully!');
-      navigation.goBack();
-    }, 1000);
+      Alert.alert('Success', 'Password changed successfully!', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+    } catch (error) {
+      setIsLoading(false);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to change password.');
+    }
   };
 
   return (

@@ -1,6 +1,6 @@
 export const CONFIG = {
   // API_BASE_URL: 'https://farmferry-backend-revised.onrender.com/api/v1',
-  API_BASE_URL: 'http://192.168.0.110:9000/api/v1', // For web development
+  API_BASE_URL: 'http://10.50.212.32:9000/api/v1', // For web development
   // API_BASE_URL: 'https://your-production-api.com/api/v1', // For production
   
   // API Endpoints
@@ -32,9 +32,9 @@ export const CONFIG = {
     },
     CART: {
       GET: '/cart',
-      ADD: '/cart/item',
-      UPDATE: '/cart/item',
-      REMOVE: '/cart/item',
+      ADD: '/cart/items',
+      UPDATE: '/cart/items',
+      REMOVE: '/cart/items',
     },
     CATEGORIES: {
       LIST: '/categories',

@@ -16,13 +16,21 @@ import ProductStackNavigator from './ProductsStackNavigator';
 
 // Extra Feature Screens (Add/Edit/Profile)
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
 import DeleteAddressScreen from '../screens/DeleteAddressScreen';
 import SettingScreen from '../screens/SettingScreen';
+import PaymentMethodsScreen from '../screens/PaymentMethodsScreen';
+import RateReviewScreen from '../screens/RateReviewScreen';
+import SettingsScreen from '../screens/SettingsScreen';
+import SupportScreen from '../screens/SupportScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import LogoScreen from '../screens/LogoScreen';
 
 // Loading Screen
 import LoadingScreen from '../screens/LoadingScreen';
 import ProductDetailsScreen from '../screens/ProductDetailsScreen';
 import CheckoutScreen from '../screens/CheckoutScreen';
+import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import AddAddressScreen from '../screens/AddAddressScreen';
 
 const Stack = createStackNavigator();
@@ -70,6 +78,11 @@ const AppStack = () => (
       options={{ headerShown: false }}
     />
     <Stack.Screen
+      name="OrderDetails"
+      component={OrderDetailsScreen}
+      options={{ headerShown: true, title: 'Order Details' }}
+    />
+    <Stack.Screen
       name="DeleteAddress"
       component={DeleteAddressScreen}
       options={{ headerShown: true, title: 'Delete Address' }}
@@ -78,6 +91,56 @@ const AppStack = () => (
       name={SCREEN_NAMES.PRODUCT_DETAILS}
       component={ProductDetailsScreen}
       options={{ headerShown: true }}
+    />
+    <Stack.Screen
+      name="Checkout"
+      component={CheckoutScreen}
+      options={{ headerShown: true, title: 'Checkout' }}
+    />
+    <Stack.Screen
+      name={SCREEN_NAMES.ADD_ADDRESS}
+      component={AddAddressScreen}
+      options={{ headerShown: true, title: 'Add Address' }}
+    />
+    <Stack.Screen
+      name={SCREEN_NAMES.EDIT_PROFILE}
+      component={EditProfileScreen}
+      options={{ headerShown: true, title: 'Edit Profile' }}
+    />
+    <Stack.Screen
+      name="ChangePassword"
+      component={ChangePasswordScreen}
+      options={{ headerShown: true, title: 'Change Password' }}
+    />
+    <Stack.Screen
+      name="PaymentMethods"
+      component={PaymentMethodsScreen}
+      options={{ headerShown: true, title: 'Payment Methods' }}
+    />
+    <Stack.Screen
+      name="RateReview"
+      component={RateReviewScreen}
+      options={{ headerShown: true, title: 'Rate & Review' }}
+    />
+    <Stack.Screen
+      name="Settings"
+      component={SettingsScreen}
+      options={{ headerShown: true, title: 'Settings' }}
+    />
+    <Stack.Screen
+      name="Support"
+      component={SupportScreen}
+      options={{ headerShown: true, title: 'Help & Support' }}
+    />
+    <Stack.Screen
+      name="NotificationsScreen"
+      component={NotificationsScreen}
+      options={{ headerShown: true, title: 'Notifications' }}
+    />
+    <Stack.Screen
+      name="LogoScreen"
+      component={LogoScreen}
+      options={{ headerShown: false }}
     />
   </Stack.Navigator>
 );

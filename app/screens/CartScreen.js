@@ -12,7 +12,8 @@ import {
   StatusBar,
   Alert,
   ActivityIndicator,
-  length
+  length,
+  RefreshControl
 } from 'react-native';
 import {
   Minus,
@@ -37,113 +38,67 @@ export default function CartScreen({ navigation }) {
     removeFromWishlist,
   } = useAppContext();
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Defensive fallback: ensure cartItems is always an array
   const safeCartItems = Array.isArray(cartItems) ? cartItems : [];
   console.log('CartScreen cartItems:', cartItems);
 
-  useEffect(() => {
-    const fetchCart = async () => {
-      try {
-        const response = await cartAPI.getCart();
-        updateCartItems(response.data.data.items);
-      } catch (error) {
-        console.error('Failed to fetch cart:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const fetchCart = async () => {
+    try {
+      const response = await cartAPI.getCart();
+      updateCartItems(response.data.data.cart.items);
+    } catch (error) {
+      console.error('Failed to fetch cart:', error);
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+    }
+  };
 
+  useEffect(() => {
     fetchCart();
   }, []);
 
-  const recommendedProducts = [
-    {
-      id: 101,
-      _id: 101, // Ensure unique _id for consistency
-      name: 'Organic Bananas',
-      price: 35,
-      originalPrice: 45,
-      weight: '1 kg',
-      image: {
-        uri: 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=200&h=200&fit=crop',
-      },
-      discount: '22%',
-      rating: 4.3,
-      deliveryTime: '30 min',
-    },
-    {
-      id: 102,
-      _id: 102,
-      name: 'Cherry Tomatoes',
-      price: 60,
-      originalPrice: 80,
-      weight: '500 g',
-      image: {
-        uri: 'https://images.unsplash.com/photo-1582515073490-39981397c445?w=200&h=200&fit=crop',
-      },
-      discount: '25%',
-      rating: 4.5,
-      deliveryTime: '25 min',
-    },
-  ];
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchCart();
+  };
 
-  const frequentlyBoughtProducts = [
-    {
-      id: 201,
-      _id: 201,
-      name: 'Fresh Milk',
-      price: 50,
-      originalPrice: 60,
-      weight: '1 L',
-      image: {
-        uri: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=200&h=200&fit=crop',
-      },
-      discount: '17%',
-      rating: 4.2,
-      deliveryTime: '20 min',
-    },
-    {
-      id: 202,
-      _id: 202,
-      name: 'Brown Bread',
-      price: 40,
-      originalPrice: 55,
-      weight: '400 g',
-      image: {
-        uri: 'https://images.unsplash.com/photo-1604908554165-910cf4b84076?w=200&h=200&fit=crop',
-      },
-      discount: '27%',
-      rating: 4.6,
-      deliveryTime: '15 min',
-    },
-  ];
+  // Remove hardcoded recommended and frequently bought products
+  // const recommendedProducts = [...];
+  // const frequentlyBoughtProducts = [...];
 
-  const handleUpdateQuantity = async (productId, quantity) => {
+  // Remove handlers related to recommended/frequently bought products
+  // const handleAddRecommended = ...
+  // const handleViewAllRecommended = ...
+  // const handleViewAllFrequentlyBought = ...
+
+  const handleUpdateQuantity = async (cartItemId, quantity) => {
     try {
-      const response = await cartAPI.updateCartItem(productId, quantity);
-      updateCartItems(response.data.data.items);
+      const response = await cartAPI.updateCartItem(cartItemId, quantity);
+      updateCartItems(response.data.data.cart.items);
     } catch (error) {
       console.error('Failed to update quantity:', error);
     }
   };
 
   const increaseQty = (item) => {
-    handleUpdateQuantity(item.id, item.quantity + 1);
+    handleUpdateQuantity(item._id, item.quantity + 1);
   };
 
   const decreaseQty = (item) => {
     if (item.quantity > 1) {
-      handleUpdateQuantity(item.id, item.quantity - 1);
+      handleUpdateQuantity(item._id, item.quantity - 1);
     } else {
-      removeFromCart(item.id);
+      removeFromCart(item._id);
     }
   };
 
-  const removeFromCart = async (productId) => {
+  const removeFromCart = async (cartItemId) => {
     try {
-      const response = await cartAPI.removeCartItem(productId);
-      updateCartItems(response.data.data.items);
+      const response = await cartAPI.removeCartItem(cartItemId);
+      updateCartItems(response.data.data.cart.items);
     } catch (error) {
       console.error('Failed to remove from cart:', error);
     }
@@ -177,109 +132,34 @@ export default function CartScreen({ navigation }) {
     if (!isInWishlist(productId)) {
       addToWishlist({ ...product, _id: productId });
     }
-    removeFromCart(productId);
+    removeFromCart(product._id);
     Alert.alert('Moved to Wishlist', `${product.name} has been moved to your wishlist`);
-  };
-
-  const handleAddRecommended = async (product) => {
-    console.log('Add to Cart clicked for product:', product);
-    if (!product || !product.name) return;
-    try {
-        await cartAPI.addToCart({ productId: product.id, quantity: 1 });
-        const response = await cartAPI.getCart();
-        updateCartItems(response.data.data.items);
-        Alert.alert('Added to Cart', `${product.name} has been added to your cart`);
-    } catch (error) {
-        console.error('Failed to add recommended product to cart:', error);
-        Alert.alert('Error', 'Could not add item to cart.');
-    }
   };
 
   const handlePromoCode = () => navigation.navigate('PromoCode');
 
-  const handleViewAllRecommended = () => {
-    navigation.navigate('RecommendedProducts', {
-      products: recommendedProducts,
-      title: 'Fresh Picks for You',
-    });
-  };
+  const handleChangeAddress = () => navigation.navigate('SetDefaultAddress');
 
-  const handleViewAllFrequentlyBought = () => {
-    navigation.navigate('RecommendedProducts', {
-      products: frequentlyBoughtProducts,
-      title: 'Frequently Bought Together',
-    });
-  };
+  // GST rate (5%)
+  const GST_RATE = 0.05;
 
-  const handleChangeAddress = () => navigation.navigate('SelectAddress');
-
+  // Updated calculation helpers
   const getSubtotal = () =>
     safeCartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const getShipping = () => 4.0;
-  const getTotal = () => getSubtotal() + getShipping();
-  const getSavings = () =>
+  const getTotalDiscount = () =>
     safeCartItems.reduce((sum, item) => {
       if (item.originalPrice) {
         return sum + (item.originalPrice - item.price) * item.quantity;
       }
       return sum;
     }, 0);
+  const getTotalGST = () =>
+    safeCartItems.reduce((sum, item) => sum + (item.price * GST_RATE) * item.quantity, 0);
+  const getShipping = () => 4.0;
+  const getGrandTotal = () => getSubtotal() + getTotalGST() + getShipping();
 
-  const renderRecommendedProduct = (product) => {
-    if (!product || !product.name) {
-      console.warn('renderRecommendedProduct called with invalid product:', product);
-      return null;
-    }
-    console.log('Rendering recommended product:', product._id || product.id);
-    return (
-      <View
-        key={product._id ? `recommended-${product._id}` : `recommended-${product.id}`}
-        className="bg-white rounded-2xl p-3 mr-3 shadow-sm border border-green-100"
-        style={{ width: 160 }}
-      >
-        <View className="relative w-full h-24 bg-green-50 rounded-xl mb-3 overflow-hidden">
-          <Image source={{ uri: product.image.uri }} className="w-full h-full" resizeMode="cover" />
-          <View className="absolute top-1 left-1 bg-green-500 px-2 py-1 rounded-full">
-            <Text className="text-white text-xs font-medium">{product.discount}</Text>
-          </View>
-          <TouchableOpacity
-            className="absolute top-1 right-1 w-6 h-6 bg-white rounded-full items-center justify-center shadow-sm"
-            onPress={() => toggleWishlist(product)}
-          >
-            <Heart
-              size={12}
-              color={isInWishlist(product._id || product.id) ? 'red' : '#059669'}
-              fill={isInWishlist(product._id || product.id) ? 'red' : 'none'}
-            />
-          </TouchableOpacity>
-        </View>
-        <Text className="text-sm font-semibold text-green-800 mb-1" numberOfLines={2}>
-          {product.name}
-        </Text>
-        <Text className="text-xs text-green-600 mb-2">{product.weight}</Text>
-        <View className="flex-row items-center mb-2">
-          <Star size={12} color="#F59E0B" fill="#F59E0B" />
-          <Text className="text-xs text-gray-600 ml-1">{product.rating}</Text>
-          <View className="flex-row items-center ml-2">
-            <Clock size={10} color="#059669" />
-            <Text className="text-xs text-green-600 ml-1">{product.deliveryTime}</Text>
-          </View>
-        </View>
-        <View className="flex-row items-center justify-between">
-          <View>
-            <Text className="text-sm font-bold text-green-800">₹{product.price.toFixed(2)}</Text>
-            <Text className="text-xs text-gray-400 line-through">₹{product.originalPrice.toFixed(2)}</Text>
-          </View>
-          <TouchableOpacity
-            className="bg-green-500 w-8 h-8 rounded-full items-center justify-center"
-            onPress={() => handleAddRecommended(product)}
-          >
-            <Plus size={14} color="white" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
+  // Remove renderRecommendedProduct function
+  // const renderRecommendedProduct = ...
 
   if (isLoading) {
     return (
@@ -288,6 +168,20 @@ export default function CartScreen({ navigation }) {
       </View>
     );
   }
+
+  const handleProceedToCheckout = () => {
+    if (!Array.isArray(safeCartItems) || safeCartItems.length === 0) {
+      Alert.alert('Cart is empty');
+      return;
+    }
+    navigation.navigate('Checkout', {
+      subtotal: getSubtotal(),
+      shipping: getShipping(),
+      total: getGrandTotal(),
+      savings: getTotalDiscount(),
+      items: safeCartItems
+    });
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
@@ -312,7 +206,13 @@ export default function CartScreen({ navigation }) {
         <Text className="text-xs text-gray-500 mt-1 ml-6">Mokarwadi, Pune - 411046</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        className="flex-1"
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={["#059669"]} />
+        }
+      >
         {(safeCartItems?.length ?? 0) === 0 ? (
           <View className="flex-1 items-center justify-center mt-20">
             <View className="w-20 h-20 bg-green-100 rounded-full items-center justify-center mb-4">
@@ -343,6 +243,9 @@ export default function CartScreen({ navigation }) {
               {safeCartItems.map((item, idx) => {
                 console.log('Rendering cart item', idx, item);
                 if (!item) return null;
+                const discount = item.originalPrice ? (item.originalPrice - item.price) : 0;
+                const gst = item.price * GST_RATE;
+                const finalPrice = item.price + gst;
                 return (
                   <View
                     key={item.id}
@@ -356,31 +259,55 @@ export default function CartScreen({ navigation }) {
                     }}
                   >
                     <View className="flex-row items-start">
-                      <View className="w-24 h-24 bg-green-50 border border-gray-200 rounded-xl items-center justify-center mr-3 self-center overflow-hidden">
+                      <View
+                        style={{
+                          width: 96,
+                          height: 96,
+                          borderWidth: 1,
+                          borderColor: '#bbf7d0', // Tailwind green-200
+                          backgroundColor: '#f0fdf4', // Tailwind green-50
+                          borderRadius: 16,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginRight: 12,
+                          alignSelf: 'center',
+                          overflow: 'hidden',
+                          shadowColor: '#6b7280',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.15,
+                          shadowRadius: 6,
+                          elevation: 4,
+                        }}
+                      >
                         <Image
-                          source={{ uri: item.images?.[0]?.url || item.image }}
-                          className="w-full h-full"
-                          resizeMode="contain"
+                          source={{ uri: item.product?.images?.[0]?.url || item.product?.image || item.image || 'https://via.placeholder.com/96x96?text=No+Image' }}
+                          style={{ width: '100%', height: '100%' }}
+                          resizeMode="cover"
                         />
                       </View>
                       <View className="flex-1">
                         <View className="flex-row justify-between items-start mb-1">
                           <Text className="font-semibold text-base text-black-800 flex-1">{item.name}</Text>
-                          <TouchableOpacity onPress={() => removeFromCart(item.id)} className="ml-2">
+                          <TouchableOpacity onPress={() => removeFromCart(item._id)} className="ml-2">
                             <Trash2 size={18} color="red" />
                           </TouchableOpacity>
                         </View>
                         <Text className="text-sm text-green-600 mb-1">{item.unit || '500 g'}</Text>
-                        <View className="flex-row items-center mb-3">
+                        <View className="flex-row items-center mb-1">
                           <Text className="text-lg font-bold text-green-800">
                             ₹{(item.price * item.quantity).toFixed(2)}
                           </Text>
                           {item.originalPrice && (
                             <Text className="text-sm text-gray-400 line-through ml-2">
-                              ₹{item.originalPrice}
+                              ₹{(item.originalPrice * item.quantity).toFixed(2)}
                             </Text>
                           )}
                         </View>
+                        {discount > 0 && (
+                          <Text className="text-xs text-red-500 mb-1">Discount: ₹{(discount * item.quantity).toFixed(2)}</Text>
+                        )}
+                        <Text className="text-xs text-blue-500 mb-1">GST (5%): ₹{(gst * item.quantity).toFixed(2)}</Text>
+                        <Text className="text-xs text-black-700 mb-2">Final: ₹{(finalPrice * item.quantity).toFixed(2)}</Text>
                         <View className="flex-row items-center justify-between">
                           <View className="flex-row items-center bg-green-50 rounded-full px-1 py-1">
                             <TouchableOpacity
@@ -410,8 +337,8 @@ export default function CartScreen({ navigation }) {
                     >
                       <Heart
                         size={16}
-                        color={isInWishlist(item.id) ? "red" : "#059669"}
-                        fill={isInWishlist(item.id) ? "red" : "none"}
+                        color={isInWishlist(item._id) ? "red" : "#059669"}
+                        fill={isInWishlist(item._id) ? "red" : "none"}
                       />
                       <Text className="text-sm text-grey-600 ml-2">Move to wishlist</Text>
                     </TouchableOpacity>
@@ -420,45 +347,19 @@ export default function CartScreen({ navigation }) {
               })}
             </View>
 
-            {/* Recommended Products */}
-            <View className="mt-6">
-              <View className="flex-row items-center justify-between px-4 mb-4">
-                <Text className="text-lg font-semibold text-grey-900">Fresh picks for you</Text>
-                <TouchableOpacity onPress={handleViewAllRecommended}>
-                  <ChevronRight size={20} color="#059669" />
-                </TouchableOpacity>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4">
-                {recommendedProducts.map(renderRecommendedProduct)}
-              </ScrollView>
-            </View>
-
-            {/* Frequently Bought Together */}
-            <View className="mt-6">
-              <View className="flex-row items-center justify-between px-4 mb-4">
-                <Text className="text-lg font-semibold text-grey-900">Frequently bought together</Text>
-                <TouchableOpacity onPress={handleViewAllFrequentlyBought}>
-                  <ChevronRight size={20} color="#059669" />
-                </TouchableOpacity>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4">
-                {frequentlyBoughtProducts.map(renderRecommendedProduct)}
-              </ScrollView>
-            </View>
-
             {/* Promo Code Section */}
             <View className="bg-white mx-4 mt-6 rounded-2xl p-4 shadow-sm border border-green-100">
-              <TouchableOpacity
-                className="flex-arow items-center justify-between"
-                onPress={handlePromoCode}
-              >
-                <View className="flex-row items-center">
-                  <Tag size={20} color="#059669" />
-                  <Text className="text-base text-grey-700 ml-3">Enter your promo code</Text>
-                </View>
-                <ChevronRight size={20} color="#059669" />
-              </TouchableOpacity>
-            </View>
+  <TouchableOpacity
+    className="flex-row items-center justify-between"
+    onPress={handlePromoCode}
+  >
+    <View className="flex-row items-center">
+      <Tag size={20} color="#059669" />
+      <Text className="text-base text-grey-700 ml-3">Enter your promo code</Text>
+    </View>
+    <ChevronRight size={20} color="#059669" />
+  </TouchableOpacity>
+</View>
 
             <View className="h-32" />
           </>
@@ -476,6 +377,18 @@ export default function CartScreen({ navigation }) {
               </Text>
             </View>
             <View className="flex-row justify-between items-center mb-2">
+              <Text className="text-sm text-green-700">Total Discount</Text>
+              <Text className="text-sm font-medium text-red-500">
+                -₹{getTotalDiscount().toFixed(2)}
+              </Text>
+            </View>
+            <View className="flex-row justify-between items-center mb-2">
+              <Text className="text-sm text-green-700">Total GST (5%)</Text>
+              <Text className="text-sm font-medium text-blue-500">
+                ₹{getTotalGST().toFixed(2)}
+              </Text>
+            </View>
+            <View className="flex-row justify-between items-center mb-2">
               <Text className="text-sm text-green-700">Delivery</Text>
               <Text className="text-sm font-medium text-green-800">
                 ₹{getShipping().toFixed(2)}
@@ -483,25 +396,13 @@ export default function CartScreen({ navigation }) {
             </View>
             <View className="flex-row justify-between items-center">
               <Text className="text-base font-semibold text-black-800">
-                Total: ₹{getTotal().toFixed(2)}
+                Grand Total: ₹{getGrandTotal().toFixed(2)}
               </Text>
-              <View className="flex-row items-center">
-                <Tag size={14} color="#059669" />
-                <Text className="text-sm text-black-600 ml-1">
-                  Saved ₹{getSavings().toFixed(2)}
-                </Text>
-              </View>
             </View>
           </View>
           <View className="px-4 py-4">
             <TouchableOpacity
-              onPress={() => navigation.navigate('Checkout', {
-                subtotal: getSubtotal(),
-                shipping: getShipping(),
-                total: getTotal(),
-                savings: getSavings(),
-                items: safeCartItems
-              })}
+              onPress={handleProceedToCheckout}
               activeOpacity={0.9}
               className="rounded-2xl overflow-hidden shadow-sm"
             >

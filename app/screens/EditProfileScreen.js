@@ -1,28 +1,42 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { customerAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 export default function EditProfileScreen({ navigation, route }) {
   const { user } = route.params;
+  const { updateUser } = useAuth();
 
-  const [name, setName] = useState(user?.name || '');
+  // Use firstName and lastName fields
+  const [firstName, setFirstName] = useState(user?.firstName || (user?.name?.split(' ')[0] || ''));
+  const [lastName, setLastName] = useState(user?.lastName || (user?.name?.split(' ')[1] || ''));
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleUpdate = () => {
-    if (!name || !email || !phone) {
+  const handleUpdate = async () => {
+    if (!firstName || !lastName || !email || !phone) {
       Alert.alert('Error', 'All fields are required.');
       return;
     }
-
     setIsSaving(true);
-
-    setTimeout(() => {
+    try {
+      const payload = { firstName, lastName, email, phone };
+      console.log('EditProfileScreen update payload:', payload);
+      await customerAPI.updateProfile(payload);
+      const refreshed = await customerAPI.getProfile();
+      console.log('EditProfileScreen backend response:', refreshed.data);
+      updateUser(refreshed.data.data);
+      console.log('EditProfileScreen context updated with:', refreshed.data.data);
       setIsSaving(false);
-      Alert.alert('Success', 'Profile updated successfully!');
-      navigation.goBack();
-    }, 800);
+      Alert.alert('Success', 'Profile updated successfully!', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+    } catch (error) {
+      setIsSaving(false);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to update profile.');
+    }
   };
 
   return (
@@ -34,15 +48,23 @@ export default function EditProfileScreen({ navigation, route }) {
         <Text className="text-2xl font-bold text-gray-800 mb-6">Edit Profile</Text>
 
         <View className="mb-4">
-          <Text className="mb-1 text-gray-700 font-medium">Name</Text>
+          <Text className="mb-1 text-gray-700 font-medium">First Name</Text>
           <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholder="Enter full name"
+            value={firstName}
+            onChangeText={setFirstName}
+            placeholder="Enter first name"
             className="bg-white rounded-xl p-4 border border-gray-200 text-base"
           />
         </View>
-
+        <View className="mb-4">
+          <Text className="mb-1 text-gray-700 font-medium">Last Name</Text>
+          <TextInput
+            value={lastName}
+            onChangeText={setLastName}
+            placeholder="Enter last name"
+            className="bg-white rounded-xl p-4 border border-gray-200 text-base"
+          />
+        </View>
         <View className="mb-4">
           <Text className="mb-1 text-gray-700 font-medium">Email</Text>
           <TextInput
@@ -53,7 +75,6 @@ export default function EditProfileScreen({ navigation, route }) {
             className="bg-white rounded-xl p-4 border border-gray-200 text-base"
           />
         </View>
-
         <View className="mb-6">
           <Text className="mb-1 text-gray-700 font-medium">Phone Number</Text>
           <TextInput
@@ -64,7 +85,6 @@ export default function EditProfileScreen({ navigation, route }) {
             className="bg-white rounded-xl p-4 border border-gray-200 text-base"
           />
         </View>
-
         <TouchableOpacity
           onPress={handleUpdate}
           disabled={isSaving}
