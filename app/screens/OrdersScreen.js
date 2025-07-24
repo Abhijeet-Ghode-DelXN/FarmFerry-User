@@ -11,6 +11,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Alert,
+  StyleSheet,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,6 +36,9 @@ export default function OrdersScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [orderAgainLoadingId, setOrderAgainLoadingId] = useState(null);
   const [filterOptions, setFilterOptions] = useState(['All']);
+  // Add order cancellation handler
+  const [cancellingOrderId, setCancellingOrderId] = useState(null);
+  const [returningOrderId, setReturningOrderId] = useState(null);
 
   const fetchOrders = async () => {
     setIsLoading(true);
@@ -71,13 +75,23 @@ export default function OrdersScreen() {
   };
 
   const handleOrderAgain = async (order) => {
+    // console.log('Order Again clicked, order object:', order); // Debug log (optional to remove)
     // Check for required fields
-    if (!order.items || order.items.length === 0 || !order.address || !order.paymentMethod) {
+    if (!order.items || order.items.length === 0 || !order.deliveryAddress || !order.paymentMethod) {
       Alert.alert('Error', 'Order is missing items, address, or payment method.');
       return;
     }
     setOrderAgainLoadingId(order._id);
     try {
+      // Map payment method to backend enum if needed
+      let paymentMethod = order.paymentMethod;
+      if (paymentMethod === 'Cash on Delivery') paymentMethod = 'cash_on_delivery';
+      else if (paymentMethod === 'Credit Card') paymentMethod = 'credit_card';
+      else if (paymentMethod === 'Debit Card') paymentMethod = 'debit_card';
+      else if (paymentMethod === 'UPI') paymentMethod = 'upi';
+      else if (paymentMethod === 'Bank Transfer') paymentMethod = 'bank_transfer';
+      // else assume already correct
+
       const orderData = {
         items: order.items.map(item => ({
           product: item.product._id,
@@ -85,8 +99,8 @@ export default function OrdersScreen() {
           variation: item.variation || undefined,
         })),
         supplier: order.supplier?._id || order.supplier,
-        paymentMethod: order.paymentMethod,
-        address: order.address,
+        paymentMethod,
+        deliveryAddress: order.deliveryAddress, // <-- Use correct field
       };
       await ordersAPI.createOrder(orderData);
       Alert.alert('Success', 'Order placed again successfully!');
@@ -96,6 +110,59 @@ export default function OrdersScreen() {
     } finally {
       setOrderAgainLoadingId(null);
     }
+  };
+
+  // Add order cancellation handler
+  const handleCancelOrder = async (order) => {
+    Alert.alert(
+      'Cancel Order',
+      'Are you sure you want to cancel this order?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes',
+          style: 'destructive',
+          onPress: async () => {
+            setCancellingOrderId(order._id);
+            try {
+              await ordersAPI.updateOrderStatus(order._id, 'cancelled');
+              Alert.alert('Order Cancelled', 'Your order has been cancelled.');
+              fetchOrders();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to cancel order.');
+            } finally {
+              setCancellingOrderId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleReturnOrder = async (order) => {
+    Alert.alert(
+      'Return Order',
+      'Are you sure you want to return this order?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes',
+          style: 'destructive',
+          onPress: async () => {
+            setReturningOrderId(order._id);
+            try {
+              await ordersAPI.returnOrder(order._id);
+              Alert.alert('Order Returned', 'Your order return request has been placed.');
+              fetchOrders();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to return order.');
+            } finally {
+              setReturningOrderId(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Use helpers for status color/text
@@ -221,50 +288,64 @@ export default function OrdersScreen() {
             <Text className="text-sm text-gray-500 ml-2">Total</Text>
           </View>
         </View>
-        {/* Buttons on the same line, at opposite ends */}
-        <View className="flex-row mt-4 justify-between items-center">
-          <TouchableOpacity
-            onPress={() => navigation.navigate('OrderDetails', { orderId: item._id })}
-            className="overflow-hidden rounded-xl"
-            style={{
-              shadowColor: '#059669',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.15,
-              shadowRadius: 4,
-              elevation: 2,
-            }}
-          >
-            <LinearGradient
-              colors={['#10b981', '#059669']}
-              className="py-2.5 px-5 flex-row items-center justify-center"
+        {/* Buttons on the same line, visually balanced */}
+        <View style={styles.actionRow}>
+          <View style={styles.actionButtonContainer}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('OrderDetails', { orderId: item._id })}
+              className="overflow-hidden rounded-xl"
+              style={styles.actionButtonGreen}
             >
-              <Text className="text-white font-semibold text-sm mr-1.5">View Details</Text>
-              <Ionicons name="arrow-forward" size={14} color="white" />
-            </LinearGradient>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => handleOrderAgain(item)}
-            disabled={orderAgainLoadingId === item._id}
-            className="overflow-hidden rounded-xl"
-            style={{
-              opacity: orderAgainLoadingId === item._id ? 0.7 : 1,
-              shadowColor: '#059669',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.15,
-              shadowRadius: 4,
-              elevation: 2,
-            }}
-          >
-            <LinearGradient
-              colors={['#10b981', '#059669']}
-              className="py-2.5 px-5 flex-row items-center justify-center"
+              <LinearGradient
+                colors={['#10b981', '#059669']}
+                style={styles.actionButtonGradient}
+              >
+                <Text style={styles.actionButtonText}>View Details</Text>
+                <Ionicons name="arrow-forward" size={16} color="white" style={{ marginLeft: 4 }} />
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.actionButtonContainer}>
+            <TouchableOpacity
+              onPress={() => handleOrderAgain(item)}
+              disabled={orderAgainLoadingId === item._id}
+              className="overflow-hidden rounded-xl"
+              style={[styles.actionButtonGreen, orderAgainLoadingId === item._id && { opacity: 0.7 }]}
             >
-              <ShoppingCart size={20} color="#ffffff" />
-              <Text className="text-white font-semibold text-base ml-2">
-                {orderAgainLoadingId === item._id ? 'Ordering...' : 'Order Again'}
-              </Text>
-            </LinearGradient>
-          </TouchableOpacity>
+              <LinearGradient
+                colors={['#10b981', '#059669']}
+                style={styles.actionButtonGradient}
+              >
+                <ShoppingCart size={18} color="#ffffff" />
+                <Text style={styles.actionButtonText}>
+                  {orderAgainLoadingId === item._id ? 'Ordering...' : 'Order Again'}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+          {(item.status === 'pending' || item.status === 'processing') && (
+            <View style={styles.cancelButtonContainer}>
+              <TouchableOpacity
+                onPress={() => handleCancelOrder(item)}
+                disabled={cancellingOrderId === item._id}
+                style={{ alignItems: 'center', justifyContent: 'center', height: 40, width: 44, opacity: cancellingOrderId === item._id ? 0.7 : 1, borderRadius: 22 }}
+              >
+                <Ionicons name="close-circle" size={28} color="#ef4444" />
+              </TouchableOpacity>
+            </View>
+          )}
+          {/* Return Order icon for delivered orders */}
+          {item.status === 'delivered' && (
+            <View style={styles.cancelButtonContainer}>
+              <TouchableOpacity
+                onPress={() => handleReturnOrder(item)}
+                disabled={returningOrderId === item._id}
+                style={{ alignItems: 'center', justifyContent: 'center', height: 40, width: 44, opacity: returningOrderId === item._id ? 0.7 : 1, borderRadius: 22 }}
+              >
+                <Ionicons name="return-down-back" size={28} color="#6366f1" />
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </View>
     </TouchableOpacity>
@@ -364,4 +445,52 @@ export default function OrdersScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 18,
+    marginBottom: 2,
+    gap: 8, // for RN 0.71+, otherwise use marginRight on containers
+  },
+  actionButtonContainer: {
+    flex: 1,
+    minWidth: 110,
+    maxWidth: 170,
+    marginHorizontal: 2,
+  },
+  cancelButtonContainer: {
+    width: 44,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  actionButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 0,
+    minHeight: 40,
+  },
+  actionButtonGreen: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  actionButtonRed: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  actionButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+    marginLeft: 6,
+    marginRight: 2,
+  },
+});
 

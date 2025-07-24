@@ -30,7 +30,7 @@ const { width } = Dimensions.get('window');
 const ITEM_WIDTH = (width - 36) / 2;
 
 export default function WishlistScreen() {
-  const { wishlistItems, removeFromWishlist, updateCartItems, cartItems } = useAppContext();
+  const { wishlistItems, removeFromWishlist, updateCartItems, cartItems, updateWishlistItems } = useAppContext();
   const navigation = useNavigation();
   const [animatedValues] = useState(new Map());
   const [refreshing, setRefreshing] = useState(false);
@@ -93,139 +93,144 @@ export default function WishlistScreen() {
   const renderItem = ({ item }) => {
     const animatedValue = getAnimatedValue(item.id);
     return (
-      <Animated.View
-        style={{
-          transform: [{ scale: animatedValue }],
-          opacity: animatedValue,
-          width: ITEM_WIDTH,
-          marginBottom: 16,
-        }}
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => navigation.navigate('ProductDetails', { product: item })}
       >
-        <View
-          className="bg-white rounded-2xl overflow-hidden"
+        <Animated.View
           style={{
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.08,
-            shadowRadius: 8,
-            elevation: 3,
+            transform: [{ scale: animatedValue }],
+            opacity: animatedValue,
+            width: ITEM_WIDTH,
+            marginBottom: 16,
           }}
         >
-          {/* Image */}
-          <View className="relative">
-            <Image
-              source={{ uri: item.image }}
-              className="w-full h-36 rounded-t-2xl"
-              resizeMode="cover"
-            />
-            <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.05)']}
-              className="absolute bottom-0 left-0 right-0 h-12"
-            />
-            <View
-              className="absolute top-2 left-2 bg-red-500 rounded-full px-2 py-1 flex-row items-center"
-              style={{
-                shadowColor: '#ef4444',
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.3,
-                shadowRadius: 2,
-                elevation: 2,
-              }}
-            >
-              <Heart size={10} color="white" fill="white" />
-              <Text className="text-white text-xs font-medium ml-1">Loved</Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => handleRemoveFromWishlist(item)}
-              className="absolute top-2 right-2 bg-white/95 rounded-full p-1.5"
-              style={{
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.1,
-                shadowRadius: 2,
-                elevation: 2,
-              }}
-            >
-              <Trash2 size={14} color="#ef4444" />
-            </TouchableOpacity>
-            {item.discount > 0 && (
-              <View className="absolute bottom-2 right-2 bg-emerald-500 rounded-lg px-2 py-1">
-                <Text className="text-white text-xs font-bold">
-                  -{item.discount}%
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {/* Product Content */}
-          <View className="p-3">
-            <Text
-              className="text-sm font-bold text-gray-900 mb-1.5"
-              numberOfLines={2}
-              style={{ lineHeight: 18 }}
-            >
-              {item.name}
-            </Text>
-
-            {/* Rating */}
-            <View className="flex-row items-center mb-2">
-              <View className="flex-row items-center mr-1.5">
-                {[...Array(5)].map((_, i) => (
-                  <Star
-                    key={i}
-                    size={12}
-                    color={
-                      i < Math.round(item.rating) ? '#f59e0b' : '#e5e7eb'
-                    }
-                    fill={i < Math.round(item.rating) ? '#f59e0b' : 'none'}
-                  />
-                ))}
-              </View>
-              <Text className="text-gray-500 text-xs">({item.rating})</Text>
-            </View>
-
-            {/* Price */}
-            <View className="flex-row items-center justify-between mb-3">
-              <View className="flex-row items-center">
-                <Text className="text-gray-400 line-through text-xs mr-1">
-                  ₹{item.originalPrice}
-                </Text>
-                <Text className="text-gray-900 font-bold text-base">
-                  ₹{item.price}
-                </Text>
-              </View>
-              <View className="bg-emerald-50 rounded-md px-1.5 py-0.5">
-                <Text className="text-emerald-600 text-xs font-semibold">
-                  Save ₹{item.originalPrice - item.price}
-                </Text>
-              </View>
-            </View>
-
-            {/* Add to Cart */}
-            <TouchableOpacity
-              onPress={() => handleAddToCart(item)}
-              className="overflow-hidden rounded-xl"
-              style={{
-                shadowColor: '#059669',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.15,
-                shadowRadius: 4,
-                elevation: 2,
-              }}
-            >
+          <View
+            className="bg-white rounded-2xl overflow-hidden"
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.08,
+              shadowRadius: 8,
+              elevation: 3,
+            }}
+          >
+            {/* Image */}
+            <View className="relative">
+              <Image
+                source={{ uri: item.image || (item.images && item.images[0]?.url) || 'https://via.placeholder.com/256?text=No+Image' }}
+                className="w-full h-36 rounded-t-2xl"
+                resizeMode="cover"
+              />
               <LinearGradient
-                colors={['#10b981', '#059669']}
-                className="py-2.5 flex-row items-center justify-center"
+                colors={['transparent', 'rgba(0,0,0,0.05)']}
+                className="absolute bottom-0 left-0 right-0 h-12"
+              />
+              <View
+                className="absolute top-2 left-2 bg-red-500 rounded-full px-2 py-1 flex-row items-center"
+                style={{
+                  shadowColor: '#ef4444',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 2,
+                  elevation: 2,
+                }}
               >
-                <ShoppingCart size={14} color="white" />
-                <Text className="text-white font-semibold text-sm ml-1.5">
-                  Add to Cart
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
+                <Heart size={10} color="white" fill="white" />
+                <Text className="text-white text-xs font-medium ml-1">Loved</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => handleRemoveFromWishlist(item)}
+                className="absolute top-2 right-2 bg-white/95 rounded-full p-1.5"
+                style={{
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 2,
+                  elevation: 2,
+                }}
+              >
+                <Trash2 size={14} color="#ef4444" />
+              </TouchableOpacity>
+              {item.discount > 0 && (
+                <View className="absolute bottom-2 right-2 bg-emerald-500 rounded-lg px-2 py-1">
+                  <Text className="text-white text-xs font-bold">
+                    -{item.discount}%
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Product Content */}
+            <View className="p-3">
+              <Text
+                className="text-sm font-bold text-gray-900 mb-1.5"
+                numberOfLines={2}
+                style={{ lineHeight: 18 }}
+              >
+                {item.name}
+              </Text>
+
+              {/* Rating */}
+              <View className="flex-row items-center mb-2">
+                <View className="flex-row items-center mr-1.5">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      size={12}
+                      color={
+                        i < Math.round(item.rating) ? '#f59e0b' : '#e5e7eb'
+                      }
+                      fill={i < Math.round(item.rating) ? '#f59e0b' : 'none'}
+                    />
+                  ))}
+                </View>
+                <Text className="text-gray-500 text-xs">({item.rating})</Text>
+              </View>
+
+              {/* Price */}
+              <View className="flex-row items-center justify-between mb-3">
+                <View className="flex-row items-center">
+                  <Text className="text-gray-400 line-through text-xs mr-1">
+                    ₹{item.originalPrice}
+                  </Text>
+                  <Text className="text-gray-900 font-bold text-base">
+                    ₹{item.price}
+                  </Text>
+                </View>
+                <View className="bg-emerald-50 rounded-md px-1.5 py-0.5">
+                  <Text className="text-emerald-600 text-xs font-semibold">
+                    Save ₹{item.originalPrice - item.price}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Add to Cart */}
+              <TouchableOpacity
+                onPress={() => handleAddToCart(item)}
+                className="overflow-hidden rounded-xl"
+                style={{
+                  shadowColor: '#059669',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 4,
+                  elevation: 2,
+                }}
+              >
+                <LinearGradient
+                  colors={['#10b981', '#059669']}
+                  className="py-2.5 flex-row items-center justify-center"
+                >
+                  <ShoppingCart size={14} color="white" />
+                  <Text className="text-white font-semibold text-sm ml-1.5">
+                    Add to Cart
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </Animated.View>
+        </Animated.View>
+      </TouchableOpacity>
     );
   };
 
@@ -259,9 +264,8 @@ export default function WishlistScreen() {
   const fetchWishlist = async () => {
     setRefreshing(true);
     try {
-      // TODO: Replace with actual API call if available
-      // const response = await wishlistAPI.getWishlist();
-      // updateWishlistItems(response.data.data.wishlist.items);
+      const response = await require('../services/api').wishlistAPI.getWishlist();
+      updateWishlistItems(response.data.data.wishlist || []);
     } catch (error) {
       console.error('Failed to fetch wishlist:', error);
     } finally {

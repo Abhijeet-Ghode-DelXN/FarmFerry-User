@@ -32,6 +32,7 @@ import ProductDetailsScreen from '../screens/ProductDetailsScreen';
 import CheckoutScreen from '../screens/CheckoutScreen';
 import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import AddAddressScreen from '../screens/AddAddressScreen';
+import OrdersScreen from '../screens/OrdersScreen';
 
 const Stack = createStackNavigator();
 
@@ -97,11 +98,11 @@ const AppStack = () => (
       component={CheckoutScreen}
       options={{ headerShown: true, title: 'Checkout' }}
     />
-    <Stack.Screen
+    {/* <Stack.Screen
       name={SCREEN_NAMES.ADD_ADDRESS}
       component={AddAddressScreen}
       options={{ headerShown: true, title: 'Add Address' }}
-    />
+    /> */}
     <Stack.Screen
       name={SCREEN_NAMES.EDIT_PROFILE}
       component={EditProfileScreen}
@@ -140,6 +141,16 @@ const AppStack = () => (
     <Stack.Screen
       name="LogoScreen"
       component={LogoScreen}
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen
+      name="AddAddress"
+      component={AddAddressScreen}
+      options={{ headerShown: true, title: 'Add Address' }}
+    />
+    <Stack.Screen
+      name="Orders"
+      component={OrdersScreen}
       options={{ headerShown: false }}
     />
   </Stack.Navigator>

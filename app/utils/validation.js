@@ -15,7 +15,7 @@ export const passwordSchema = z
 export const phoneSchema = z
   .string()
   .regex(CONFIG.VALIDATION.PHONE_REGEX, 'Please enter a valid 10-digit phone number')
-  .min(1, 'Phone number is required');
+  // .min(1, 'Phone number is required');
 
 export const nameSchema = z
   .string()

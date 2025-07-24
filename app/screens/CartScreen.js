@@ -105,14 +105,13 @@ export default function CartScreen({ navigation }) {
   };
 
   const toggleWishlist = (product) => {
-    console.log('Wishlist button clicked for product:', product);
     if (!product || !product.name) return;
-    const productId = product._id || product.id;
+    const productId = product._id;
     if (isInWishlist(productId)) {
       removeFromWishlist(productId);
       Alert.alert('Removed from Wishlist', `${product.name} has been removed from your wishlist`);
     } else {
-      addToWishlist({ ...product, _id: productId, image: product.image.uri });
+      addToWishlist(product);
       Alert.alert('Added to Wishlist', `${product.name} has been added to your wishlist`);
     }
   };
@@ -122,15 +121,14 @@ export default function CartScreen({ navigation }) {
       console.warn('isInWishlist called with invalid id:', id);
       return false;
     }
-    console.log('Checking if in wishlist:', id, wishlistItems.map(item => item && item._id));
     return wishlistItems.some((item) => item && item._id === id);
   };
 
   const moveToWishlist = (product) => {
     if (!product || !product.name) return;
-    const productId = product._id || product.id;
+    const productId = product._id;
     if (!isInWishlist(productId)) {
-      addToWishlist({ ...product, _id: productId });
+      addToWishlist(product);
     }
     removeFromCart(product._id);
     Alert.alert('Moved to Wishlist', `${product.name} has been moved to your wishlist`);

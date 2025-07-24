@@ -26,7 +26,7 @@ function safeObjectEntries(obj) {
 
 const ProductDetailsScreen = ({ route, navigation }) => {
   const { product } = route.params;
-  const { cartItems, wishlistItems, updateCartItems, updateWishlistItems } = useAppContext();
+  const { cartItems, wishlistItems, updateCartItems, addToWishlist, removeFromWishlist } = useAppContext();
   const [isLoading, setIsLoading] = useState(false);
 
   if (!product) {
@@ -37,14 +37,15 @@ const ProductDetailsScreen = ({ route, navigation }) => {
     );
   }
 
-  const isInWishlist = wishlistItems.some(item => item._id === product._id || item.id === product.id);
-  const isInCart = cartItems.some(item => (item.product?._id || item._id || item.id) === (product._id || product.id));
+  const isInWishlist = wishlistItems.some(item => item._id === product._id);
+  const isInCart = cartItems.some(item => (item.product?._id || item._id) === product._id);
 
-  const toggleWishlist = () => {
-    const newWishlist = isInWishlist
-      ? wishlistItems.filter(item => (item._id !== product._id && item.id !== product.id))
-      : [...wishlistItems, product];
-    updateWishlistItems(newWishlist);
+  const toggleWishlist = async () => {
+    if (isInWishlist) {
+      await removeFromWishlist(product._id);
+    } else {
+      await addToWishlist(product);
+    }
   };
 
   const handleAddToCart = async () => {
@@ -109,7 +110,7 @@ const ProductDetailsScreen = ({ route, navigation }) => {
             }}
           >
             <Image
-              source={{ uri: product.image || 'https://via.placeholder.com/256' }}
+              source={{ uri: product.image || (product.images && product.images[0]?.url) || 'https://via.placeholder.com/256?text=No+Image' }}
               className="w-64 h-64 rounded-2xl"
               resizeMode="contain"
             />

@@ -119,6 +119,8 @@ export const ordersAPI = {
   createOrder: (orderData) => api.post(CONFIG.ENDPOINTS.ORDERS.CREATE, orderData),
   getMyOrders: (params) => api.get(CONFIG.ENDPOINTS.ORDERS.LIST, { params }),
   getOrderDetails: (id) => api.get(`${CONFIG.ENDPOINTS.ORDERS.DETAILS}/${id}`),
+  updateOrderStatus: (id, status, note) => api.put(`${CONFIG.ENDPOINTS.ORDERS.UPDATE_STATUS}/${id}/status`, { status, note }),
+  returnOrder: (id, note) => api.put(`${CONFIG.ENDPOINTS.ORDERS.UPDATE_STATUS}/${id}/status`, { status: 'returned', note }),
 };
 
 export const cartAPI = {
@@ -136,6 +138,12 @@ export const notificationsAPI = {
   getNotifications: (params) => api.get('/notifications', { params }),
   markAsRead: (id) => api.put(`/notifications/${id}/read`),
   deleteNotification: (id) => api.delete(`/notifications/${id}`),
+};
+
+export const wishlistAPI = {
+  getWishlist: () => api.get('/customers/wishlist'),
+  addToWishlist: (productId) => api.post('/customers/wishlist', { productId }),
+  removeFromWishlist: (productId) => api.delete(`/customers/wishlist/${productId}`),
 };
 
 export default api; 

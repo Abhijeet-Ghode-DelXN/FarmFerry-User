@@ -92,7 +92,7 @@
 // context/AppContext.js
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { notificationsAPI } from '../services/api';
+import { notificationsAPI, wishlistAPI } from '../services/api';
 
 const AppContext = createContext();
 
@@ -166,20 +166,23 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     (async () => {
       try {
-        const storedWishlist = await AsyncStorage.getItem('wishlist');
-        if (storedWishlist) {
-          setWishlistItems(JSON.parse(storedWishlist));
+        const token = await AsyncStorage.getItem('access_token');
+        if (!token) {
+          setWishlistItems([]);
+          return;
         }
+        const res = await wishlistAPI.getWishlist();
+        setWishlistItems(res.data.data.wishlist || []);
       } catch (e) {
-        console.error('Failed to load wishlist', e);
+        if (e?.response?.status === 401) {
+          // Not logged in or token expired, clear wishlist
+          setWishlistItems([]);
+        } else {
+          console.error('Failed to load wishlist', e);
+        }
       }
     })();
   }, []);
-
-  // Save wishlist to AsyncStorage whenever it changes
-  useEffect(() => {
-    AsyncStorage.setItem('wishlist', JSON.stringify(wishlistItems));
-  }, [wishlistItems]);
 
   // Fetch notifications from backend
   const fetchNotifications = async () => {
@@ -227,24 +230,32 @@ export const AppProvider = ({ children }) => {
   };
 
   // Add to Wishlist
-  const addToWishlist = (item) => {
-    const exists = wishlistItems.find((i) => i.id === item.id);
-    if (!exists) {
-      setWishlistItems((prevItems) => [...prevItems, item]);
+  const addToWishlist = async (item) => {
+    try {
+      const productId = item._id;
+      if (!productId) throw new Error('Product _id is required');
+      const res = await wishlistAPI.addToWishlist(productId);
+      setWishlistItems(res.data.data.wishlist || []);
+    } catch (e) {
+      console.error('Failed to add to wishlist', e);
     }
   };
 
   // Remove from Wishlist
-  const removeFromWishlist = (id) => {
-    setWishlistItems((prevItems) =>
-      prevItems.filter((item) => item.id !== id)
-    );
+  const removeFromWishlist = async (id) => {
+    try {
+      const res = await wishlistAPI.removeFromWishlist(id);
+      setWishlistItems(res.data.data.wishlist || []);
+    } catch (e) {
+      console.error('Failed to remove from wishlist', e);
+    }
   };
 
   const updateCartItems = (items) => {
     console.log('updateCartItems called with:', items);
     setCartItems(Array.isArray(items) ? items : []);
   };
+  // Use this only for full refreshes from backend, not for add/remove actions!
   const updateWishlistItems = (items) => setWishlistItems(items);
 
   return (

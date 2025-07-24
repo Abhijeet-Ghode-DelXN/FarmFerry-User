@@ -3,7 +3,7 @@ import {
   Bell, ChevronRight, Clock, CreditCard, Edit3,
   Headphones, Lock, LogOut,
   Mail, MapPin, Package,
-  Phone, Plus, Receipt, Search, Settings, ShoppingBag, Star, User, X
+  Phone, Plus, Receipt, Search, Settings, ShoppingBag, Star, User, X, Trash2
 } from 'lucide-react-native';
 import React, { useState, useEffect } from 'react';
 import {
@@ -15,6 +15,7 @@ import {
   View,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { format } from 'date-fns';
 import { customerAPI, ordersAPI, notificationsAPI } from '../services/api';
@@ -27,33 +28,13 @@ const ProfileScreen = () => {
   const profileUser = user && user.customer ? user.customer : user;
   const [activeTab, setActiveTab] = useState('profile');
   const [showNotifications, setShowNotifications] = useState(false);
-  const [savedAddresses, setSavedAddresses] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    if (activeTab === 'addresses') {
-      fetchSavedAddresses();
-    }
-  }, [activeTab]);
-
-  useEffect(() => {
     fetchNotifications();
   }, []);
-
-  const fetchSavedAddresses = async () => {
-    setIsLoading(true);
-    try {
-      const response = await customerAPI.getProfile();
-      setSavedAddresses(Array.isArray(response.data.data.addresses) ? response.data.data.addresses : []);
-    } catch (error) {
-      console.error('Failed to fetch addresses:', error);
-      setSavedAddresses([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const fetchNotifications = async () => {
     try {
@@ -67,15 +48,12 @@ const ProfileScreen = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    if (activeTab === 'addresses') {
-      await fetchSavedAddresses();
-    } else if (activeTab === 'profile') {
-      try {
-        const response = await customerAPI.getProfile();
-        updateUser(response.data.data);
-      } catch (e) {
-        // Optionally show error
-      }
+    // Only refresh profile
+    try {
+      const response = await customerAPI.getProfile();
+      updateUser(response.data.data);
+    } catch (e) {
+      // Optionally show error
     }
     setRefreshing(false);
   };
@@ -129,69 +107,6 @@ const ProfileScreen = () => {
         <LogOut size={20} color="#dc2626" />
         <Text className="text-base font-medium text-red-600">Logout</Text>
       </TouchableOpacity>
-    </View>
-  );
-
-  const renderAddressesTab = () => (
-    <View className="p-4 space-y-6">
-      <View className="flex flex-row justify-between items-center">
-        <View />
-        <TouchableOpacity 
-          onPress={() => navigation.navigate('AddAddress')}
-          className="flex flex-row items-center bg-green-600 rounded-lg px-4 py-2 gap-2"
-        >
-          <Plus size={16} color="#ffffff" />
-          <Text className="text-white text-sm font-medium">Add New</Text>
-        </TouchableOpacity>
-      </View>
-      <View className="mt-4 space-y-4">
-        {isLoading ? (
-          <ActivityIndicator size="large" color="#16a34a" />
-        ) : (
-          Array.isArray(savedAddresses) && savedAddresses.map((item) => (
-            <View key={item._id} className={`bg-white rounded-xl p-4 mb-4 ${shadowStyle}`}>
-              <View className="flex flex-row justify-between items-center mb-3">
-                <View className="flex flex-row items-center">
-                  <View className="w-12 h-12 rounded-xl bg-blue-100 items-center justify-center mr-4">
-                    <MapPin size={24} color="#2563eb" />
-                  </View>
-                  <View className="flex flex-row items-center">
-                    <Text className="text-base font-medium text-gray-900">{item.addressType}</Text>
-                    {item.isDefault && (
-                      <View className="rounded-xl px-2 py-1 ml-2 bg-green-100">
-                        <Text className="text-xs font-semibold text-green-800">DEFAULT</Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-                <TouchableOpacity 
-                  onPress={() => navigation.navigate('EditAddress', { addressId: item._id })}
-                  className="p-2 rounded-lg"
-                >
-                  <Edit3 size={16} color="#16a34a" />
-                </TouchableOpacity>
-              </View>
-              <Text className="text-sm text-gray-500 leading-5 mb-4 ml-16">{`${item.street}, ${item.city}, ${item.state} ${item.postalCode}`}</Text>
-              <View className="flex flex-row gap-2 ml-16">
-                {!item.isDefault && (
-                  <TouchableOpacity className="bg-green-50 rounded-lg p-2">
-                    <Text className="text-green-600 text-xs font-medium">Set as Default</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity 
-                  onPress={() => navigation.navigate('EditAddress', { addressId: item._id })}
-                  className="bg-blue-50 rounded-lg p-2"
-                >
-                  <Text className="text-blue-500 text-xs font-medium">Edit Address</Text>
-                </TouchableOpacity>
-                <TouchableOpacity className="bg-red-50 rounded-lg p-2">
-                  <Text className="text-red-500 text-xs font-medium">Delete</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))
-        )}
-      </View>
     </View>
   );
 
@@ -257,8 +172,8 @@ const ProfileScreen = () => {
       {/* Navigation Tabs */}
       <View className="flex flex-row bg-white border-b border-gray-200">
         {[
-          { key: 'profile', label: 'Profile', icon: User },
-          { key: 'addresses', label: 'Addresses', icon: MapPin },
+          // { key: 'profile', label: 'Profile', icon: User },
+          // Removed addresses tab
         ].map(tab => (
           <TouchableOpacity
             key={tab.key}
@@ -286,7 +201,7 @@ const ProfileScreen = () => {
         }
       >
         {activeTab === 'profile' && renderProfileTab()}
-        {activeTab === 'addresses' && renderAddressesTab()}
+        {/* Removed addresses tab content */}
       </ScrollView>
 
       {/* Notifications Modal */}

@@ -86,6 +86,8 @@ export const SCREEN_NAMES = {
   EDIT_PROFILE: 'EditProfile',
   VERIFICATION_STATUS: 'VerificationStatus',
   SETTINGS: 'Settings',
+
+  ADD_ADDRESS: 'AddAddress',
 };
 
 // API Response Types

@@ -75,7 +75,7 @@ const HomeScreen = ({ navigation }) => {
       }
     })();
   }, []);
-  const { cartItems, wishlistItems, updateCartItems, updateWishlistItems } = useAppContext();
+  const { cartItems, wishlistItems, updateCartItems, addToWishlist, removeFromWishlist } = useAppContext();
 
 
   // Decide which product list to use: fetched from API, otherwise fallback to dummy data
@@ -340,15 +340,16 @@ const HomeScreen = ({ navigation }) => {
     return () => clearInterval(interval);
   }, []);
 
-  const isInWishlist = (id) => wishlistItems.some((item) => item._id === id || item.id === id);
-  const isInCart = (id) => cartItems.some((item) => item._id === id || item.id === id);
+  const isInWishlist = (id) => wishlistItems.some((item) => item && item._id === id);
+  const isInCart = (id) => cartItems.some((item) => item && item._id === id);
 
-  const toggleWishlist = (product) => {
-    const productId = product._id || product.id;
-    const newWishlist = isInWishlist(productId)
-      ? wishlistItems.filter(item => (item._id !== productId && item.id !== productId))
-      : [...wishlistItems, product];
-    updateWishlistItems(newWishlist);
+  const toggleWishlist = async (product) => {
+    const productId = product._id;
+    if (isInWishlist(productId)) {
+      await removeFromWishlist(productId);
+    } else {
+      await addToWishlist(product);
+    }
   };
 
   const handleAddToCart = async (product) => {
@@ -400,7 +401,9 @@ const HomeScreen = ({ navigation }) => {
             <View style={{ width: '100%', aspectRatio: 1, borderRadius: 12, overflow: 'hidden' }}>
               <Image
                 source={
-                  item.image && typeof item.image === 'string' && item.image.trim() !== ''
+                  item.image && typeof item.image === 'object' && item.image.url
+                    ? { uri: item.image.url }
+                    : item.image && typeof item.image === 'string' && item.image.trim() !== ''
                     ? { uri: item.image }
                     : { uri: 'https://via.placeholder.com/100' }
                 }
