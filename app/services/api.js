@@ -146,4 +146,21 @@ export const wishlistAPI = {
   removeFromWishlist: (productId) => api.delete(`/customers/wishlist/${productId}`),
 };
 
+// Advanced Delivery APIs
+export const advancedDeliveryAPI = {
+  // Order Replacement
+  requestReplacement: (orderId, data) => api.post(`/advanced-delivery/replacement/request/${orderId}`, data),
+  getCustomerReplacements: () => api.get('/advanced-delivery/replacement/customer'),
+  // OTP Verification
+  verifyDeliveryOTP: (orderId, data) => api.post(`/advanced-delivery/verify/delivery/${orderId}`, data),
+  verifyReplacementOTP: (replacementOrderId, data) => api.post(`/advanced-delivery/verify/replacement/${replacementOrderId}`, data),
+  // QR Code
+  getDeliveryQRCode: (orderId) => api.post(`/advanced-delivery/qr/delivery/${orderId}`),
+  getReplacementQRCode: (replacementOrderId) => api.post(`/advanced-delivery/qr/replacement/${replacementOrderId}`),
+  // Route Optimization (optional, for delivery associate)
+  optimizeRoute: (payload) => api.post('/advanced-delivery/route/optimize', payload),
+  // Analytics (optional)
+  getAnalytics: () => api.get('/advanced-delivery/analytics'),
+};
+
 export default api; 

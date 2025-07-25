@@ -465,7 +465,7 @@ const HomeScreen = ({ navigation }) => {
             <View className="absolute inset-0 bg-black/20" />
             {item.discount && (
               <View className="absolute top-3 left-3 bg-red-500 px-2 py-1 rounded-lg shadow-md">
-                <Text className="text-white text-xs font-bold">{item.discount}% OFF</Text>
+                <Text className="text-white text-xs font-bold">{Number(item.discount).toFixed(2)}% OFF</Text>
               </View>
             )}
             <TouchableOpacity
