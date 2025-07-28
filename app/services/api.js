@@ -132,6 +132,8 @@ export const cartAPI = {
 
 export const categoriesAPI = {
   getCategories: () => api.get(CONFIG.ENDPOINTS.CATEGORIES.LIST),
+  getSubcategories: (parentId) => api.get(`${CONFIG.ENDPOINTS.CATEGORIES.LIST}?parent=${parentId}`),
+  getCategoryById: (id) => api.get(`${CONFIG.ENDPOINTS.CATEGORIES.LIST}/${id}`),
 };
 
 export const notificationsAPI = {
@@ -144,6 +146,18 @@ export const wishlistAPI = {
   getWishlist: () => api.get('/customers/wishlist'),
   addToWishlist: (productId) => api.post('/customers/wishlist', { productId }),
   removeFromWishlist: (productId) => api.delete(`/customers/wishlist/${productId}`),
+};
+
+export const reviewsAPI = {
+  getProductReviews: (productId, params) => api.get(`/reviews/product/${productId}`, { params }),
+  createReview: (reviewData) => api.post('/reviews', reviewData),
+  updateReview: (reviewId, reviewData) => api.put(`/reviews/${reviewId}`, reviewData),
+  deleteReview: (reviewId) => api.delete(`/reviews/${reviewId}`),
+  markAsHelpful: (reviewId) => api.post(`/reviews/${reviewId}/helpful`),
+  reportReview: (reviewId, reason) => api.post(`/reviews/${reviewId}/report`, { reason }),
+  getMyReviews: () => api.get('/customers/reviews'),
+  getPendingReviews: () => api.get('/customers/reviews/pending'),
+  addCustomerReply: (reviewId, replyData) => api.post(`/reviews/${reviewId}/customer-reply`, replyData),
 };
 
 // Advanced Delivery APIs

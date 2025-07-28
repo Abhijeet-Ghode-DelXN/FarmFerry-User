@@ -20,7 +20,6 @@ export default function ProductStackNavigator() {
       <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
       <Stack.Screen name="CartItems" component={CartScreen}/>
       <Stack.Screen name="Wishlist" component={WishlistScreen} />
-
     </Stack.Navigator>
   );
 }

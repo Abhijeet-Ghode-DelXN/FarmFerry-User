@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Image, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
 import { ArrowLeft, Plus, Minus, Heart, Star, Share2, ChevronRight } from 'lucide-react-native';
 import { useAppContext } from '../context/AppContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { cartAPI } from '../services/api';
+import ReviewComponent from '../components/ReviewComponent';
 
 // Helper to safely get entries from an object
 function safeObjectEntries(obj) {
@@ -25,9 +26,19 @@ function safeObjectEntries(obj) {
 }
 
 const ProductDetailsScreen = ({ route, navigation }) => {
-  const { product } = route.params;
+  const { product, onReviewSubmitted, openReviewModal } = route.params;
+  console.log('📱 ProductDetailsScreen received params:', { productId: product._id || product.id, hasCallback: !!onReviewSubmitted });
   const { cartItems, wishlistItems, updateCartItems, addToWishlist, removeFromWishlist } = useAppContext();
   const [isLoading, setIsLoading] = useState(false);
+
+  // Test callback on mount (for debugging)
+  useEffect(() => {
+    if (onReviewSubmitted) {
+      console.log('🧪 Testing callback on mount');
+      // Uncomment the line below to test if callback works
+      // setTimeout(() => onReviewSubmitted(), 2000);
+    }
+  }, [onReviewSubmitted]);
 
   if (!product) {
     return (
@@ -199,6 +210,25 @@ const ProductDetailsScreen = ({ route, navigation }) => {
                 <Text className="text-green-600 text-sm">Verified Supplier</Text>
               </View>
             </View>
+          </View>
+
+          {/* Reviews Section */}
+          <View className="mb-8">
+            <ReviewComponent
+              productId={product._id || product.id}
+              productName={product.name}
+              onReviewSubmitted={() => {
+                console.log('🎯 ReviewComponent onReviewSubmitted called');
+                // Call the callback to update product rating in parent screen
+                if (onReviewSubmitted) {
+                  console.log('📞 Calling parent callback');
+                  onReviewSubmitted();
+                } else {
+                  console.log('⚠️ No parent callback found');
+                }
+              }}
+              openReviewModal={openReviewModal}
+            />
           </View>
         </View>
       </ScrollView>

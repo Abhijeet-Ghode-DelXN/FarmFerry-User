@@ -25,7 +25,6 @@ const HomeScreen = ({ navigation }) => {
   const [currentBanner, setCurrentBanner] = useState(0);
   const scrollViewRef = useRef(null);
   const [featuredProductsY, setFeaturedProductsY] = useState(0);
-  const [selectedCategory, setSelectedCategory] = useState(null);
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -33,6 +32,7 @@ const HomeScreen = ({ navigation }) => {
   // ===== Products fetched from backend =====
   const [fetchedProducts, setFetchedProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
+  const [buyNowPressedId, setBuyNowPressedId] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -81,16 +81,8 @@ const HomeScreen = ({ navigation }) => {
   // Decide which product list to use: fetched from API, otherwise fallback to dummy data
   const allProducts = fetchedProducts.length ? fetchedProducts : featuredProducts;
 
-  // Filter products by selected category ID
-  const filteredProducts = selectedCategory
-    ? allProducts.filter((item) => {
-        // item.categoryId may be an object or string, mapped as 'categoryId' or 'category'
-        // Our mapping sets 'category' to category name, but let's use categoryId for accuracy
-        // Support both backend and fallback data
-        const catId = item.categoryId?._id || item.categoryId || item.category_id || item.category;
-        return catId === selectedCategory;
-      })
-    : allProducts;
+  // Always show all products in Featured Products section
+  const filteredProducts = allProducts;
 
   const banners = [
     {
@@ -374,15 +366,14 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const CategoryItem = ({ item }) => {
-    const isSelected = selectedCategory === (item._id || item.id);
     return (
       <View style={{ width: width * 0.23, alignItems: 'center', marginBottom: 16 }}>
         <TouchableOpacity 
           activeOpacity={0.9} 
           style={{ width: '100%' }}
           onPress={() => {
-            setSelectedCategory(item._id || item.id);
-            setTimeout(scrollToFeaturedProducts, 100); // ensure filter applies before scroll
+            // Navigate to subcategories screen
+            navigation.navigate('Subcategories', { category: item });
           }}
         >
           <View style={{ 
@@ -395,8 +386,8 @@ const HomeScreen = ({ navigation }) => {
             shadowOpacity: 0.1, 
             shadowRadius: 4, 
             elevation: 2, 
-            borderWidth: isSelected ? 2 : 1, 
-            borderColor: isSelected ? '#10b981' : '#f3f4f6' 
+            borderWidth: 1, 
+            borderColor: '#f3f4f6' 
           }}>
             <View style={{ width: '100%', aspectRatio: 1, borderRadius: 12, overflow: 'hidden' }}>
               <Image
@@ -414,7 +405,7 @@ const HomeScreen = ({ navigation }) => {
           </View>
           <Text style={{ 
             fontSize: 14, 
-            color: isSelected ? '#10b981' : '#1f2937', 
+            color: '#1f2937', 
             fontWeight: '600', 
             textAlign: 'center' 
           }}>
@@ -530,6 +521,36 @@ const HomeScreen = ({ navigation }) => {
                 </LinearGradient>
               )}
             </TouchableOpacity>
+            {/* Buy Now Button */}
+            <TouchableOpacity
+              className="overflow-hidden rounded-xl mt-2"
+              onPress={async (e) => {
+                e.stopPropagation();
+                setBuyNowPressedId(productId);
+                setTimeout(() => {
+                  setBuyNowPressedId(null);
+                  // Navigate to checkout with the product
+                  navigation.navigate('Checkout', {
+                    items: [{ ...item, quantity: 1 }]
+                  });
+                }, 150); // 150ms green effect
+              }}
+              style={{
+                backgroundColor: buyNowPressedId === productId ? '#10b981' : '#f3f4f6', // green-500 or gray-100
+                paddingVertical: 10,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 12,
+                shadowColor: '#d1d5db',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.10,
+                shadowRadius: 4,
+                elevation: 2,
+              }}
+            >
+              <Text style={{ color: buyNowPressedId === productId ? 'white' : '#1f2937', fontWeight: '600', fontSize: 16 }}>Buy Now</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </TouchableOpacity>
@@ -607,13 +628,13 @@ const HomeScreen = ({ navigation }) => {
         <View style={{ paddingHorizontal: 16, marginBottom: 24 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1f2937' }}>Shop by Category</Text>
-            <TouchableOpacity onPress={() => setSelectedCategory(null)}>
+            <TouchableOpacity onPress={() => navigation.navigate('ProductList')}>
               <Text style={{ 
-                color: selectedCategory ? '#ef4444' : 'green', 
+                color: 'green', 
                 fontWeight: '600', 
                 fontSize: 14 
               }}>
-                {selectedCategory ? 'Clear Filter' : 'View All'}
+                View All
               </Text>
             </TouchableOpacity>
           </View>
@@ -719,24 +740,6 @@ const HomeScreen = ({ navigation }) => {
               <ChevronRight width={16} height={16} color="green" />
             </TouchableOpacity>
           </View>
-          
-          {selectedCategory && (
-            <TouchableOpacity
-              onPress={() => setSelectedCategory(null)}
-              style={{
-                alignSelf: 'flex-end',
-                marginBottom: 12,
-                backgroundColor: '#fef2f2',
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 20,
-              }}
-            >
-              <Text style={{ color: '#dc2626', fontWeight: '600', fontSize: 12 }}>
-                Clear Filter
-              </Text>
-            </TouchableOpacity>
-          )}
           
           <FlatList
             data={filteredProducts}

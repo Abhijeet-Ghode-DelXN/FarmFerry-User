@@ -391,24 +391,27 @@ export default function OrdersScreen() {
                 </LinearGradient>
               </TouchableOpacity>
             </View>
-            <View style={styles.actionButtonContainer}>
-              <TouchableOpacity
-                onPress={() => handleOrderAgain(item)}
-                disabled={orderAgainLoadingId === item._id}
-                className="overflow-hidden rounded-xl"
-                style={[styles.actionButtonGreen, orderAgainLoadingId === item._id && { opacity: 0.7 }]}
-              >
-                <LinearGradient
-                  colors={['#10b981', '#059669']}
-                  style={styles.actionButtonGradient}
+            {/* Show Order Again button only for delivered orders */}
+            {item.status === 'delivered' && (
+              <View style={styles.actionButtonContainer}>
+                <TouchableOpacity
+                  onPress={() => handleOrderAgain(item)}
+                  disabled={orderAgainLoadingId === item._id}
+                  className="overflow-hidden rounded-xl"
+                  style={[styles.actionButtonGreen, orderAgainLoadingId === item._id && { opacity: 0.7 }]}
                 >
-                  <ShoppingCart size={18} color="#ffffff" />
-                  <Text style={styles.actionButtonText}>
-                    {orderAgainLoadingId === item._id ? 'Ordering...' : 'Order Again'}
-                  </Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
+                  <LinearGradient
+                    colors={['#10b981', '#059669']}
+                    style={styles.actionButtonGradient}
+                  >
+                    <ShoppingCart size={18} color="#ffffff" />
+                    <Text style={styles.actionButtonText}>
+                      {orderAgainLoadingId === item._id ? 'Ordering...' : 'Order Again'}
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            )}
             {(item.status === 'pending' || item.status === 'processing') && (
               <View style={styles.cancelButtonContainer}>
                 <TouchableOpacity

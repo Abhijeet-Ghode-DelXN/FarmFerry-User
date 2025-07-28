@@ -13,6 +13,7 @@ import RegisterScreen from '../screens/RegisterScreen';
 // Main App Screens
 import MainTabNavigator from './MainTabNavigator';
 import ProductStackNavigator from './ProductsStackNavigator';
+import SubcategoriesScreen from '../screens/SubcategoriesScreen';
 
 // Extra Feature Screens (Add/Edit/Profile)
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
@@ -21,6 +22,7 @@ import DeleteAddressScreen from '../screens/DeleteAddressScreen';
 import SettingScreen from '../screens/SettingScreen';
 import PaymentMethodsScreen from '../screens/PaymentMethodsScreen';
 import RateReviewScreen from '../screens/RateReviewScreen';
+import MyReviewsScreen from '../screens/MyReviewsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SupportScreen from '../screens/SupportScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
@@ -124,6 +126,11 @@ const AppStack = () => (
       options={{ headerShown: true, title: 'Rate & Review' }}
     />
     <Stack.Screen
+      name="MyReviews"
+      component={MyReviewsScreen}
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen
       name="Settings"
       component={SettingsScreen}
       options={{ headerShown: true, title: 'Settings' }}
@@ -151,6 +158,11 @@ const AppStack = () => (
     <Stack.Screen
       name="Orders"
       component={OrdersScreen}
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen
+      name="Subcategories"
+      component={SubcategoriesScreen}
       options={{ headerShown: false }}
     />
   </Stack.Navigator>

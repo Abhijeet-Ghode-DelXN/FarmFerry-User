@@ -44,7 +44,7 @@ const paymentOptions = [
   // Add more options as needed
 ];
 
-const CheckoutScreen = () => {
+const CheckoutScreen = ({ route }) => {
   const navigation = useNavigation();
   const { updateCartItems } = useAppContext();
   const { user } = useAuth();
@@ -62,6 +62,9 @@ const CheckoutScreen = () => {
   const [customUpiId, setCustomUpiId] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [selectedOption, setSelectedOption] = useState(paymentOptions[0].id);
+  
+  // Get items from route params (for Buy Now functionality)
+  const routeItems = route?.params?.items;
 
   // GST rate (5%)
   const GST_RATE = 0.05;
@@ -82,10 +85,20 @@ const CheckoutScreen = () => {
   const fetchCartAndAddresses = async () => {
     setIsLoading(true);
     try {
-      // Fetch cart
-      const cartRes = await cartAPI.getCart();
-      const cartData = cartRes?.data?.data?.cart || {};
-      const items = Array.isArray(cartData.items) ? cartData.items : [];
+      let items = [];
+      
+      // If route items are provided (Buy Now), use them; otherwise fetch from cart
+      if (routeItems && Array.isArray(routeItems)) {
+        items = routeItems;
+        console.log('Using route items for checkout:', items);
+      } else {
+        // Fetch cart
+        const cartRes = await cartAPI.getCart();
+        const cartData = cartRes?.data?.data?.cart || {};
+        items = Array.isArray(cartData.items) ? cartData.items : [];
+        console.log('Using cart items for checkout:', items);
+      }
+      
       const subtotal = getSubtotal(items);
       const gst = getTotalGST(items);
       const shipping = getShipping();
@@ -99,7 +112,12 @@ const CheckoutScreen = () => {
         total,
         savings,
       });
-      updateCartItems(items);
+      
+      // Only update cart items if we're not using route items (Buy Now)
+      if (!routeItems) {
+        updateCartItems(items);
+      }
+      
       // Fetch addresses
       const response = await customerAPI.getProfile();
       const addresses = response?.data?.data?.customer?.addresses;
@@ -116,12 +134,12 @@ const CheckoutScreen = () => {
 
   useEffect(() => {
     fetchCartAndAddresses();
-  }, []);
+  }, [routeItems]); // Re-run when route items change
 
   useFocusEffect(
     React.useCallback(() => {
       fetchCartAndAddresses();
-    }, [])
+    }, [routeItems]) // Re-run when route items change
   );
 
   const handlePlaceOrder = async () => {
@@ -172,16 +190,15 @@ const CheckoutScreen = () => {
       }
       return base;
     });
-    // Optionally add couponCode, isExpressDelivery, notes, clearCart if you want to support them
-    // For now, we keep it minimal and dynamic
     setIsPlacingOrder(true);
     try {
-      await ordersAPI.createOrder({
+      const response = await ordersAPI.createOrder({
         deliveryAddress,
         paymentMethod: paymentMethodValue,
         items,
         clearCart: true, // clear cart after order
       });
+      console.log('Order API response:', response);
       updateCartItems([]);
       setShowSuccess(true);
       setTimeout(() => {
@@ -189,10 +206,14 @@ const CheckoutScreen = () => {
         navigation.navigate('Orders');
       }, 3000);
     } catch (error) {
-      Alert.alert(
-        'Order Failed',
-        error.response?.data?.message || 'An unexpected error occurred. Please try again.'
-      );
+      console.log('Order API error:', error, error?.response);
+      if (error.response) {
+        Alert.alert(
+          'Order Failed',
+          error.response?.data?.message || 'An unexpected error occurred. Please try again.'
+        );
+      }
+      // If no error.response, do not show alert (could be navigation/unmount issue)
     } finally {
       setIsPlacingOrder(false);
     }
@@ -372,7 +393,14 @@ const CheckoutScreen = () => {
 
         {/* Order Summary */}
         <View className="bg-white rounded-2xl p-4 mb-4">
-          <Text className="text-lg font-semibold mb-2">Order Summary</Text>
+          <View className="flex-row justify-between items-center mb-2">
+            <Text className="text-lg font-semibold">Order Summary</Text>
+            {routeItems && (
+              <View className="bg-green-100 px-2 py-1 rounded-full">
+                <Text className="text-xs font-medium text-green-700">Buy Now</Text>
+              </View>
+            )}
+          </View>
           {cart.items.map((item) => (
             <View key={item.product?._id || item.product?.id || item.product} className="flex-row justify-between items-center mb-2">
               <Text className="flex-1">{item.product?.name || item.name} x{item.quantity}</Text>

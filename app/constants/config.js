@@ -39,6 +39,7 @@ export const CONFIG = {
     },
     CATEGORIES: {
       LIST: '/categories',
+      DETAILS: '/categories',
     },
   },
   
