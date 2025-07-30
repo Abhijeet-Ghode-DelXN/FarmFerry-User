@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, Image, ActivityIndicator, RefreshControl, TextInput } from 'react-native';
+import { View, Text, ScrollView, Image, ActivityIndicator, RefreshControl, TextInput, Alert } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { ordersAPI } from '../services/api';
 import { advancedDeliveryAPI } from '../services/api';
@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
 import { Image as RNImage } from 'react-native';
+import { CONFIG } from '../constants/config';
 
 export default function OrderDetailsScreen() {
   const route = useRoute();
@@ -32,6 +33,7 @@ export default function OrderDetailsScreen() {
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [isLoadingQr, setIsLoadingQr] = useState(false);
   const [qrError, setQrError] = useState('');
+  const [generatingInvoice, setGeneratingInvoice] = useState(false);
 
   const fetchOrder = useCallback(async () => {
     setLoading(true);
@@ -121,6 +123,50 @@ export default function OrderDetailsScreen() {
       setQrError(err?.response?.data?.message || 'Failed to load QR code.');
     } finally {
       setIsLoadingQr(false);
+    }
+  };
+
+  const handleGenerateInvoice = async () => {
+    setGeneratingInvoice(true);
+    try {
+      const response = await ordersAPI.generateInvoice(order._id);
+      const invoiceUrl = response.data.data.invoiceUrl;
+      
+      // For React Native, we'll open the PDF in a web browser
+      const baseUrl = CONFIG.API_BASE_URL.replace('/api/v1', '');
+      const fullUrl = `${baseUrl}${invoiceUrl}`;
+      
+      console.log('Invoice URL construction:', {
+        apiBaseUrl: CONFIG.API_BASE_URL,
+        baseUrl,
+        invoiceUrl,
+        fullUrl
+      });
+      
+      Alert.alert(
+        'Invoice Generated Successfully! 📄',
+        'Your invoice has been created and is ready to download.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Download Invoice', 
+            onPress: async () => {
+              try {
+                const { Linking } = await import('react-native');
+                await Linking.openURL(fullUrl);
+              } catch (linkError) {
+                console.error('Error opening invoice:', linkError);
+                Alert.alert('Error', 'Unable to open invoice. Please try again.');
+              }
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Invoice generation error:', error);
+      Alert.alert('Error', 'Failed to generate invoice.');
+    } finally {
+      setGeneratingInvoice(false);
     }
   };
 
@@ -291,6 +337,19 @@ export default function OrderDetailsScreen() {
             variant="outline"
             className="mb-4"
             fullWidth
+          />
+        )}
+
+        {/* Invoice button for delivered orders */}
+        {order.status === 'delivered' && (
+          <Button
+            title={generatingInvoice ? 'Generating Invoice...' : 'Generate Invoice'}
+            onPress={handleGenerateInvoice}
+            variant="primary"
+            className="mb-4"
+            fullWidth
+            loading={generatingInvoice}
+            disabled={generatingInvoice}
           />
         )}
 

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, Switch, TouchableOpacity, Alert } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 
 const SettingsScreen = () => {
+  const navigation = useNavigation();
   const { logout } = useAuth();
   const [theme, setTheme] = useState('system');
   const [notifications, setNotifications] = useState(true);
@@ -40,6 +42,16 @@ const SettingsScreen = () => {
             onValueChange={setNotifications}
           />
         </View>
+      </View>
+
+      <View className="mb-6">
+        <Text className="text-lg font-semibold text-gray-700 mb-2">Development</Text>
+        <TouchableOpacity
+          className="bg-blue-100 p-4 rounded-xl mb-4"
+          onPress={() => navigation.navigate('RazorpayTest')}
+        >
+          <Text className="text-blue-600 font-semibold text-base">Test Razorpay Payment</Text>
+        </TouchableOpacity>
       </View>
 
       <View className="mb-6">

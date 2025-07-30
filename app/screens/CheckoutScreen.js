@@ -12,6 +12,7 @@ import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-ico
 import LottieView from 'lottie-react-native';
 import PaymentService from '../services/paymentService';
 import PAYMENT_CONFIG from '../constants/paymentConfig';
+import RazorpayService from '../services/razorpayService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -50,7 +51,28 @@ const PaymentOption = ({ icon, title, selected, onPress, disabled, comingSoon })
 const CheckoutScreen = ({ route }) => {
   const navigation = useNavigation();
   const { updateCartItems } = useAppContext();
-  const { user } = useAuth();
+  const { user, isAuthenticated, refreshUserData } = useAuth();
+
+  // Debug user authentication status
+  useEffect(() => {
+    // Extract user data from nested customer object
+    const userData = user?.customer || user;
+    
+    console.log('CheckoutScreen - User Authentication Status:', {
+      isAuthenticated,
+      user: userData ? {
+        _id: userData._id,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        email: userData.email,
+        phone: userData.phone,
+        hasEmail: !!userData.email
+      } : null,
+      fullUserObject: user,
+      userKeys: user ? Object.keys(user) : [],
+      customerData: user?.customer
+    });
+  }, [user, isAuthenticated]);
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('Cash on Delivery');
@@ -266,19 +288,99 @@ const CheckoutScreen = ({ route }) => {
       return;
     }
 
+    // Check authentication for Razorpay
+    if ((selectedPayment === 'razorpay' || selectedPayment === 'razorpay_web') && !user) {
+      Alert.alert('Authentication Required', 'Please log in to use Razorpay payment');
+      return;
+    }
+
+    const userData = user?.customer || user;
+    if ((selectedPayment === 'razorpay' || selectedPayment === 'razorpay_web') && !userData?.email) {
+      Alert.alert('Email Required', 'Email is required for Razorpay payment. Please update your profile.');
+      return;
+    }
+
     setIsPaying(true);
     setPaymentError(null);
 
     try {
       const orderId = `ORDER_${Date.now()}`;
-      const options = selectedPayment === 'upi_id' ? { upiId: customUpiId.trim() } : {};
+      let options = {};
       
+      if (selectedPayment === 'upi_id') {
+        options = { upiId: customUpiId.trim() };
+      } else if (selectedPayment === 'razorpay' || selectedPayment === 'razorpay_web') {
+        // Extract user data from nested customer object
+        const userData = user?.customer || user;
+        
+        // Debug user data
+        console.log('User data for Razorpay:', {
+          user: user,
+          userData: userData,
+          firstName: userData?.firstName,
+          lastName: userData?.lastName,
+          email: userData?.email,
+          phone: userData?.phone,
+          _id: userData?._id,
+          isAuthenticated: user ? true : false
+        });
+
+        // Check if user is authenticated and has required data
+        if (!user) {
+          throw new Error('Please log in to use Razorpay payment');
+        }
+
+        if (!userData?.email) {
+          throw new Error('Email is required for Razorpay payment');
+        }
+
+        // Build customer name with proper fallback
+        let customerName = 'Customer';
+        if (userData.firstName && userData.lastName) {
+          customerName = `${userData.firstName} ${userData.lastName}`.trim();
+        } else if (userData.firstName) {
+          customerName = userData.firstName;
+        } else if (userData.lastName) {
+          customerName = userData.lastName;
+        } else if (userData.email) {
+          // Use email prefix as name if no name is available
+          customerName = userData.email.split('@')[0];
+        }
+          
+        options = {
+          customerName: customerName,
+          customerEmail: userData.email,
+          customerPhone: userData.phone || '',
+          description: `Payment for FarmFerry order`,
+          prefill: {
+            name: customerName,
+            email: userData.email,
+            contact: userData.phone || ''
+          },
+          notes: {
+            order_id: orderId,
+            customer_id: userData._id || 'unknown'
+          }
+        };
+
+        console.log('Razorpay options prepared:', options);
+      }
+      
+      console.log('Processing payment:', {
+        method: selectedPayment,
+        amount: cart.total,
+        orderId: orderId,
+        options: options
+      });
+
       const paymentResult = await PaymentService.processPayment(
         selectedPayment,
         cart.total,
         orderId,
         options
       );
+
+      console.log('Payment result:', paymentResult);
 
       if (paymentResult && paymentResult.success) {
         await createOrderWithPayment(paymentResult);
@@ -610,6 +712,25 @@ const CheckoutScreen = ({ route }) => {
         closeOnBackdropPress
         style="pb-0"
       >
+        {/* Authentication Status Banner */}
+        {!isAuthenticated && (
+          <View className="bg-red-50 border-b border-red-200 p-3">
+            <Text className="text-red-700 text-sm text-center mb-2">
+              🔐 Please log in to use payment options
+            </Text>
+            <TouchableOpacity 
+              className="bg-red-600 py-2 px-4 rounded-lg"
+              onPress={() => {
+                setPaymentModalVisible(false);
+                navigation.navigate('Login');
+              }}
+            >
+              <Text className="text-white text-sm text-center font-medium">
+                Go to Login
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
         <ScrollView 
           className="flex-1" 
           contentContainerStyle={{ 
@@ -618,6 +739,57 @@ const CheckoutScreen = ({ route }) => {
           }}
           showsVerticalScrollIndicator={false}
         >
+          {/* Debug Info - Remove this in production */}
+          {/* <View className="bg-gray-50 rounded-xl p-3 mb-4 border border-gray-200">
+            <Text className="text-xs text-gray-600 mb-1">Debug Info:</Text>
+            <Text className="text-xs text-gray-700">
+              Logged In: {isAuthenticated ? '✅ Yes' : '❌ No'}
+            </Text>
+            <Text className="text-xs text-gray-700">
+              User ID: {(user?.customer?._id || user?._id) || 'Not available'}
+            </Text>
+            <Text className="text-xs text-gray-700">
+              Email: {(user?.customer?.email || user?.email) || 'Not available'}
+            </Text>
+            <Text className="text-xs text-gray-700">
+              Name: {(() => {
+                const customer = user?.customer || user;
+                return (customer?.firstName && customer?.lastName) ? 
+                  `${customer.firstName} ${customer.lastName}` : 'Not available';
+              })()}
+            </Text>
+            {user && Object.keys(user).length > 0 && (
+              <Text className="text-xs text-gray-700 mt-1">
+                User Keys: {Object.keys(user).join(', ')}
+              </Text>
+            )}
+            <TouchableOpacity 
+              className="bg-blue-500 py-1 px-2 rounded mt-2 mr-2"
+              onPress={() => {
+                console.log('Manual refresh - Current user object:', user);
+                console.log('Manual refresh - User keys:', user ? Object.keys(user) : 'No user');
+              }}
+            >
+              <Text className="text-white text-xs text-center">Log User Data</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              className="bg-green-500 py-1 px-2 rounded mt-2"
+              onPress={async () => {
+                try {
+                  console.log('Manual refresh requested...');
+                  const refreshedUser = await refreshUserData();
+                  console.log('Manual refresh successful:', refreshedUser);
+                  Alert.alert('Success', 'User data refreshed successfully!');
+                } catch (error) {
+                  console.error('Manual refresh failed:', error);
+                  Alert.alert('Error', 'Failed to refresh user data: ' + error.message);
+                }
+              }}
+            >
+              <Text className="text-white text-xs text-center">Refresh User Data</Text>
+            </TouchableOpacity>
+          </View> */}
+
           {/* Amount Summary */}
           <View className="bg-white rounded-xl p-4 mb-4 border border-gray-200">
             <View className="flex-row justify-between items-center mb-2">
@@ -745,6 +917,119 @@ const CheckoutScreen = ({ route }) => {
                       />
                     </View>
                   )}
+                </View>
+              )}
+            </View>
+
+            {/* Razorpay */}
+            <View className="bg-white rounded-xl p-3 border border-gray-200">
+              <TouchableOpacity 
+                className="flex-row justify-between items-center"
+                onPress={() => setExpandedSection(expandedSection === 'razorpay' ? '' : 'razorpay')}
+              >
+                <View className="flex-row items-center">
+                  <View className="bg-blue-100 p-2 rounded-full mr-3">
+                    <MaterialCommunityIcons 
+                      name="credit-card" 
+                      size={responsiveValue(16, 18)} 
+                      color="#3399CC" 
+                    />
+                  </View>
+                  <Text 
+                    className="font-medium"
+                    style={{ fontSize: responsiveValue(14, 16) }}
+                  >
+                    Razorpay
+                  </Text>
+                </View>
+                <Ionicons 
+                  name={expandedSection === 'razorpay' ? 'chevron-up' : 'chevron-down'} 
+                  size={responsiveValue(16, 18)} 
+                  color="#6b7280" 
+                />
+              </TouchableOpacity>
+
+              {expandedSection === 'razorpay' && (
+                <View className="mt-3">
+                  {/* Authentication Status */}
+                  {!user ? (
+                    <View className="bg-red-50 border border-red-200 rounded-lg p-2 mb-2">
+                      <Text className="text-red-700 text-xs">
+                        🔐 Please log in to use Razorpay
+                      </Text>
+                    </View>
+                  ) : !(user?.customer?.email || user?.email) ? (
+                    <View className="bg-orange-50 border border-orange-200 rounded-lg p-2 mb-2">
+                      <Text className="text-orange-700 text-xs">
+                        📧 Email required for Razorpay payment
+                      </Text>
+                    </View>
+                  ) : (
+                    <View className="bg-green-50 border border-green-200 rounded-lg p-2 mb-2">
+                      <Text className="text-green-700 text-xs">
+                        ✅ Ready for Razorpay payment
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Razorpay Status Indicator */}
+                  {/* <View className={`p-2 rounded-lg mb-2 ${RazorpayService.isAvailable() ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+                    <Text className={`text-xs ${RazorpayService.isAvailable() ? 'text-green-700' : 'text-yellow-700'}`}>
+                      {RazorpayService.isAvailable() ? '✅ Razorpay Available' : '⚠️ Using Mock Payment'}
+                    </Text>
+                  </View> */}
+                  
+                  <PaymentOption 
+                    icon={<MaterialCommunityIcons name="credit-card" size={responsiveValue(18, 20)} color="#3399CC" />}
+                    title="Credit/Debit Cards, UPI, Net Banking"
+                    selected={selectedPayment === 'razorpay'}
+                    onPress={() => setSelectedPayment('razorpay')}
+                    disabled={!user || !(user?.customer?.email || user?.email)}
+                  />
+                  
+                  <PaymentOption 
+                    icon={<MaterialCommunityIcons name="web" size={responsiveValue(18, 20)} color="#059669" />}
+                    title="🌐 Razorpay Web (Expo Go Compatible)"
+                    subtitle="Opens in browser - Works with Expo Go"
+                    selected={selectedPayment === 'razorpay_web'}
+                    onPress={() => setSelectedPayment('razorpay_web')}
+                    disabled={!user || !(user?.customer?.email || user?.email)}
+                  />
+                  
+                  {/* User Info for Payment */}
+                  {(user?.customer?.email || user?.email) && (
+                    <View className="mt-2 bg-blue-50 rounded-lg p-2">
+                      <Text className="text-xs text-blue-600 mb-1">Payment Details:</Text>
+                      <Text className="text-xs text-blue-700">
+                        Name: {(() => {
+                          const customer = user?.customer || user;
+                          return (customer?.firstName && customer?.lastName) ? 
+                            `${customer.firstName} ${customer.lastName}` : 
+                            customer?.firstName || customer?.lastName || customer?.email?.split('@')[0];
+                        })()}
+                      </Text>
+                      <Text className="text-xs text-blue-700">
+                        Email: {user?.customer?.email || user?.email}
+                      </Text>
+                      {(user?.customer?.phone || user?.phone) && (
+                        <Text className="text-xs text-blue-700">
+                          Phone: {user?.customer?.phone || user?.phone}
+                        </Text>
+                      )}
+                    </View>
+                  )}
+
+                  {/* Supported Payment Methods */}
+                  <View className="mt-2 bg-gray-50 rounded-lg p-2">
+                    <Text className="text-xs text-gray-600 mb-1">Supported:</Text>
+                    <View className="flex-row flex-wrap">
+                      {RazorpayService.getSupportedPaymentMethods().map((method, index) => (
+                        <Text key={index} className="text-xs text-gray-500 mr-2">
+                          • {method.charAt(0).toUpperCase() + method.slice(1)}
+                        </Text>
+                      ))}
+                    </View>
+                  </View>
                 </View>
               )}
             </View>

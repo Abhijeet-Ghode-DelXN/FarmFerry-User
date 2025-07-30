@@ -1,5 +1,7 @@
 import UpiPay from 'react-native-upi-pay';
 import PAYMENT_CONFIG from '../constants/paymentConfig';
+import RazorpayService from './razorpayService';
+import RazorpayWebService from './razorpayWebService';
 
 // Test UpiPay library availability
 console.log('UpiPay library loaded:', !!UpiPay);
@@ -190,6 +192,44 @@ export class PaymentService {
       let paymentResult = null;
 
       switch (paymentMethod) {
+        case 'razorpay':
+        case 'razorpay_web':
+          try {
+            // Prepare payment data for Razorpay
+            const paymentData = {
+              amount: amount,
+              orderId: `order_${orderId}_${Date.now()}`,
+              customerName: options.customerName || 'Customer',
+              customerEmail: options.customerEmail || 'customer@farmferry.com',
+              customerPhone: options.customerPhone || '',
+              description: `Payment for order ${orderId}`,
+              prefill: options.prefill || {},
+              notes: {
+                order_id: orderId,
+                ...options.notes
+              }
+            };
+
+            // Validate payment data
+            RazorpayService.validatePaymentData(paymentData);
+
+            // Use web service for razorpay_web, native for razorpay
+            if (paymentMethod === 'razorpay_web') {
+              console.log('Using Razorpay web integration');
+              paymentResult = await RazorpayWebService.processPayment(paymentData);
+            } else if (RazorpayService.isAvailable()) {
+              console.log('Using native Razorpay integration');
+              paymentResult = await RazorpayService.processPayment(paymentData);
+            } else {
+              console.log('Native Razorpay not available, using web version');
+              paymentResult = await RazorpayWebService.processPayment(paymentData);
+            }
+          } catch (error) {
+            console.error('Razorpay payment failed:', error);
+            throw error;
+          }
+          break;
+
         case 'gpay':
           try {
             paymentResult = await UPIPaymentService.processUPIPayment(
@@ -270,6 +310,8 @@ export class PaymentService {
     try {
       const upiApps = await UPIPaymentService.checkUPIAppsAvailability();
       return {
+        razorpay: true, // Razorpay is always available
+      razorpay_web: true, // Razorpay web is always available
         upi: upiApps.length > 0,
         card: true, // Always available (mock)
         wallet: false, // Not implemented yet
@@ -278,6 +320,7 @@ export class PaymentService {
     } catch (error) {
       console.error('Error getting available payment methods:', error);
       return {
+        razorpay: true,
         upi: false,
         card: true,
         wallet: false,

@@ -25,11 +25,9 @@ import { format } from 'date-fns';
 import { getStatusColor, getStatusText } from '../utils/helpers';
 import Button from '../components/ui/Button';
 import { SCREEN_NAMES } from '../types';
+import { CONFIG } from '../constants/config';
 
 const { width } = Dimensions.get('window');
-
-// Remove static filterOptions
-// const filterOptions = ['All', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 
 export default function OrdersScreen() {
   const navigation = useNavigation();
@@ -39,7 +37,6 @@ export default function OrdersScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [orderAgainLoadingId, setOrderAgainLoadingId] = useState(null);
   const [filterOptions, setFilterOptions] = useState(['All']);
-  // Add order cancellation handler
   const [cancellingOrderId, setCancellingOrderId] = useState(null);
   const [returningOrderId, setReturningOrderId] = useState(null);
   const [showReturnModal, setShowReturnModal] = useState(false);
@@ -48,6 +45,7 @@ export default function OrdersScreen() {
   const [isSubmittingReturn, setIsSubmittingReturn] = useState(false);
   const [returnError, setReturnError] = useState('');
   const [returnSuccess, setReturnSuccess] = useState(false);
+  const [generatingInvoiceId, setGeneratingInvoiceId] = useState(null);
 
   const fetchOrders = async () => {
     setIsLoading(true);
@@ -61,7 +59,6 @@ export default function OrdersScreen() {
         fetchedOrders = response.data.data;
       }
       setOrders(fetchedOrders);
-      // Dynamically compute filter options from unique statuses
       const statuses = Array.from(new Set(fetchedOrders.map(o => getStatusText(o.status))));
       setFilterOptions(['All', ...statuses.filter(s => s && s !== 'All')]);
     } catch (error) {
@@ -75,7 +72,6 @@ export default function OrdersScreen() {
 
   useEffect(() => {
     fetchOrders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFilter]);
 
   const onRefresh = () => {
@@ -84,22 +80,18 @@ export default function OrdersScreen() {
   };
 
   const handleOrderAgain = async (order) => {
-    // console.log('Order Again clicked, order object:', order); // Debug log (optional to remove)
-    // Check for required fields
     if (!order.items || order.items.length === 0 || !order.deliveryAddress || !order.paymentMethod) {
       Alert.alert('Error', 'Order is missing items, address, or payment method.');
       return;
     }
     setOrderAgainLoadingId(order._id);
     try {
-      // Map payment method to backend enum if needed
       let paymentMethod = order.paymentMethod;
       if (paymentMethod === 'Cash on Delivery') paymentMethod = 'cash_on_delivery';
       else if (paymentMethod === 'Credit Card') paymentMethod = 'credit_card';
       else if (paymentMethod === 'Debit Card') paymentMethod = 'debit_card';
       else if (paymentMethod === 'UPI') paymentMethod = 'upi';
       else if (paymentMethod === 'Bank Transfer') paymentMethod = 'bank_transfer';
-      // else assume already correct
 
       const orderData = {
         items: order.items.map(item => ({
@@ -109,7 +101,7 @@ export default function OrdersScreen() {
         })),
         supplier: order.supplier?._id || order.supplier,
         paymentMethod,
-        deliveryAddress: order.deliveryAddress, // <-- Use correct field
+        deliveryAddress: order.deliveryAddress,
       };
       await ordersAPI.createOrder(orderData);
       Alert.alert('Success', 'Order placed again successfully!');
@@ -121,7 +113,6 @@ export default function OrdersScreen() {
     }
   };
 
-  // Add order cancellation handler
   const handleCancelOrder = async (order) => {
     Alert.alert(
       'Cancel Order',
@@ -141,32 +132,6 @@ export default function OrdersScreen() {
               Alert.alert('Error', 'Failed to cancel order.');
             } finally {
               setCancellingOrderId(null);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleReturnOrder = async (order) => {
-    Alert.alert(
-      'Return Order',
-      'Are you sure you want to return this order?',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes',
-          style: 'destructive',
-          onPress: async () => {
-            setReturningOrderId(order._id);
-            try {
-              await ordersAPI.returnOrder(order._id);
-              Alert.alert('Order Returned', 'Your order return request has been placed.');
-              fetchOrders();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to return order.');
-            } finally {
-              setReturningOrderId(null);
             }
           },
         },
@@ -201,10 +166,81 @@ export default function OrdersScreen() {
     }
   };
 
-  // Use helpers for status color/text
+  const handleGenerateInvoice = async (order) => {
+    setGeneratingInvoiceId(order._id);
+    try {
+      // First generate the invoice if it doesn't exist
+      const response = await ordersAPI.generateInvoice(order._id);
+      const invoiceUrl = response.data.data.invoiceUrl;
+      
+      // For React Native, we'll open the PDF in a web browser or use Linking
+      const baseUrl = CONFIG.API_BASE_URL.replace('/api/v1', '');
+      const fullUrl = `${baseUrl}${invoiceUrl}`;
+      
+      console.log('Invoice URL construction:', {
+        apiBaseUrl: CONFIG.API_BASE_URL,
+        baseUrl,
+        invoiceUrl,
+        fullUrl
+      });
+      
+      Alert.alert(
+        'Invoice Generated Successfully! 📄',
+        'Your invoice has been created and is ready to download.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Download Invoice', 
+            onPress: async () => {
+              try {
+                // Import Linking dynamically to avoid issues
+                const { Linking } = await import('react-native');
+                console.log('Attempting to download invoice from URL:', fullUrl);
+                
+                // Check if URL can be opened
+                const canOpen = await Linking.canOpenURL(fullUrl);
+                if (canOpen) {
+                  await Linking.openURL(fullUrl);
+                } else {
+                  // Fallback: show URL to user
+                  Alert.alert(
+                    'Download Invoice', 
+                    `Please copy and paste this URL in your browser to download the invoice:\n\n${fullUrl}`,
+                    [
+                      { text: 'Copy URL', onPress: () => {
+                        // You can add clipboard functionality here if needed
+                        console.log('URL to copy:', fullUrl);
+                      }},
+                      { text: 'OK', style: 'default' }
+                    ]
+                  );
+                }
+              } catch (linkError) {
+                console.error('Error downloading invoice:', linkError);
+                // Show the URL to user as fallback
+                Alert.alert(
+                  'Error Downloading Invoice', 
+                  `Unable to download invoice automatically. Please copy and paste this URL in your browser:\n\n${fullUrl}`,
+                  [{ text: 'OK', style: 'default' }]
+                );
+              }
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Invoice generation error:', error);
+      Alert.alert(
+        'Invoice Generation Failed', 
+        'Unable to generate invoice at this time. Please try again later.'
+      );
+    } finally {
+      setGeneratingInvoiceId(null);
+    }
+  };
+
   const getStatusColorClass = (status) => {
     const color = getStatusColor(status, 'order');
-    // Map color to Tailwind-like classes or fallback
     if (color === '#10b981') return 'bg-green-100 text-green-800';
     if (color === '#ef4444') return 'bg-red-100 text-red-800';
     if (color === '#3b82f6') return 'bg-blue-100 text-blue-800';
@@ -214,7 +250,6 @@ export default function OrdersScreen() {
     return 'bg-gray-100 text-gray-800';
   };
 
-  // Dynamic filter
   const filteredOrders = useMemo(() => {
     if (selectedFilter === 'All') return orders;
     return orders.filter(order => getStatusText(order.status) === selectedFilter);
@@ -224,24 +259,15 @@ export default function OrdersScreen() {
     <TouchableOpacity
       key={filter}
       onPress={() => setSelectedFilter(filter)}
-      className={`px-4 py-2 mr-3 rounded-full ${selectedFilter === filter ? '' : 'bg-gray-200'}`}
-      style={{
-        backgroundColor: selectedFilter === filter ? '#10B981' : undefined,
-      }}
+      className={`px-4 py-2 mr-3 rounded-full ${selectedFilter === filter ? 'bg-emerald-500' : 'bg-gray-200'}`}
     >
-      <Text
-        className="font-medium"
-        style={{
-          color: selectedFilter === filter ? 'white' : '#4b5563',
-        }}
-      >
+      <Text className={`font-medium ${selectedFilter === filter ? 'text-white' : 'text-gray-600'}`}>
         {filter}
       </Text>
     </TouchableOpacity>
   );
 
   const renderOrderItem = ({ item }) => {
-    // Return eligibility: delivered and within 7 days
     let returnAvailable = false;
     let daysLeft = 0;
     if (item.status === 'delivered' && item.deliveredAt) {
@@ -249,10 +275,11 @@ export default function OrdersScreen() {
       daysLeft = Math.max(0, 7 - Math.floor(daysSinceDelivery));
       returnAvailable = daysSinceDelivery <= 7;
     }
+
     return (
       <TouchableOpacity
         onPress={() => navigation.navigate('OrderDetails', { orderId: item._id })}
-        className="bg-white mx-4 mb-4 rounded-3xl shadow-sm border border-gray-100"
+        className="bg-white mx-4 mb-4 rounded-2xl shadow-sm border border-gray-100"
         style={{
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 2 },
@@ -261,34 +288,36 @@ export default function OrdersScreen() {
           elevation: 3,
         }}
       >
-        <View className="p-5">
+        <View className="p-4">
           {/* Header */}
           <View className="flex-row justify-between items-start mb-3">
-            <View className="flex-1">
-              <View className="flex-row items-center mb-1">
-                {/* Product Image or Cart Icon */}
-                {item.items && item.items.length > 0 && item.items[0].product?.images && item.items[0].product.images.length > 0 && item.items[0].product.images[0].url ? (
-                  <Image source={{ uri: item.items[0].product.images[0].url }} style={{ width: 40, height: 40, borderRadius: 10, marginRight: 12 }} />
-                ) : (
-                  <Text className="text-3xl mr-3">🛒</Text>
-                )}
-                <View className="flex-1">
-                  <Text className="text-lg font-bold text-gray-800">
-                    {item.items && item.items.length > 0
-                      ? item.items.map(i => i.product?.name || 'Product').join(', ')
-                      : 'No Products'}
-                  </Text>
-                  <Text className="text-sm text-gray-500">
-                    {item.items.length} item{item.items.length > 1 ? 's' : ''}
-                  </Text>
+            <View className="flex-1 flex-row items-center">
+              {item.items && item.items.length > 0 && item.items[0].product?.images && item.items[0].product.images.length > 0 && item.items[0].product.images[0].url ? (
+                <Image 
+                  source={{ uri: item.items[0].product.images[0].url }} 
+                  className="w-10 h-10 rounded-lg mr-3" 
+                />
+              ) : (
+                <View className="w-10 h-10 rounded-lg bg-gray-100 items-center justify-center mr-3">
+                  <ShoppingCart size={20} color="#6b7280" />
                 </View>
+              )}
+              <View className="flex-1">
+                <Text className="text-base font-bold text-gray-800" numberOfLines={1}>
+                  {item.items && item.items.length > 0
+                    ? item.items.map(i => i.product?.name || 'Product').join(', ')
+                    : 'No Products'}
+                </Text>
+                <Text className="text-xs text-gray-500">
+                  {item.items.length} item{item.items.length > 1 ? 's' : ''}
+                </Text>
               </View>
             </View>
-            <View className={`px-3 py-1 rounded-full ${getStatusColorClass(item.status)}`}> {/* Dynamic color */}
+            <View className={`px-2 py-1 rounded-full ${getStatusColorClass(item.status)}`}>
               <View className="flex-row items-center">
                 <Ionicons
                   name="ellipse"
-                  size={14}
+                  size={10}
                   color={getStatusColor(item.status, 'order')}
                 />
                 <Text
@@ -300,140 +329,154 @@ export default function OrdersScreen() {
               </View>
             </View>
           </View>
-          {/* Return Availability Badge */}
-          {item.status === 'delivered' && (
-            <View style={{ marginBottom: 6 }}>
-              <Text style={{
-                backgroundColor: returnAvailable ? '#d1fae5' : '#e5e7eb',
-                color: returnAvailable ? '#047857' : '#6b7280',
-                borderRadius: 8,
-                paddingHorizontal: 10,
-                paddingVertical: 3,
-                fontWeight: 'bold',
-                alignSelf: 'flex-start',
-                fontSize: 13,
-              }}>
-                {returnAvailable
-                  ? `Return Available (${daysLeft} day${daysLeft !== 1 ? 's' : ''} left)`
-                  : 'Return Not Available'}
-              </Text>
-            </View>
-          )}
-          {/* Replacement Status Badge */}
-          {item.replacementStatus && (
-            <View style={{ marginBottom: 6 }}>
-              <Text style={{
-                backgroundColor: '#fef3c7',
-                color: '#b45309',
-                borderRadius: 8,
-                paddingHorizontal: 10,
-                paddingVertical: 3,
-                fontWeight: 'bold',
-                alignSelf: 'flex-start',
-                fontSize: 13,
-              }}>
-                Replacement: {item.replacementStatus.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-              </Text>
-            </View>
-          )}
 
-          {/* Order Details - dynamic fields */}
-          <View className="bg-gray-50 p-3 rounded-2xl mb-3">
-            <View className="flex-row justify-between items-center mb-2">
+          {/* Status Badges */}
+          <View className="flex-row flex-wrap gap-2 mb-3">
+            {item.status === 'delivered' && (
+              <View className={`px-2 py-1 rounded-md ${returnAvailable ? 'bg-green-100' : 'bg-gray-100'}`}>
+                <Text className={`text-xs font-medium ${returnAvailable ? 'text-green-800' : 'text-gray-500'}`}>
+                  {returnAvailable
+                    ? `Return Available (${daysLeft} day${daysLeft !== 1 ? 's' : ''} left)`
+                    : 'Return Not Available'}
+                </Text>
+              </View>
+            )}
+            {item.replacementStatus && (
+              <View className="px-2 py-1 rounded-md bg-amber-100">
+                <Text className="text-xs font-medium text-amber-800">
+                  Replacement: {item.replacementStatus.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Order Details */}
+          <View className="bg-gray-50 p-3 rounded-xl mb-3">
+            <View className="flex-row justify-between mb-2">
               <View className="flex-row items-center">
-                <Ionicons name="calendar-outline" size={16} color="#6b7280" />
-                <Text className="text-sm text-gray-600 ml-2">
+                <Ionicons name="calendar-outline" size={14} color="#6b7280" />
+                <Text className="text-xs text-gray-600 ml-2">
                   {item.createdAt ? format(new Date(item.createdAt), 'dd MMM yyyy') : ''}
                 </Text>
               </View>
               <View className="flex-row items-center">
-                <Ionicons name="pricetag-outline" size={16} color="#6b7280" />
-                <Text className="text-sm text-gray-600 ml-2">₹{item.totalAmount?.toFixed(2) ?? '0.00'}</Text>
+                <Ionicons name="pricetag-outline" size={14} color="#6b7280" />
+                <Text className="text-xs text-gray-600 ml-2">₹{item.totalAmount?.toFixed(2) ?? '0.00'}</Text>
               </View>
             </View>
-            {/* Render address if present */}
             {item.address && (
-              <View className="flex-row items-center mt-1">
-                <Ionicons name="location-outline" size={16} color="#6b7280" />
-                <Text className="text-xs text-gray-500 ml-2 flex-1">{item.address?.addressLine1 || item.address}</Text>
+              <View className="flex-row items-start mt-1">
+                <Ionicons name="location-outline" size={14} color="#6b7280" style={{ marginTop: 2 }} />
+                <Text className="text-xs text-gray-500 ml-2 flex-1" numberOfLines={2}>
+                  {item.address?.addressLine1 || item.address}
+                </Text>
               </View>
             )}
-            {/* Render payment method if present */}
             {item.paymentMethod && (
               <View className="flex-row items-center mt-1">
-                <Ionicons name="card-outline" size={16} color="#6b7280" />
-                <Text className="text-xs text-gray-500 ml-2 flex-1">{item.paymentMethod}</Text>
+                <Ionicons name="card-outline" size={14} color="#6b7280" />
+                <Text className="text-xs text-gray-500 ml-2 flex-1" numberOfLines={1}>
+                  {item.paymentMethod}
+                </Text>
               </View>
             )}
           </View>
 
-          {/* Footer */}
-          <View className="flex-row justify-between items-center mb-0">
-            <View className="flex-row items-center">
-              <Text className="text-2xl font-bold text-gray-800">₹{item.totalAmount?.toFixed(2) ?? '0.00'}</Text>
-              <Text className="text-sm text-gray-500 ml-2">Total</Text>
-            </View>
+          {/* Total Amount */}
+          <View className="flex-row justify-between items-center mb-3">
+            <Text className="text-sm text-gray-600">Total Amount:</Text>
+            <Text className="text-lg font-bold text-gray-800">₹{item.totalAmount?.toFixed(2) ?? '0.00'}</Text>
           </View>
-          {/* Buttons on the same line, visually balanced */}
-          <View style={styles.actionRow}>
-            <View style={styles.actionButtonContainer}>
+
+          {/* Action Buttons - All in one row */}
+          <View className="flex-row justify-between items-center mt-3">
+            {/* View Details Button */}
+            <TouchableOpacity
+              onPress={() => navigation.navigate('OrderDetails', { orderId: item._id })}
+              className="flex-1 mr-1 rounded-lg overflow-hidden"
+            >
+              <LinearGradient
+                colors={['#10b981', '#059669']}
+                className="py-2 px-2 items-center justify-center"
+              >
+                <Text className="text-white font-medium text-xs">Details</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Order Again Button - Only for delivered */}
+            {item.status === 'delivered' && (
               <TouchableOpacity
-                onPress={() => navigation.navigate('OrderDetails', { orderId: item._id })}
-                className="overflow-hidden rounded-xl"
-                style={styles.actionButtonGreen}
+                onPress={() => handleOrderAgain(item)}
+                disabled={orderAgainLoadingId === item._id}
+                className="flex-1 mx-1 rounded-lg overflow-hidden"
               >
                 <LinearGradient
-                  colors={['#10b981', '#059669']}
-                  style={styles.actionButtonGradient}
+                  colors={['#f59e0b', '#d97706']}
+                  className="py-2 px-2 items-center justify-center"
                 >
-                  <Text style={styles.actionButtonText}>View Details</Text>
-                  <Ionicons name="arrow-forward" size={16} color="white" style={{ marginLeft: 4 }} />
+                  {orderAgainLoadingId === item._id ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Text className="text-white font-medium text-xs">Order Again</Text>
+                  )}
                 </LinearGradient>
               </TouchableOpacity>
-            </View>
-            {/* Show Order Again button only for delivered orders */}
-            {item.status === 'delivered' && (
-              <View style={styles.actionButtonContainer}>
-                <TouchableOpacity
-                  onPress={() => handleOrderAgain(item)}
-                  disabled={orderAgainLoadingId === item._id}
-                  className="overflow-hidden rounded-xl"
-                  style={[styles.actionButtonGreen, orderAgainLoadingId === item._id && { opacity: 0.7 }]}
-                >
-                  <LinearGradient
-                    colors={['#10b981', '#059669']}
-                    style={styles.actionButtonGradient}
-                  >
-                    <ShoppingCart size={18} color="#ffffff" />
-                    <Text style={styles.actionButtonText}>
-                      {orderAgainLoadingId === item._id ? 'Ordering...' : 'Order Again'}
-                    </Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
             )}
+
+            {/* Cancel Button - Only for pending/processing */}
             {(item.status === 'pending' || item.status === 'processing') && (
-              <View style={styles.cancelButtonContainer}>
-                <TouchableOpacity
-                  onPress={() => handleCancelOrder(item)}
-                  disabled={cancellingOrderId === item._id}
-                  style={{ alignItems: 'center', justifyContent: 'center', height: 40, width: 44, opacity: cancellingOrderId === item._id ? 0.7 : 1, borderRadius: 22 }}
+              <TouchableOpacity
+                onPress={() => handleCancelOrder(item)}
+                disabled={cancellingOrderId === item._id}
+                className="flex-1 mx-1 rounded-lg overflow-hidden"
+              >
+                <LinearGradient
+                  colors={['#ef4444', '#dc2626']}
+                  className="py-2 px-2 items-center justify-center"
                 >
-                  <Ionicons name="close-circle" size={28} color="#ef4444" />
-                </TouchableOpacity>
-              </View>
+                  {cancellingOrderId === item._id ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Text className="text-white font-medium text-xs">Cancel</Text>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
             )}
-            {/* Return Order icon for delivered orders */}
+
+            {/* Return Button - Only for delivered */}
             {item.status === 'delivered' && (
-              <View style={styles.cancelButtonContainer}>
-                <TouchableOpacity
-                  onPress={() => returnAvailable ? handleOpenReturnModal(item) : null}
-                  disabled={!returnAvailable}
-                  style={{ alignItems: 'center', justifyContent: 'center', height: 40, width: 44, opacity: returnAvailable ? 1 : 0.5, borderRadius: 22 }}
+              <TouchableOpacity
+                onPress={() => returnAvailable ? handleOpenReturnModal(item) : null}
+                disabled={!returnAvailable}
+                className={`flex-1 mx-1 rounded-lg overflow-hidden ${!returnAvailable ? 'opacity-50' : ''}`}
+              >
+                <LinearGradient
+                  colors={returnAvailable ? ['#6366f1', '#4f46e5'] : ['#9ca3af', '#6b7280']}
+                  className="py-2 px-2 items-center justify-center"
                 >
-                  <Ionicons name="return-down-back" size={28} color={returnAvailable ? "#6366f1" : "#9ca3af"} />
-                </TouchableOpacity>
-              </View>
+                  <Text className="text-white font-medium text-xs">Return</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
+
+            {/* Invoice Button - Only for delivered */}
+            {item.status === 'delivered' && (
+              <TouchableOpacity
+                onPress={() => handleGenerateInvoice(item)}
+                disabled={generatingInvoiceId === item._id}
+                className="flex-1 ml-1 rounded-lg overflow-hidden"
+              >
+                <LinearGradient
+                  colors={generatingInvoiceId === item._id ? ['#9ca3af', '#6b7280'] : ['#10b981', '#059669']}
+                  className="py-2 px-2 items-center justify-center"
+                >
+                  {generatingInvoiceId === item._id ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Text className="text-white font-medium text-xs">Invoice</Text>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
             )}
           </View>
         </View>
@@ -443,28 +486,21 @@ export default function OrdersScreen() {
 
   const renderEmptyState = () => (
     <View className="flex-1 justify-center items-center px-8">
-      <Text className="text-6xl mb-4">🛒</Text>
+      <View className="w-24 h-24 bg-gray-100 rounded-full items-center justify-center mb-6">
+        <ShoppingCart size={40} color="#9ca3af" />
+      </View>
       <Text className="text-xl font-bold text-gray-800 mb-2">No Orders Yet</Text>
       <Text className="text-gray-500 text-center mb-6">
         {selectedFilter === 'All'
-          ? 'Start exploring delicious restaurants and place your first order!'
+          ? 'Start exploring our products and place your first order!'
           : `No ${selectedFilter.toLowerCase()} orders found`}
       </Text>
-      {/* <LinearGradient
-        colors={['#10B981', '#059669']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        className="px-6 py-3 rounded-full flex-row items-center justify-center mb-4"
+      <TouchableOpacity
+        onPress={() => navigation.navigate(SCREEN_NAMES.HOME)}
+        className="bg-emerald-500 px-6 py-3 rounded-full"
       >
-        <Text className="text-white font-semibold">Start Ordering</Text>
-      </LinearGradient> */}
-      {/* <Button
-        title="Add New Address"
-        onPress={() => navigation.navigate(SCREEN_NAMES.ADD_ADDRESS)}
-        fullWidth
-        size="large"
-        style={{ marginTop: 12 }}
-      /> */}
+        <Text className="text-white font-medium">Browse Products</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -479,36 +515,31 @@ export default function OrdersScreen() {
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
       <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
+      
       {/* Header */}
       <View className="bg-white px-4 pt-5 pb-3 shadow-sm">
-  <View className="flex-row items-center mb-3">
-    <TouchableOpacity
-      onPress={() => navigation.goBack()}
-      className="mr-3 p-1.5 rounded-full bg-gray-100"
-      hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}  // Better touch area
-    >
-      <Ionicons 
-        name="arrow-back" 
-        size={20} 
-        color="#10B981" 
-        style={{ marginTop: 1 }}  // Minor visual adjustment
-      />
-    </TouchableOpacity>
-    <Text className="text-xl font-bold text-gray-800">
-      My Orders
-    </Text>
-  </View>
-  
-  {/* Filter Tabs */}
-  <ScrollView 
-    horizontal 
-    showsHorizontalScrollIndicator={false} 
-    className="py-1"
-    contentContainerStyle={{ paddingRight: 16 }}  // Ensures last tab isn't cut off
-  >
-    {filterOptions.map(renderFilterTab)}
-  </ScrollView>
-</View>
+        <View className="flex-row items-center mb-3">
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            className="mr-3 p-1.5 rounded-full bg-gray-100"
+            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+          >
+            <Ionicons name="arrow-back" size={20} color="#10B981" />
+          </TouchableOpacity>
+          <Text className="text-xl font-bold text-gray-800">My Orders</Text>
+        </View>
+        
+        {/* Filter Tabs */}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          className="py-1"
+          contentContainerStyle={{ paddingRight: 16 }}
+        >
+          {filterOptions.map(renderFilterTab)}
+        </ScrollView>
+      </View>
+
       {/* Orders List */}
       <View className="flex-1">
         {filteredOrders.length === 0 ? (
@@ -518,7 +549,7 @@ export default function OrdersScreen() {
             data={filteredOrders}
             keyExtractor={(item) => item._id}
             renderItem={renderOrderItem}
-            contentContainerStyle={{ paddingVertical: 20 }}
+            contentContainerStyle={{ paddingVertical: 16 }}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl
@@ -531,8 +562,7 @@ export default function OrdersScreen() {
           />
         )}
       </View>
-      {/* Quick Actions: Only Support button remains */}
-      {/* Support button removed as requested */}
+
       {/* Return Modal */}
       <Modal
         visible={showReturnModal}
@@ -540,38 +570,43 @@ export default function OrdersScreen() {
         animationType="fade"
         onRequestClose={() => setShowReturnModal(false)}
       >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-          <View style={{ backgroundColor: 'white', borderRadius: 16, padding: 24, width: '100%', maxWidth: 350 }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Return Reason</Text>
+        <View className="flex-1 bg-black/50 justify-center items-center p-5">
+          <View className="bg-white rounded-xl p-6 w-full max-w-md">
+            <Text className="text-lg font-bold mb-4">Return Reason</Text>
             <TextInput
               value={returnReason}
               onChangeText={setReturnReason}
-              placeholder="Enter reason for return"
-              style={{ borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 10, marginBottom: 12, minHeight: 60 }}
+              placeholder="Enter reason for return..."
+              placeholderTextColor="#9ca3af"
+              className="border border-gray-200 rounded-lg p-3 h-24 text-gray-800"
               multiline
             />
-            {returnError ? <Text style={{ color: '#dc2626', marginBottom: 8 }}>{returnError}</Text> : null}
-            <Button
-              title={isSubmittingReturn ? 'Submitting...' : 'Submit Return Request'}
-              onPress={handleSubmitReturn}
-              loading={isSubmittingReturn}
-              disabled={isSubmittingReturn}
-              fullWidth
-            />
-            <Button
-              title="Cancel"
-              onPress={() => setShowReturnModal(false)}
-              variant="ghost"
-              style={{ marginTop: 8 }}
-              fullWidth
-            />
+            {returnError && <Text className="text-red-500 text-sm mt-2">{returnError}</Text>}
+            <View className="mt-4">
+              <Button
+                title={isSubmittingReturn ? 'Submitting...' : 'Submit Return Request'}
+                onPress={handleSubmitReturn}
+                loading={isSubmittingReturn}
+                disabled={isSubmittingReturn}
+                fullWidth
+              />
+              <Button
+                title="Cancel"
+                onPress={() => setShowReturnModal(false)}
+                variant="ghost"
+                className="mt-2"
+                fullWidth
+              />
+            </View>
           </View>
         </View>
       </Modal>
+
+      {/* Return Success Toast */}
       {returnSuccess && (
-        <View style={{ position: 'absolute', top: 80, left: 0, right: 0, alignItems: 'center', zIndex: 10 }}>
-          <View style={{ backgroundColor: '#d1fae5', borderRadius: 12, padding: 12 }}>
-            <Text style={{ color: '#047857', fontWeight: 'bold' }}>Return request submitted!</Text>
+        <View className="absolute top-20 left-0 right-0 items-center z-10">
+          <View className="bg-green-100 px-4 py-2 rounded-lg">
+            <Text className="text-green-800 font-medium">Return request submitted successfully!</Text>
           </View>
         </View>
       )}
@@ -580,50 +615,11 @@ export default function OrdersScreen() {
 }
 
 const styles = StyleSheet.create({
-  actionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 18,
-    marginBottom: 2,
-    gap: 8, // for RN 0.71+, otherwise use marginRight on containers
-  },
-  actionButtonContainer: {
-    flex: 1,
-    minWidth: 110,
-    maxWidth: 170,
-    marginHorizontal: 2,
-  },
-  cancelButtonContainer: {
-    width: 44,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 8,
-  },
-  actionButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 0,
-    minHeight: 40,
-  },
-  actionButtonGreen: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  actionButtonRed: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  actionButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 14,
-    marginLeft: 6,
-    marginRight: 2,
+  shadow: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
 });
-

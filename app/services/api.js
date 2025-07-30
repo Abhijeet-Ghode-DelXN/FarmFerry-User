@@ -121,6 +121,8 @@ export const ordersAPI = {
   getOrderDetails: (id) => api.get(`${CONFIG.ENDPOINTS.ORDERS.DETAILS}/${id}`),
   updateOrderStatus: (id, status, note) => api.put(`${CONFIG.ENDPOINTS.ORDERS.UPDATE_STATUS}/${id}/status`, { status, note }),
   returnOrder: (id, note) => api.put(`${CONFIG.ENDPOINTS.ORDERS.UPDATE_STATUS}/${id}/status`, { status: 'returned', note }),
+  generateInvoice: (id) => api.post(`${CONFIG.ENDPOINTS.ORDERS.DETAILS}/${id}/invoice`),
+  getInvoice: (id) => api.get(`${CONFIG.ENDPOINTS.ORDERS.DETAILS}/${id}/invoice`),
 };
 
 export const cartAPI = {

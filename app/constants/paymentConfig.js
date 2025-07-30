@@ -1,5 +1,15 @@
 // Payment Configuration Constants
 export const PAYMENT_CONFIG = {
+  // Razorpay Configuration
+  RAZORPAY: {
+    KEY_ID: 'rzp_test_Sbs1ZuKmKT2RXE',
+    KEY_SECRET: '0qbempWNDNxKOu5QYGKe7Jvz',
+    MERCHANT_NAME: 'FarmFerry',
+    MERCHANT_DESCRIPTION: 'Fresh Farm Products',
+    CURRENCY: 'INR',
+    THEME_COLOR: '#059669',
+  },
+
   // UPI Configuration
   UPI: {
     MERCHANT_ID: 'farmferry@okicici',
@@ -71,6 +81,12 @@ export const PAYMENT_CONFIG = {
 
 // Payment Method Icons and Labels
 export const PAYMENT_METHODS_CONFIG = {
+  razorpay: {
+    label: 'Razorpay',
+    icon: 'credit-card',
+    color: '#3399CC',
+    bgColor: '#E6F3FF',
+  },
   gpay: {
     label: 'Google Pay',
     icon: 'google-pay',

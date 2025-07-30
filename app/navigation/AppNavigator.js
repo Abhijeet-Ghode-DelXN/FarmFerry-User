@@ -38,6 +38,7 @@ import PaymentStatusScreen from '../screens/PaymentStatusScreen';
 import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import AddAddressScreen from '../screens/AddAddressScreen';
 import OrdersScreen from '../screens/OrdersScreen';
+import RazorpayTestScreen from '../screens/RazorpayTestScreen';
 
 const Stack = createStackNavigator();
 
@@ -182,6 +183,11 @@ const AppStack = () => (
       name="ProductList"
       component={ProductListScreen}
       options={{ headerShown: true, title: 'All Categories' }}
+    />
+    <Stack.Screen
+      name="RazorpayTest"
+      component={RazorpayTestScreen}
+      options={{ headerShown: false }}
     />
   </Stack.Navigator>
 );

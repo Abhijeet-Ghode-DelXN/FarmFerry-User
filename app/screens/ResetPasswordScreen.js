@@ -1,11 +1,16 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { authAPI } from '../services/api';
 
-export default function ResetPasswordScreen({ navigation }) {
+export default function ResetPasswordScreen({ navigation, route }) {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
+  
+  // Get reset token from route params or URL
+  const resetToken = route?.params?.token || '';
 
-  const handleReset = () => {
+  const handleReset = async () => {
     if (!password || !confirm) {
       Alert.alert('Error', 'Both fields are required');
       return;
@@ -16,8 +21,44 @@ export default function ResetPasswordScreen({ navigation }) {
       return;
     }
 
-    Alert.alert('Success', 'Your password has been reset!');
-    navigation.navigate('Login');
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters long');
+      return;
+    }
+
+    if (!resetToken) {
+      Alert.alert('Error', 'Invalid reset token. Please request a new password reset.');
+      return;
+    }
+
+    setIsResetting(true);
+
+    try {
+      const response = await authAPI.resetPassword(resetToken, password);
+      console.log('Reset password response:', response.data);
+      
+      Alert.alert(
+        'Success', 
+        'Your password has been reset successfully!',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate('Login')
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Reset password error:', error);
+      
+      let errorMessage = 'Failed to reset password. Please try again.';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   return (
@@ -44,9 +85,12 @@ export default function ResetPasswordScreen({ navigation }) {
 
       <TouchableOpacity
         onPress={handleReset}
+        disabled={isResetting}
         className="bg-green-500 py-4 rounded-2xl items-center"
       >
-        <Text className="text-white text-base font-semibold">Reset Password</Text>
+        <Text className="text-white text-base font-semibold">
+          {isResetting ? 'Resetting...' : 'Reset Password'}
+        </Text>
       </TouchableOpacity>
     </KeyboardAvoidingView>
   );

@@ -1,22 +1,36 @@
 {
   "expo": {
     "name": "FarmFerry User",
-    "slug": "expo-app",
+    "slug": "farmferry-user",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/OutlookLogo2.png",
-    "scheme": "expo-app",
+    "scheme": "farmferry-user",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/your-project-id"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.farmferry.user"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/OutlookLogo2.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.farmferry.user",
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "bundler": "metro",

@@ -58,18 +58,29 @@ export const AuthProvider = ({ children }) => {
     const checkAuthStatus = async () => {
       try {
         const token = await AsyncStorage.getItem(CONFIG.STORAGE_KEYS.ACCESS_TOKEN);
+        console.log('AuthContext - Token found:', !!token);
+        
         if (token) {
           // You might want to verify the token with the backend here
+          console.log('AuthContext - Fetching user profile...');
           const userResponse = await customerAPI.getProfile();
-          console.log('userResponse: ', userResponse);
+          console.log('AuthContext - userResponse:', userResponse);
+          console.log('AuthContext - userResponse.data:', userResponse?.data);
+          console.log('AuthContext - userResponse.data.data:', userResponse?.data?.data);
+          
+          const userData = userResponse?.data?.data;
+          console.log('AuthContext - User data to dispatch:', userData);
+          
           dispatch({
             type: 'LOGIN_SUCCESS',
-            payload: { user: userResponse.data.data, accessToken: token },
+            payload: { user: userData, accessToken: token },
           });
         } else {
+          console.log('AuthContext - No token found');
           dispatch({ type: 'SET_LOADING', payload: false });
         }
       } catch (error) {
+        console.error('AuthContext - Error in checkAuthStatus:', error);
         // Token might be invalid, so we log out
         await logout();
       }
@@ -160,6 +171,36 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const refreshUserData = async () => {
+    try {
+      console.log('AuthContext - Manual refresh requested');
+      const token = await AsyncStorage.getItem(CONFIG.STORAGE_KEYS.ACCESS_TOKEN);
+      if (!token) {
+        throw new Error('No token found');
+      }
+      
+      console.log('AuthContext - Refreshing user profile...');
+      const userResponse = await customerAPI.getProfile();
+      console.log('AuthContext - Refresh userResponse:', userResponse);
+      
+      const userData = userResponse?.data?.data;
+      console.log('AuthContext - Refresh user data:', userData);
+      
+      if (userData) {
+        dispatch({
+          type: 'SET_USER',
+          payload: userData,
+        });
+        return userData;
+      } else {
+        throw new Error('No user data received');
+      }
+    } catch (error) {
+      console.error('AuthContext - Error refreshing user data:', error);
+      throw error;
+    }
+  };
+
   const value = {
     ...state,
     login,
@@ -168,6 +209,7 @@ export const AuthProvider = ({ children }) => {
     updateUser,
     forgotPassword,
     resetPassword,
+    refreshUserData,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { authAPI } from '../services/api';
 
 export default function ForgotPasswordScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [isSending, setIsSending] = useState(false);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!email) {
       Alert.alert('Required', 'Please enter your registered email.');
       return;
@@ -13,11 +14,32 @@ export default function ForgotPasswordScreen({ navigation }) {
 
     setIsSending(true);
 
-    setTimeout(() => {
+    try {
+      const response = await authAPI.forgotPassword(email);
+      console.log('Forgot password response:', response.data);
+      
+      Alert.alert(
+        'Email Sent', 
+        'Password reset link has been sent to your email. Please check your inbox and follow the instructions.',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate('ResetPassword')
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      
+      let errorMessage = 'Failed to send reset email. Please try again.';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      Alert.alert('Error', errorMessage);
+    } finally {
       setIsSending(false);
-      Alert.alert('Email Sent', 'Password reset link has been sent to your email.');
-      navigation.navigate('ResetPassword');
-    }, 1000);
+    }
   };
 
   return (
