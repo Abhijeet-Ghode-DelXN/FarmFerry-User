@@ -12,7 +12,7 @@ import {
   StatusBar,
   Alert,
   ActivityIndicator,
-  length,
+  Dimensions,
   RefreshControl
 } from 'react-native';
 import {
@@ -40,9 +40,20 @@ export default function CartScreen({ navigation }) {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Defensive fallback: ensure cartItems is always an array
+  // Get screen dimensions
+  const { width } = Dimensions.get('window');
+  const isSmallScreen = width < 375;
+  const isMediumScreen = width >= 375 && width < 768;
+  const isLargeScreen = width >= 768;
+
+  // Responsive sizing
+  const responsiveValue = (small, medium, large) => {
+    if (isSmallScreen) return small;
+    if (isMediumScreen) return medium;
+    return large;
+  };
+
   const safeCartItems = Array.isArray(cartItems) ? cartItems : [];
-  console.log('CartScreen cartItems:', cartItems);
 
   const fetchCart = async () => {
     try {
@@ -64,15 +75,6 @@ export default function CartScreen({ navigation }) {
     setRefreshing(true);
     fetchCart();
   };
-
-  // Remove hardcoded recommended and frequently bought products
-  // const recommendedProducts = [...];
-  // const frequentlyBoughtProducts = [...];
-
-  // Remove handlers related to recommended/frequently bought products
-  // const handleAddRecommended = ...
-  // const handleViewAllRecommended = ...
-  // const handleViewAllFrequentlyBought = ...
 
   const handleUpdateQuantity = async (cartItemId, quantity) => {
     try {
@@ -135,13 +137,12 @@ export default function CartScreen({ navigation }) {
   };
 
   const handlePromoCode = () => navigation.navigate('PromoCode');
-
   const handleChangeAddress = () => navigation.navigate('SetDefaultAddress');
 
   // GST rate (5%)
   const GST_RATE = 0.05;
 
-  // Updated calculation helpers
+  // Calculation helpers
   const getSubtotal = () =>
     safeCartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const getTotalDiscount = () =>
@@ -155,9 +156,6 @@ export default function CartScreen({ navigation }) {
     safeCartItems.reduce((sum, item) => sum + (item.price * GST_RATE) * item.quantity, 0);
   const getShipping = () => 4.0;
   const getGrandTotal = () => getSubtotal() + getTotalGST() + getShipping();
-
-  // Remove renderRecommendedProduct function
-  // const renderRecommendedProduct = ...
 
   if (isLoading) {
     return (
@@ -188,20 +186,20 @@ export default function CartScreen({ navigation }) {
       {/* AppBar with back arrow */}
       <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-200">
         <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3">
-          <ArrowLeft size={24} color="black" />
+          <ArrowLeft size={responsiveValue(20, 24, 24)} color="black" />
         </TouchableOpacity>
-        <Text className="text-lg text-black font-medium">Cart</Text>
+        <Text className={`${responsiveValue('text-base', 'text-lg', 'text-lg')} text-black font-medium`}>Cart</Text>
       </View>
 
-      {/* Deliver to block just below AppBar */}
+      {/* Deliver to block */}
       <View className="bg-white px-4 py-3 border-b border-green-100">
         <TouchableOpacity className="flex-row items-center" onPress={handleChangeAddress}>
-          <MapPin size={16} color="#059669" />
-          <Text className="text-sm text-black ml-2">Deliver to </Text>
-          <Text className="text-sm font-semibold text-black">Selected Location</Text>
-          <ChevronRight size={14} color="#059669" className="ml-1" />
+          <MapPin size={responsiveValue(14, 16, 16)} color="#059669" />
+          <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-black ml-2`}>Deliver to </Text>
+          <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} font-semibold text-black`}>Selected Location</Text>
+          <ChevronRight size={responsiveValue(12, 14, 14)} color="#059669" className="ml-1" />
         </TouchableOpacity>
-        <Text className="text-xs text-gray-500 mt-1 ml-6">Mokarwadi, Pune - 411046</Text>
+        <Text className={`${responsiveValue('text-xs', 'text-xs', 'text-sm')} text-gray-500 mt-1 ml-6`}>Mokarwadi, Pune - 411046</Text>
       </View>
 
       <ScrollView
@@ -225,13 +223,13 @@ export default function CartScreen({ navigation }) {
             <View className="bg-white mx-4 mt-4 rounded-2xl p-4 border border-green-100">
               <View className="flex-row items-center justify-between">
                 <View>
-                  <Text className="text-lg font-semibold text-grey-800">Get it in 10 mins</Text>
-                  <Text className="text-sm text-green-600">
+                  <Text className={`${responsiveValue('text-base', 'text-lg', 'text-lg')} font-semibold text-grey-800`}>Get it in 10 mins</Text>
+                  <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-green-600`}>
                     {(safeCartItems?.length ?? 0)} Product{(safeCartItems?.length ?? 0) > 1 ? 's' : ''}
                   </Text>
                 </View>
                 <View className="bg-green-100 px-3 py-1 rounded-full">
-                  <Text className="text-black-700 text-sm font-medium">Express</Text>
+                  <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-black-700 font-medium`}>Express</Text>
                 </View>
               </View>
             </View>
@@ -239,17 +237,18 @@ export default function CartScreen({ navigation }) {
             {/* Cart Items */}
             <View className="px-4 pt-4">
               {safeCartItems.map((item, idx) => {
-                console.log('Rendering cart item', idx, item);
                 if (!item) return null;
                 const discount = item.originalPrice ? (item.originalPrice - item.price) : 0;
                 const gst = item.price * GST_RATE;
                 const finalPrice = item.price + gst;
+                const imageSize = responsiveValue(80, 96, 100);
+                
                 return (
                   <View
                     key={item.id}
                     className="bg-white rounded-2xl mb-4 p-4 shadow-sm border border-gray-200"
                     style={{
-                      shadowColor: '#6b7280', // Tailwind gray-500
+                      shadowColor: '#6b7280',
                       shadowOffset: { width: 0, height: 2 },
                       shadowOpacity: 0.15,
                       shadowRadius: 6,
@@ -259,15 +258,15 @@ export default function CartScreen({ navigation }) {
                     <View className="flex-row items-start">
                       <View
                         style={{
-                          width: 96,
-                          height: 96,
+                          width: imageSize,
+                          height: imageSize,
                           borderWidth: 1,
-                          borderColor: '#bbf7d0', // Tailwind green-200
-                          backgroundColor: '#f0fdf4', // Tailwind green-50
+                          borderColor: '#bbf7d0',
+                          backgroundColor: '#f0fdf4',
                           borderRadius: 16,
                           alignItems: 'center',
                           justifyContent: 'center',
-                          marginRight: 12,
+                          marginRight: responsiveValue(8, 12, 12),
                           alignSelf: 'center',
                           overflow: 'hidden',
                           shadowColor: '#6b7280',
@@ -285,46 +284,59 @@ export default function CartScreen({ navigation }) {
                       </View>
                       <View className="flex-1">
                         <View className="flex-row justify-between items-start mb-1">
-                          <Text className="font-semibold text-base text-black-800 flex-1">{item.name}</Text>
+                          <Text 
+                            className={`${responsiveValue('text-sm', 'text-base', 'text-base')} font-semibold text-black-800 flex-1`}
+                            numberOfLines={2}
+                          >
+                            {item.name}
+                          </Text>
                           <TouchableOpacity onPress={() => removeFromCart(item._id)} className="ml-2">
-                            <Trash2 size={18} color="red" />
+                            <Trash2 size={responsiveValue(16, 18, 18)} color="red" />
                           </TouchableOpacity>
                         </View>
-                        <Text className="text-sm text-green-600 mb-1">{item.unit || '500 g'}</Text>
+                        <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-green-600 mb-1`}>{item.unit || '500 g'}</Text>
                         <View className="flex-row items-center mb-1">
-                          <Text className="text-lg font-bold text-green-800">
+                          <Text className={`${responsiveValue('text-base', 'text-lg', 'text-lg')} font-bold text-green-800`}>
                             ₹{(item.price * item.quantity).toFixed(2)}
                           </Text>
                           {item.originalPrice && (
-                            <Text className="text-sm text-gray-400 line-through ml-2">
+                            <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-gray-400 line-through ml-2`}>
                               ₹{(item.originalPrice * item.quantity).toFixed(2)}
                             </Text>
                           )}
                         </View>
                         {discount > 0 && (
-                          <Text className="text-xs text-red-500 mb-1">Discount: ₹{(discount * item.quantity).toFixed(2)}</Text>
+                          <Text className={`${responsiveValue('text-xs', 'text-xs', 'text-sm')} text-red-500 mb-1`}>
+                            Discount: ₹{(discount * item.quantity).toFixed(2)}
+                          </Text>
                         )}
-                        <Text className="text-xs text-blue-500 mb-1">GST (5%): ₹{(gst * item.quantity).toFixed(2)}</Text>
-                        <Text className="text-xs text-black-700 mb-2">Final: ₹{(finalPrice * item.quantity).toFixed(2)}</Text>
+                        <Text className={`${responsiveValue('text-xs', 'text-xs', 'text-sm')} text-blue-500 mb-1`}>
+                          GST (5%): ₹{(gst * item.quantity).toFixed(2)}
+                        </Text>
+                        <Text className={`${responsiveValue('text-xs', 'text-xs', 'text-sm')} text-black-700 mb-2`}>
+                          Final: ₹{(finalPrice * item.quantity).toFixed(2)}
+                        </Text>
                         <View className="flex-row items-center justify-between">
                           <View className="flex-row items-center bg-green-50 rounded-full px-1 py-1">
                             <TouchableOpacity
                               onPress={() => decreaseQty(item)}
-                              className="w-8 h-8 rounded-full bg-white items-center justify-center shadow-sm border border-green-100"
+                              className={`${responsiveValue('w-7 h-7', 'w-8 h-8', 'w-8 h-8')} rounded-full bg-white items-center justify-center shadow-sm border border-green-100`}
                             >
-                              <Minus size={14} color="#059669" />
+                              <Minus size={responsiveValue(12, 14, 14)} color="#059669" />
                             </TouchableOpacity>
-                            <Text className="mx-4 font-medium text-green-700">{item.quantity}</Text>
+                            <Text className={`${responsiveValue('mx-2', 'mx-4', 'mx-4')} font-medium text-green-700`}>
+                              {item.quantity}
+                            </Text>
                             <TouchableOpacity
                               onPress={() => increaseQty(item)}
-                              className="w-8 h-8 rounded-full bg-white items-center justify-center shadow-sm border border-green-100"
+                              className={`${responsiveValue('w-7 h-7', 'w-8 h-8', 'w-8 h-8')} rounded-full bg-white items-center justify-center shadow-sm border border-green-100`}
                             >
-                              <Plus size={14} color="#059669" />
+                              <Plus size={responsiveValue(12, 14, 14)} color="#059669" />
                             </TouchableOpacity>
                           </View>
-                          <View className="flex-row items-center bg-green-100 px-3 py-1 rounded-full">
-                            <Text className="text-green-700 text-xs">✓</Text>
-                            <Text className="text-grey-700 text-xs ml-1">Har Din Sasta</Text>
+                          <View className="flex-row items-center bg-green-100 px-2 py-1 rounded-full">
+                            <Text className={`${responsiveValue('text-xs', 'text-xs', 'text-sm')} text-green-700`}>✓</Text>
+                            <Text className={`${responsiveValue('text-xs', 'text-xs', 'text-sm')} text-grey-700 ml-1`}>Har Din Sasta</Text>
                           </View>
                         </View>
                       </View>
@@ -334,11 +346,13 @@ export default function CartScreen({ navigation }) {
                       onPress={() => moveToWishlist(item)}
                     >
                       <Heart
-                        size={16}
+                        size={responsiveValue(14, 16, 16)}
                         color={isInWishlist(item._id) ? "red" : "#059669"}
                         fill={isInWishlist(item._id) ? "red" : "none"}
                       />
-                      <Text className="text-sm text-grey-600 ml-2">Move to wishlist</Text>
+                      <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-grey-600 ml-2`}>
+                        Move to wishlist
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 );
@@ -347,17 +361,19 @@ export default function CartScreen({ navigation }) {
 
             {/* Promo Code Section */}
             <View className="bg-white mx-4 mt-6 rounded-2xl p-4 shadow-sm border border-green-100">
-  <TouchableOpacity
-    className="flex-row items-center justify-between"
-    onPress={handlePromoCode}
-  >
-    <View className="flex-row items-center">
-      <Tag size={20} color="#059669" />
-      <Text className="text-base text-grey-700 ml-3">Enter your promo code</Text>
-    </View>
-    <ChevronRight size={20} color="#059669" />
-  </TouchableOpacity>
-</View>
+              <TouchableOpacity
+                className="flex-row items-center justify-between"
+                onPress={handlePromoCode}
+              >
+                <View className="flex-row items-center">
+                  <Tag size={responsiveValue(18, 20, 20)} color="#059669" />
+                  <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} text-grey-700 ml-3`}>
+                    Enter your promo code
+                  </Text>
+                </View>
+                <ChevronRight size={responsiveValue(18, 20, 20)} color="#059669" />
+              </TouchableOpacity>
+            </View>
 
             <View className="h-32" />
           </>
@@ -369,31 +385,31 @@ export default function CartScreen({ navigation }) {
         <View className="bg-white border-t border-green-100">
           <View className="px-4 py-3 border-b border-green-100">
             <View className="flex-row justify-between items-center mb-2">
-              <Text className="text-sm text-green-700">Subtotal</Text>
-              <Text className="text-sm font-medium text-green-800">
+              <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-green-700`}>Subtotal</Text>
+              <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} font-medium text-green-800`}>
                 ₹{getSubtotal().toFixed(2)}
               </Text>
             </View>
             <View className="flex-row justify-between items-center mb-2">
-              <Text className="text-sm text-green-700">Total Discount</Text>
-              <Text className="text-sm font-medium text-red-500">
+              <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-green-700`}>Total Discount</Text>
+              <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} font-medium text-red-500`}>
                 -₹{getTotalDiscount().toFixed(2)}
               </Text>
             </View>
             <View className="flex-row justify-between items-center mb-2">
-              <Text className="text-sm text-green-700">Total GST (5%)</Text>
-              <Text className="text-sm font-medium text-blue-500">
+              <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-green-700`}>Total GST (5%)</Text>
+              <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} font-medium text-blue-500`}>
                 ₹{getTotalGST().toFixed(2)}
               </Text>
             </View>
             <View className="flex-row justify-between items-center mb-2">
-              <Text className="text-sm text-green-700">Delivery</Text>
-              <Text className="text-sm font-medium text-green-800">
+              <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-green-700`}>Delivery</Text>
+              <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} font-medium text-green-800`}>
                 ₹{getShipping().toFixed(2)}
               </Text>
             </View>
             <View className="flex-row justify-between items-center">
-              <Text className="text-base font-semibold text-black-800">
+              <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} font-semibold text-black-800`}>
                 Grand Total: ₹{getGrandTotal().toFixed(2)}
               </Text>
             </View>
@@ -409,7 +425,7 @@ export default function CartScreen({ navigation }) {
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={{
-                  paddingVertical: 16,
+                  paddingVertical: responsiveValue(14, 16, 16),
                   borderRadius: 16,
                   alignItems: 'center',
                   justifyContent: 'center',

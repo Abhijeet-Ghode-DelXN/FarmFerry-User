@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { useAppContext } from '../context/AppContext';
-import AppBar from '../components/ui/AppBar';
-import { useFocusEffect } from '@react-navigation/native';
+"use client"
+
+import React, { useState, useEffect, useMemo, useRef } from "react"
+import { useAppContext } from "../context/AppContext"
+import { useFocusEffect } from "@react-navigation/native"
 import {
   View,
   Text,
@@ -13,574 +14,846 @@ import {
   FlatList,
   Alert,
   RefreshControl,
-  ActivityIndicator
-} from 'react-native';
-import { productsAPI, categoriesAPI, reviewsAPI } from '../services/api';
-import { MapPin, Plus, Heart, Search as SearchIcon, Filter, Star, ChevronRight, ArrowRight, Clock, Truck, Leaf, Percent, ShoppingCart, ArrowLeft, MessageCircle } from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useUserLocation } from '../hooks/useUserLocation';
-import { cartAPI } from '../services/api';
+  ActivityIndicator,
+} from "react-native"
+import { productsAPI, categoriesAPI } from "../services/api"
+import { Heart, Search as SearchIcon, Filter, Star, ShoppingCart, ArrowLeft, MessageCircle } from "lucide-react-native"
+import { LinearGradient } from "expo-linear-gradient"
+import { cartAPI } from "../services/api"
 
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window")
 
 const SubcategoriesScreen = ({ navigation, route }) => {
-  const { category } = route.params;
-  const [selectedSubcategory, setSelectedSubcategory] = useState(null);
-  const [subcategories, setSubcategories] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [loadingSubcategories, setLoadingSubcategories] = useState(true);
-  const [loadingProducts, setLoadingProducts] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [buyNowPressedId, setBuyNowPressedId] = useState(null);
-  const [updatingRatings, setUpdatingRatings] = useState(new Set());
-  const [updatingAllProducts, setUpdatingAllProducts] = useState(false);
+  const { category } = route.params
+  const [selectedSubcategory, setSelectedSubcategory] = useState(null)
+  const [subcategories, setSubcategories] = useState([])
+  const [products, setProducts] = useState([])
+  const [loadingSubcategories, setLoadingSubcategories] = useState(true)
+  const [loadingProducts, setLoadingProducts] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [buyNowPressedId, setBuyNowPressedId] = useState(null)
+  const [updatingRatings, setUpdatingRatings] = useState(new Set())
+  const [updatingAllProducts, setUpdatingAllProducts] = useState(false)
+  const [isInitialized, setIsInitialized] = useState(false)
 
-  const { cartItems, wishlistItems, updateCartItems, addToWishlist, removeFromWishlist } = useAppContext();
+  // Add search and filter states
+  const [searchQuery, setSearchQuery] = useState("")
+  const [showFilters, setShowFilters] = useState(false)
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 10000 })
+  const [selectedRating, setSelectedRating] = useState(0)
+  const [sortBy, setSortBy] = useState("name")
+  const [inStockOnly, setInStockOnly] = useState(false)
 
-  // Fetch subcategories for the selected category
-  useEffect(() => {
-    fetchSubcategories();
-  }, [category]);
+  // Use ref to track if we're in the middle of initialization
+  const initializingRef = useRef(false)
 
-  // Fetch products when subcategory changes
-  useEffect(() => {
-    fetchProducts();
-  }, [selectedSubcategory]);
+  const { cartItems, wishlistItems, updateCartItems, addToWishlist, removeFromWishlist } = useAppContext()
 
-  // Refresh data when screen comes into focus (e.g., after returning from product details)
-  useFocusEffect(
-    React.useCallback(() => {
-      console.log('🔄 Screen focused - refreshing data');
-      if (selectedSubcategory) {
-        // First fetch basic product list
-        fetchProducts().then(() => {
-          // Then fetch updated details for all products to ensure ratings are current
-          setTimeout(() => {
-            fetchUpdatedProductDetails();
-          }, 500); // Small delay to ensure basic fetch completes
-        });
+  // Memoized filtered and sorted products
+  const filteredProducts = useMemo(() => {
+    let filtered = [...products]
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim()
+      filtered = filtered.filter(
+        (product) =>
+          product.name?.toLowerCase().includes(query) ||
+          product.farmer?.toLowerCase().includes(query) ||
+          product.category?.toLowerCase().includes(query),
+      )
+    }
+
+    filtered = filtered.filter((product) => {
+      const price = product.price || 0
+      return price >= priceRange.min && price <= priceRange.max
+    })
+
+    if (selectedRating > 0) {
+      filtered = filtered.filter((product) => (product.rating || 0) >= selectedRating)
+    }
+
+    if (inStockOnly) {
+      filtered = filtered.filter((product) => product.stock > 0)
+    }
+
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "price-low":
+          return (a.price || 0) - (b.price || 0)
+        case "price-high":
+          return (b.price || 0) - (a.price || 0)
+        case "rating":
+          return (b.rating || 0) - (a.rating || 0)
+        case "name":
+        default:
+          return (a.name || "").localeCompare(b.name || "")
       }
-    }, [selectedSubcategory])
-  );
+    })
+
+    return filtered
+  }, [products, searchQuery, priceRange, selectedRating, sortBy, inStockOnly])
+
+  // Initialize data on component mount
+  useEffect(() => {
+    const initializeData = async () => {
+      console.log("🚀 Initializing component data...")
+      initializingRef.current = true
+      setIsInitialized(false)
+
+      try {
+        await fetchSubcategories()
+      } catch (error) {
+        console.error("Failed to initialize data:", error)
+      } finally {
+        initializingRef.current = false
+        setIsInitialized(true)
+      }
+    }
+
+    initializeData()
+  }, [category])
+
+  // Fetch products when subcategory changes (but only after initialization)
+  useEffect(() => {
+    if (selectedSubcategory && isInitialized && !initializingRef.current) {
+      console.log("🔄 Subcategory changed, fetching products for:", selectedSubcategory.name)
+      fetchProducts(selectedSubcategory)
+    }
+  }, [selectedSubcategory, isInitialized])
 
   const fetchSubcategories = async () => {
     try {
-      setLoadingSubcategories(true);
-      const res = await categoriesAPI.getCategories();
-      const allCategories = res?.data?.data?.categories || res?.data?.data || [];
-      
-      // Filter subcategories that have the current category as parent
-      const categorySubcategories = allCategories.filter(cat => 
-        cat.parent === category._id || cat.parent === category.id
-      );
-      
-      // If no direct subcategories, use the main category itself
+      setLoadingSubcategories(true)
+      console.log("🔄 Fetching subcategories for category:", category.name)
+
+      const res = await categoriesAPI.getSubcategories(category._id || category.id)
+      const categorySubcategories = res?.data?.data?.categories || res?.data?.data || []
+
+      let finalSubcategories = []
+      let defaultSubcategory = null
+
       if (categorySubcategories.length === 0) {
-        setSubcategories([category]);
-        setSelectedSubcategory(category);
+        try {
+          const categoryWithSubs = await categoriesAPI.getCategoryById(category._id || category.id)
+          const populatedCategory = categoryWithSubs?.data?.data?.category
+
+          if (populatedCategory?.subcategories && populatedCategory.subcategories.length > 0) {
+            finalSubcategories = populatedCategory.subcategories
+            defaultSubcategory = populatedCategory.subcategories[0]
+          } else {
+            finalSubcategories = [category]
+            defaultSubcategory = category
+          }
+        } catch (categoryErr) {
+          console.error("Failed to fetch category with subcategories:", categoryErr)
+          finalSubcategories = [category]
+          defaultSubcategory = category
+        }
       } else {
-        setSubcategories(categorySubcategories);
-        setSelectedSubcategory(categorySubcategories[0]);
+        finalSubcategories = categorySubcategories
+        defaultSubcategory = categorySubcategories[0]
+      }
+
+      console.log("✅ Subcategories loaded:", finalSubcategories.length)
+      console.log("🎯 Default subcategory:", defaultSubcategory?.name)
+
+      setSubcategories(finalSubcategories)
+
+      // Set the selected subcategory and immediately fetch its products
+      if (defaultSubcategory) {
+        setSelectedSubcategory(defaultSubcategory)
+        // Fetch products for the default subcategory immediately
+        await fetchProducts(defaultSubcategory)
       }
     } catch (err) {
-      console.error('Failed to fetch subcategories:', err?.response?.data || err.message);
-      // Fallback to using the main category
-      setSubcategories([category]);
-      setSelectedSubcategory(category);
+      console.error("Failed to fetch subcategories:", err?.response?.data || err.message)
+      const fallbackSubcategories = [category]
+      setSubcategories(fallbackSubcategories)
+      setSelectedSubcategory(category)
+      await fetchProducts(category)
     } finally {
-      setLoadingSubcategories(false);
+      setLoadingSubcategories(false)
     }
-  };
+  }
 
-  const fetchProducts = async () => {
-    if (!selectedSubcategory) return;
-    
+  const fetchProducts = async (subcategory = selectedSubcategory) => {
+    if (!subcategory) {
+      console.log("⚠️ No subcategory provided, skipping product fetch")
+      return
+    }
+
     try {
-      setLoadingProducts(true);
-      console.log('🔄 Fetching products for category:', selectedSubcategory._id || selectedSubcategory.id);
-      
+      setLoadingProducts(true)
+      console.log("🔄 Fetching products for subcategory:", subcategory.name, "ID:", subcategory._id || subcategory.id)
+
       const params = {
-        category: selectedSubcategory._id || selectedSubcategory.id,
-        limit: 50
-      };
-      const res = await productsAPI.getProducts(params);
-      const fetchedProducts = (res?.data?.data?.products || []).map(p => ({
+        category: subcategory._id || subcategory.id,
+        limit: 50,
+      }
+
+      const res = await productsAPI.getProducts(params)
+      const fetchedProducts = (res?.data?.data?.products || []).map((p) => ({
         ...p,
         id: p._id,
-        image: p.images?.[0]?.url || '',
+        image: p.images?.[0]?.url || "",
         discount: p.offerPercentage,
         rating: p.averageRating,
         reviews: p.totalReviews,
-        farmer: p.supplierId?.businessName || '',
-        category: p.categoryId?.name || '',
+        farmer: p.supplierId?.businessName || "",
+        category: p.categoryId?.name || "",
         price: p.discountedPrice ?? p.price,
         originalPrice: p.price,
-      }));
-      
-      console.log('📊 Fetched products with ratings:', fetchedProducts.map(p => ({
-        id: p._id,
-        rating: p.rating,
-        reviews: p.reviews
-      })));
-      
-      setProducts(fetchedProducts);
-    } catch (err) {
-      console.error('Failed to fetch products:', err?.response?.data || err.message);
-      setProducts([]);
-    } finally {
-      setLoadingProducts(false);
-    }
-  };
+        stock: p.stock || 0,
+      }))
 
-  const isInWishlist = (id) => wishlistItems.some((item) => item && item._id === id);
-  const isInCart = (id) => cartItems.some((item) => item && item._id === id);
+      console.log("✅ Fetched", fetchedProducts.length, "products for", subcategory.name)
+      setProducts(fetchedProducts)
+
+      // Update price range based on fetched products
+      if (fetchedProducts.length > 0) {
+        const prices = fetchedProducts.map((p) => p.price || 0)
+        const minPrice = Math.min(...prices)
+        const maxPrice = Math.max(...prices)
+        setPriceRange((prev) => ({
+          min: Math.min(prev.min, minPrice),
+          max: Math.max(prev.max, maxPrice),
+        }))
+      }
+    } catch (err) {
+      console.error("Failed to fetch products:", err?.response?.data || err.message)
+      setProducts([])
+    } finally {
+      setLoadingProducts(false)
+    }
+  }
+
+  const isInWishlist = (id) => wishlistItems.some((item) => item && item._id === id)
+  const isInCart = (id) => cartItems.some((item) => item && item._id === id)
 
   const toggleWishlist = async (product) => {
-    const productId = product._id;
+    const productId = product._id
     if (isInWishlist(productId)) {
-      await removeFromWishlist(productId);
+      await removeFromWishlist(productId)
     } else {
-      await addToWishlist(product);
+      await addToWishlist(product)
     }
-  };
+  }
 
   const handleAddToCart = async (product) => {
-    const productId = product._id || product.id;
+    const productId = product._id || product.id
     if (!isInCart(productId)) {
       try {
-        const response = await cartAPI.addToCart({ productId, quantity: 1 });
-        updateCartItems(response.data.data.cart.items);
-        Alert.alert('Added to Cart', `${product.name} has been added to your cart`);
+        const response = await cartAPI.addToCart({ productId, quantity: 1 })
+        updateCartItems(response.data.data.cart.items)
+        Alert.alert("Added to Cart", `${product.name} has been added to your cart`)
       } catch (error) {
-        console.error('Failed to add to cart:', error);
-        Alert.alert('Error', 'Could not add item to cart. Please try again.');
+        console.error("Failed to add to cart:", error)
+        Alert.alert("Error", "Could not add item to cart. Please try again.")
       }
     }
-  };
+  }
 
   const handleRefresh = async () => {
-    setRefreshing(true);
-    console.log('🔄 Manual refresh triggered');
-    await Promise.all([fetchSubcategories(), fetchProducts()]);
-    // Also fetch updated product details after basic refresh
-    setTimeout(() => {
-      fetchUpdatedProductDetails();
-    }, 500);
-    setRefreshing(false);
-  };
+    setRefreshing(true)
+    console.log("🔄 Manual refresh triggered")
 
-  // Enhanced function to fetch updated product details for all products
-  const fetchUpdatedProductDetails = async () => {
-    if (!products.length) return;
-    
-    console.log('🔄 Fetching updated details for all products');
-    setUpdatingAllProducts(true);
-    
     try {
-      // Fetch individual product details for all products to get updated ratings
+      // Reset states
+      setProducts([])
+      setSelectedSubcategory(null)
+      setIsInitialized(false)
+      initializingRef.current = true
+
+      // Fetch subcategories and products
+      await fetchSubcategories()
+
+      // Update product details after basic refresh
+      setTimeout(() => {
+        if (products.length > 0) {
+          fetchUpdatedProductDetails()
+        }
+      }, 1000)
+    } catch (error) {
+      console.error("Refresh failed:", error)
+    } finally {
+      initializingRef.current = false
+      setIsInitialized(true)
+      setRefreshing(false)
+    }
+  }
+
+  const fetchUpdatedProductDetails = async () => {
+    if (!products.length) return
+
+    console.log("🔄 Fetching updated details for all products")
+    setUpdatingAllProducts(true)
+
+    try {
       const updatedProducts = await Promise.all(
         products.map(async (product) => {
           try {
-            const response = await productsAPI.getProductDetails(product._id || product.id);
-            const updatedProduct = response.data.data.product;
+            const response = await productsAPI.getProductDetails(product._id || product.id)
+            const updatedProduct = response.data.data.product
             return {
               ...product,
               rating: updatedProduct.averageRating,
               reviews: updatedProduct.totalReviews,
-            };
+            }
           } catch (error) {
-            console.error(`Failed to fetch details for product ${product._id}:`, error);
-            return product; // Return original product if fetch fails
+            console.error(`Failed to fetch details for product ${product._id}:`, error)
+            return product
           }
-        })
-      );
-      
-      console.log('📊 Updated all product ratings:', updatedProducts.map(p => ({
-        id: p._id,
-        rating: p.rating,
-        reviews: p.reviews
-      })));
-      
-      setProducts(updatedProducts);
-    } catch (error) {
-      console.error('Failed to fetch updated product details:', error);
-    } finally {
-      setUpdatingAllProducts(false);
-    }
-  };
+        }),
+      )
 
-  // Update product rating and review count after a review is submitted
+      setProducts(updatedProducts)
+    } catch (error) {
+      console.error("Failed to fetch updated product details:", error)
+    } finally {
+      setUpdatingAllProducts(false)
+    }
+  }
+
   const updateProductRating = async (productId) => {
-    console.log('🔄 Updating product rating for:', productId);
-    console.log('🔄 Current products count:', products.length);
-    
+    console.log("🔄 Updating product rating for:", productId)
+
     try {
-      setUpdatingRatings(prev => new Set(prev).add(productId));
-      
-      // Fetch updated product data
-      const response = await productsAPI.getProductDetails(productId);
-      console.log('📊 Product details response:', response.data);
-      const updatedProduct = response.data.data.product;
-      console.log('📊 Updated product data:', {
-        id: updatedProduct._id,
-        averageRating: updatedProduct.averageRating,
-        totalReviews: updatedProduct.totalReviews
-      });
-      
-      // Update the product in the local state
-      setProducts(prevProducts => {
-        const updatedProducts = prevProducts.map(product => 
+      setUpdatingRatings((prev) => new Set(prev).add(productId))
+
+      const response = await productsAPI.getProductDetails(productId)
+      const updatedProduct = response.data.data.product
+
+      setProducts((prevProducts) => {
+        const updatedProducts = prevProducts.map((product) =>
           product._id === productId || product.id === productId
             ? {
                 ...product,
                 rating: updatedProduct.averageRating,
                 reviews: updatedProduct.totalReviews,
               }
-            : product
-        );
-        
-        const updatedProductInState = updatedProducts.find(p => p._id === productId || p.id === productId);
-        console.log('✅ Updated product in state:', {
-          id: updatedProductInState?._id,
-          rating: updatedProductInState?.rating,
-          reviews: updatedProductInState?.reviews
-        });
-        
-        return updatedProducts;
-      });
+            : product,
+        )
+
+        return updatedProducts
+      })
     } catch (error) {
-      console.error('❌ Failed to update product rating:', error);
-      console.error('❌ Error details:', error.response?.data);
-      // Fallback: just refresh all products
-      console.log('🔄 Falling back to refresh all products');
-      await fetchProducts();
+      console.error("❌ Failed to update product rating:", error)
+      await fetchProducts()
     } finally {
-      setUpdatingRatings(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(productId);
-        return newSet;
-      });
+      setUpdatingRatings((prev) => {
+        const newSet = new Set(prev)
+        newSet.delete(productId)
+        return newSet
+      })
     }
-  };
+  }
+
+  const clearFilters = () => {
+    setSearchQuery("")
+    setPriceRange({ min: 0, max: 10000 })
+    setSelectedRating(0)
+    setSortBy("name")
+    setInStockOnly(false)
+  }
+
+  const renderFilterModal = () => {
+    if (!showFilters) return null
+
+    return (
+      <View
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0,0,0,0.5)",
+          zIndex: 1000,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: "white",
+            margin: 20,
+            borderRadius: 16,
+            padding: 20,
+            maxHeight: "80%",
+            width: "90%",
+          }}
+        >
+          <View
+            style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}
+          >
+            <Text style={{ fontSize: 18, fontWeight: "bold", color: "#1f2937" }}>Filters</Text>
+            <TouchableOpacity onPress={() => setShowFilters(false)}>
+              <Text style={{ fontSize: 16, color: "#6b7280" }}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Sort By */}
+            <View style={{ marginBottom: 20 }}>
+              <Text style={{ fontSize: 16, fontWeight: "600", color: "#1f2937", marginBottom: 10 }}>Sort By</Text>
+              {[
+                { key: "name", label: "Name (A-Z)" },
+                { key: "price-low", label: "Price: Low to High" },
+                { key: "price-high", label: "Price: High to Low" },
+                { key: "rating", label: "Rating" },
+              ].map((option) => (
+                <TouchableOpacity
+                  key={option.key}
+                  onPress={() => setSortBy(option.key)}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingVertical: 8,
+                    paddingHorizontal: 12,
+                    backgroundColor: sortBy === option.key ? "#f0fdf4" : "transparent",
+                    borderRadius: 8,
+                    marginBottom: 4,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: 8,
+                      borderWidth: 2,
+                      borderColor: sortBy === option.key ? "#10b981" : "#d1d5db",
+                      backgroundColor: sortBy === option.key ? "#10b981" : "transparent",
+                      marginRight: 12,
+                    }}
+                  />
+                  <Text style={{ color: "#1f2937", fontSize: 14 }}>{option.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Rating Filter */}
+            <View style={{ marginBottom: 20 }}>
+              <Text style={{ fontSize: 16, fontWeight: "600", color: "#1f2937", marginBottom: 10 }}>
+                Minimum Rating
+              </Text>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {[0, 1, 2, 3, 4, 5].map((rating) => (
+                  <TouchableOpacity
+                    key={rating}
+                    onPress={() => setSelectedRating(rating)}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      backgroundColor: selectedRating === rating ? "#10b981" : "#f3f4f6",
+                      borderRadius: 8,
+                      flexDirection: "row",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Star
+                      width={12}
+                      height={12}
+                      fill={selectedRating === rating ? "#fff" : "#facc15"}
+                      color={selectedRating === rating ? "#fff" : "#facc15"}
+                    />
+                    <Text
+                      style={{
+                        color: selectedRating === rating ? "#fff" : "#1f2937",
+                        fontSize: 12,
+                        marginLeft: 4,
+                      }}
+                    >
+                      {rating === 0 ? "All" : `${rating}+`}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Stock Filter */}
+            <TouchableOpacity
+              onPress={() => setInStockOnly(!inStockOnly)}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingVertical: 12,
+                marginBottom: 20,
+              }}
+            >
+              <View
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: 4,
+                  borderWidth: 2,
+                  borderColor: inStockOnly ? "#10b981" : "#d1d5db",
+                  backgroundColor: inStockOnly ? "#10b981" : "transparent",
+                  marginRight: 12,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                {inStockOnly && <Text style={{ color: "white", fontSize: 12 }}>✓</Text>}
+              </View>
+              <Text style={{ color: "#1f2937", fontSize: 14 }}>In Stock Only</Text>
+            </TouchableOpacity>
+
+            {/* Action Buttons */}
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <TouchableOpacity
+                onPress={clearFilters}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  backgroundColor: "#f3f4f6",
+                  borderRadius: 8,
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ color: "#1f2937", fontWeight: "600" }}>Clear All</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setShowFilters(false)}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  backgroundColor: "#10b981",
+                  borderRadius: 8,
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ color: "white", fontWeight: "600" }}>Apply</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    )
+  }
 
   const renderSubcategoryItem = ({ item }) => {
-    const isSelected = selectedSubcategory && (selectedSubcategory._id === item._id || selectedSubcategory.id === item.id);
-    
+    const isSelected =
+      selectedSubcategory && (selectedSubcategory._id === item._id || selectedSubcategory.id === item.id)
+
     return (
       <TouchableOpacity
-        onPress={() => setSelectedSubcategory(item)}
+        onPress={() => {
+          console.log("🔄 Selecting subcategory:", item.name)
+          if (!isSelected) {
+            setProducts([])
+            setLoadingProducts(true)
+            setSelectedSubcategory(item)
+          }
+        }}
         style={{
           paddingVertical: 12,
           paddingHorizontal: 16,
-          backgroundColor: isSelected ? '#f0fdf4' : 'transparent',
+          backgroundColor: isSelected ? "#f0fdf4" : "transparent",
           borderLeftWidth: 3,
-          borderLeftColor: isSelected ? '#10b981' : 'transparent',
+          borderLeftColor: isSelected ? "#10b981" : "transparent",
           marginBottom: 4,
         }}
       >
-        <View style={{
-          alignItems: 'center',
-        }}>
-          <View style={{
-            width: 50,
-            height: 50,
-            borderRadius: 12,
-            overflow: 'hidden',
-            marginBottom: 8,
-            backgroundColor: '#f3f4f6',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 2,
-          }}>
+        <View style={{ alignItems: "center" }}>
+          <View
+            style={{
+              width: 50,
+              height: 50,
+              borderRadius: 12,
+              overflow: "hidden",
+              marginBottom: 8,
+              backgroundColor: "#f3f4f6",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 2,
+            }}
+          >
             <Image
               source={
-                item.image && typeof item.image === 'object' && item.image.url
+                item.image && typeof item.image === "object" && item.image.url
                   ? { uri: item.image.url }
-                  : item.image && typeof item.image === 'string' && item.image.trim() !== ''
-                  ? { uri: item.image }
-                  : { uri: 'https://via.placeholder.com/50' }
+                  : item.image && typeof item.image === "string" && item.image.trim() !== ""
+                    ? { uri: item.image }
+                    : { uri: "https://via.placeholder.com/50" }
               }
-              style={{ width: '100%', height: '100%' }}
+              style={{ width: "100%", height: "100%" }}
               resizeMode="cover"
             />
           </View>
-          
-          {/* Tag/Subcategory Name */}
-          <View style={{
-            backgroundColor: isSelected ? '#10b981' : '#f3f4f6',
-            paddingHorizontal: 8,
-            paddingVertical: 4,
-            borderRadius: 12,
-            minWidth: 60,
-            alignItems: 'center',
-          }}>
-            <Text style={{
-              fontSize: 11,
-              fontWeight: isSelected ? '600' : '500',
-              color: isSelected ? 'white' : '#374151',
-              textAlign: 'center',
-            }}>
+
+          <View
+            style={{
+              backgroundColor: isSelected ? "#10b981" : "#f3f4f6",
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: 12,
+              minWidth: 60,
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: isSelected ? "600" : "500",
+                color: isSelected ? "white" : "#374151",
+                textAlign: "center",
+              }}
+            >
               {item.name}
             </Text>
           </View>
-          
-          {/* Description (if available) */}
+
           {item.description && (
-            <Text style={{
-              fontSize: 10,
-              color: '#6b7280',
-              textAlign: 'center',
-              marginTop: 4,
-              lineHeight: 12,
-              paddingHorizontal: 4,
-            }} numberOfLines={2}>
+            <Text
+              style={{
+                fontSize: 10,
+                color: "#6b7280",
+                textAlign: "center",
+                marginTop: 4,
+                lineHeight: 12,
+                paddingHorizontal: 4,
+              }}
+              numberOfLines={2}
+            >
               {item.description}
             </Text>
           )}
         </View>
       </TouchableOpacity>
-    );
-  };
+    )
+  }
 
   const renderProductItem = ({ item }) => {
-    const productId = item._id || item.id;
-    const inWishlist = isInWishlist(productId);
-    const inCart = isInCart(productId);
-    const isUpdatingRating = updatingRatings.has(productId);
-    
+    const productId = item._id || item.id
+    const inWishlist = isInWishlist(productId)
+    const inCart = isInCart(productId)
+    const isUpdatingRating = updatingRatings.has(productId)
+
     return (
       <TouchableOpacity
         onPress={() => {
-          console.log('🚀 Navigating to ProductDetails (main card) with callback for product:', item._id || item.id);
-          navigation.navigate('ProductDetails', { 
+          navigation.navigate("ProductDetails", {
             product: item,
             onReviewSubmitted: () => {
-              console.log('📞 Callback triggered (main card) for product:', item._id || item.id);
-              console.log('📞 About to call updateProductRating...');
-              updateProductRating(item._id || item.id);
-              console.log('📞 updateProductRating called successfully');
-            }
-          });
+              updateProductRating(item._id || item.id)
+            },
+          })
         }}
         activeOpacity={0.9}
-        style={{ width: '48%', marginBottom: 16 }}
+        style={{ width: "48%", marginBottom: 16 }}
       >
-        <View style={{
-          backgroundColor: 'white',
-          borderRadius: 16,
-          overflow: 'hidden',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-          elevation: 2,
-          borderWidth: 1,
-          borderColor: '#f3f4f6',
-          height: 250, // Fixed height for consistent card size
-        }}>
-          <View style={{ position: 'relative' }}>
-            <Image 
-              source={{ uri: item.image }} 
-              style={{ width: '100%', height: 100 }}
-              resizeMode="cover"
+        <View
+          style={{
+            backgroundColor: "white",
+            borderRadius: 16,
+            overflow: "hidden",
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 2,
+            borderWidth: 1,
+            borderColor: "#f3f4f6",
+            height: 250,
+          }}
+        >
+          <View style={{ position: "relative" }}>
+            <Image source={{ uri: item.image }} style={{ width: "100%", height: 100 }} resizeMode="cover" />
+            <View
+              style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.1)" }}
             />
-            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.1)' }} />
             {item.discount && (
-              <View style={{
-                position: 'absolute',
-                top: 8,
-                left: 8,
-                backgroundColor: '#ef4444',
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-                borderRadius: 8,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.2,
-                shadowRadius: 2,
-                elevation: 2
-              }}>
-                <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>
+              <View
+                style={{
+                  position: "absolute",
+                  top: 8,
+                  left: 8,
+                  backgroundColor: "#ef4444",
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 8,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 2,
+                  elevation: 2,
+                }}
+              >
+                <Text style={{ color: "white", fontSize: 10, fontWeight: "bold" }}>
                   {Number(item.discount).toFixed(0)}% OFF
                 </Text>
               </View>
             )}
             <TouchableOpacity
               style={{
-                position: 'absolute',
+                position: "absolute",
                 top: 8,
                 right: 8,
                 width: 32,
                 height: 32,
                 borderRadius: 16,
-                backgroundColor: 'rgba(255,255,255,0.9)',
-                justifyContent: 'center',
-                alignItems: 'center',
-                shadowColor: '#000',
+                backgroundColor: "rgba(255,255,255,0.9)",
+                justifyContent: "center",
+                alignItems: "center",
+                shadowColor: "#000",
                 shadowOffset: { width: 0, height: 1 },
                 shadowOpacity: 0.1,
                 shadowRadius: 2,
-                elevation: 1
+                elevation: 1,
               }}
               onPress={(e) => {
-                e.stopPropagation();
-                toggleWishlist(item);
+                e.stopPropagation()
+                toggleWishlist(item)
               }}
             >
               <Heart
                 width={14}
                 height={14}
-                color={inWishlist ? '#ef4444' : '#9ca3af'}
-                fill={inWishlist ? '#ef4444' : 'none'}
+                color={inWishlist ? "#ef4444" : "#9ca3af"}
+                fill={inWishlist ? "#ef4444" : "none"}
               />
             </TouchableOpacity>
           </View>
           <View style={{ padding: 10 }}>
-            <Text style={{ fontSize: 12, fontWeight: '600', color: '#1f2937', marginBottom: 3, lineHeight: 14 }}>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: "#1f2937", marginBottom: 3, lineHeight: 14 }}>
               {item.name}
             </Text>
-            <Text style={{ fontSize: 10, color: '#10b981', fontWeight: '500', marginBottom: 4 }}>
-              by {item.farmer}
-            </Text>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-              <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#10b981' }}>
-                ₹{item.price}
-              </Text>
+            <Text style={{ fontSize: 10, color: "#10b981", fontWeight: "500", marginBottom: 4 }}>by {item.farmer}</Text>
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}
+            >
+              <Text style={{ fontSize: 14, fontWeight: "bold", color: "#10b981" }}>₹{item.price}</Text>
               {item.originalPrice !== item.price && (
-                <Text style={{ fontSize: 10, color: '#9ca3af', textDecorationLine: 'line-through' }}>
+                <Text style={{ fontSize: 10, color: "#9ca3af", textDecorationLine: "line-through" }}>
                   ₹{item.originalPrice}
                 </Text>
               )}
-              <View style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: '#fef3c7',
-                paddingHorizontal: 4,
-                paddingVertical: 1,
-                borderRadius: 4,
-                borderWidth: 1,
-                borderColor: '#fde68a'
-              }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: "#fef3c7",
+                  paddingHorizontal: 4,
+                  paddingVertical: 1,
+                  borderRadius: 4,
+                  borderWidth: 1,
+                  borderColor: "#fde68a",
+                }}
+              >
                 <Star width={6} height={6} fill="#facc15" color="#facc15" />
                 {isUpdatingRating ? (
                   <ActivityIndicator size={8} color="#92400e" style={{ marginLeft: 1 }} />
                 ) : (
-                  <Text style={{ fontSize: 9, color: '#92400e', fontWeight: '600', marginLeft: 1 }}>
+                  <Text style={{ fontSize: 9, color: "#92400e", fontWeight: "600", marginLeft: 1 }}>
                     {item.rating || 0}
                   </Text>
                 )}
               </View>
             </View>
-            <Text style={{ fontSize: 9, color: '#6b7280', marginBottom: 6 }}>
-              {isUpdatingRating ? 'Updating...' : `${item.reviews || 0} reviews`}
+            <Text style={{ fontSize: 9, color: "#6b7280", marginBottom: 6 }}>
+              {isUpdatingRating ? "Updating..." : `${item.reviews || 0} reviews`}
             </Text>
             <TouchableOpacity
               style={{
-                overflow: 'hidden',
+                overflow: "hidden",
                 borderRadius: 8,
-                marginBottom: 4
+                marginBottom: 4,
               }}
               onPress={(e) => {
-                e.stopPropagation();
-                handleAddToCart(item);
+                e.stopPropagation()
+                handleAddToCart(item)
               }}
               disabled={inCart}
             >
               {inCart ? (
-                <View style={{
-                  paddingVertical: 6,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#f3f4f6',
-                  borderRadius: 8
-                }}>
-                  <Text style={{ color: '#6b7280', fontWeight: '600', fontSize: 11 }}>
-                    Added to Cart
-                  </Text>
+                <View
+                  style={{
+                    paddingVertical: 6,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#f3f4f6",
+                    borderRadius: 8,
+                  }}
+                >
+                  <Text style={{ color: "#6b7280", fontWeight: "600", fontSize: 11 }}>Added to Cart</Text>
                 </View>
               ) : (
                 <LinearGradient
-                  colors={['#10b981', '#059669']}
+                  colors={["#10b981", "#059669"]}
                   style={{
                     paddingVertical: 6,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
                     borderRadius: 8,
                   }}
                 >
                   <ShoppingCart width={10} height={10} color="#fff" />
-                  <Text style={{ color: 'white', fontWeight: '600', fontSize: 11, marginLeft: 3 }}>
-                    Add to Cart
-                  </Text>
+                  <Text style={{ color: "white", fontWeight: "600", fontSize: 11, marginLeft: 3 }}>Add to Cart</Text>
                 </LinearGradient>
               )}
             </TouchableOpacity>
-            <View style={{ flexDirection: 'row', gap: 4 }}>
+            <View style={{ flexDirection: "row", gap: 4 }}>
               <TouchableOpacity
                 style={{
                   flex: 1,
-                  backgroundColor: buyNowPressedId === productId ? '#10b981' : '#f3f4f6',
+                  backgroundColor: buyNowPressedId === productId ? "#10b981" : "#f3f4f6",
                   paddingVertical: 6,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
                   borderRadius: 8,
-                  shadowColor: '#d1d5db',
+                  shadowColor: "#d1d5db",
                   shadowOffset: { width: 0, height: 1 },
                   shadowOpacity: 0.1,
                   shadowRadius: 2,
                   elevation: 1,
                 }}
                 onPress={async (e) => {
-                  e.stopPropagation();
-                  setBuyNowPressedId(productId);
+                  e.stopPropagation()
+                  setBuyNowPressedId(productId)
                   setTimeout(() => {
-                    setBuyNowPressedId(null);
-                    // Navigate to checkout with the product
-                    navigation.navigate('Checkout', {
-                      items: [{ ...item, quantity: 1 }]
-                    });
-                  }, 150);
+                    setBuyNowPressedId(null)
+                    navigation.navigate("Checkout", {
+                      items: [{ ...item, quantity: 1 }],
+                    })
+                  }, 150)
                 }}
               >
-                <Text style={{ 
-                  color: buyNowPressedId === productId ? 'white' : '#1f2937', 
-                  fontWeight: '600', 
-                  fontSize: 11 
-                }}>
+                <Text
+                  style={{
+                    color: buyNowPressedId === productId ? "white" : "#1f2937",
+                    fontWeight: "600",
+                    fontSize: 11,
+                  }}
+                >
                   Buy Now
                 </Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={{
-                  backgroundColor: '#f3f4f6',
+                  backgroundColor: "#f3f4f6",
                   paddingVertical: 6,
                   paddingHorizontal: 8,
                   borderRadius: 8,
-                  shadowColor: '#d1d5db',
+                  shadowColor: "#d1d5db",
                   shadowOffset: { width: 0, height: 1 },
                   shadowOpacity: 0.1,
                   shadowRadius: 2,
                   elevation: 1,
                 }}
                 onPress={(e) => {
-                  e.stopPropagation();
-                  console.log('🚀 Navigating to ProductDetails with callback for product:', item._id || item.id);
-                  navigation.navigate('ProductDetails', { 
+                  e.stopPropagation()
+                  navigation.navigate("ProductDetails", {
                     product: item,
                     onReviewSubmitted: () => {
-                      console.log('📞 Callback triggered for product:', item._id || item.id);
-                      console.log('📞 About to call updateProductRating...');
-                      updateProductRating(item._id || item.id);
-                      console.log('📞 updateProductRating called successfully');
-                    }
-                  });
+                      updateProductRating(item._id || item.id)
+                    },
+                  })
                 }}
               >
                 <MessageCircle width={12} height={12} color="#6b7280" />
@@ -589,96 +862,167 @@ const SubcategoriesScreen = ({ navigation, route }) => {
           </View>
         </View>
       </TouchableOpacity>
-    );
-  };
+    )
+  }
+
+  // Only update ratings when returning to screen, don't refetch products
+  useFocusEffect(
+    React.useCallback(() => {
+      if (products.length > 0 && isInitialized) {
+        console.log("🔄 Screen focused - updating product ratings only")
+        setTimeout(() => {
+          fetchUpdatedProductDetails()
+        }, 1000)
+      }
+    }, [products.length, isInitialized]),
+  )
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f9fafb' }}>
+    <View style={{ flex: 1, backgroundColor: "#f9fafb" }}>
       {/* Header */}
-      <View style={{
-        backgroundColor: 'white',
-        paddingTop: 50,
-        paddingBottom: 16,
-        paddingHorizontal: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#e5e7eb',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 2
-      }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+      <View
+        style={{
+          backgroundColor: "white",
+          paddingTop: 25,
+          paddingBottom: 16,
+          paddingHorizontal: 16,
+          borderBottomWidth: 1,
+          borderBottomColor: "#e5e7eb",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.05,
+          shadowRadius: 2,
+          elevation: 2,
+        }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={{
               width: 40,
               height: 40,
               borderRadius: 20,
-              backgroundColor: '#f3f4f6',
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginRight: 12
+              backgroundColor: "#f3f4f6",
+              justifyContent: "center",
+              alignItems: "center",
+              marginRight: 12,
             }}
           >
             <ArrowLeft width={20} height={20} color="#374151" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1f2937' }}>
-              {category.name}
-            </Text>
-            <Text style={{ fontSize: 12, color: '#6b7280' }}>
-              {subcategories.length} subcategories
+            <Text style={{ fontSize: 18, fontWeight: "bold", color: "#1f2937" }}>{category.name}</Text>
+            <Text style={{ fontSize: 12, color: "#6b7280" }}>
+              {filteredProducts.length} of {products.length} products
             </Text>
           </View>
         </View>
-        
+
         {/* Search Bar */}
-        <View style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          backgroundColor: '#f9fafb',
-          borderRadius: 12,
-          paddingHorizontal: 16,
-          paddingVertical: 12,
-          borderWidth: 1,
-          borderColor: '#e5e7eb'
-        }}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: "#f9fafb",
+            borderRadius: 12,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            borderWidth: 1,
+            borderColor: "#e5e7eb",
+          }}
+        >
           <SearchIcon width={20} height={20} color="#6b7280" />
           <TextInput
             placeholder="Search products..."
             placeholderTextColor="#94a3b8"
-            style={{ flex: 1, marginLeft: 12, color: '#1f2937', fontSize: 14 }}
+            style={{ flex: 1, marginLeft: 12, color: "#1f2937", fontSize: 14 }}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
           />
-          <View style={{ width: 1, height: 20, backgroundColor: '#e5e7eb', marginHorizontal: 12 }} />
-          <TouchableOpacity style={{ padding: 4 }}>
+          <View style={{ width: 1, height: 20, backgroundColor: "#e5e7eb", marginHorizontal: 12 }} />
+          <TouchableOpacity style={{ padding: 4 }} onPress={() => setShowFilters(true)}>
             <Filter width={18} height={18} color="#94a3b8" />
           </TouchableOpacity>
         </View>
+
+        {/* Active Filters Display */}
+        {(searchQuery || selectedRating > 0 || inStockOnly || sortBy !== "name") && (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 8, gap: 8 }}>
+            {searchQuery && (
+              <View
+                style={{
+                  backgroundColor: "#10b981",
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 12,
+                  flexDirection: "row",
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ color: "white", fontSize: 12 }}>Search: {searchQuery}</Text>
+                <TouchableOpacity onPress={() => setSearchQuery("")} style={{ marginLeft: 4 }}>
+                  <Text style={{ color: "white", fontSize: 12 }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {selectedRating > 0 && (
+              <View
+                style={{
+                  backgroundColor: "#10b981",
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 12,
+                  flexDirection: "row",
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ color: "white", fontSize: 12 }}>{selectedRating}+ Stars</Text>
+                <TouchableOpacity onPress={() => setSelectedRating(0)} style={{ marginLeft: 4 }}>
+                  <Text style={{ color: "white", fontSize: 12 }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {inStockOnly && (
+              <View
+                style={{
+                  backgroundColor: "#10b981",
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 12,
+                  flexDirection: "row",
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ color: "white", fontSize: 12 }}>In Stock</Text>
+                <TouchableOpacity onPress={() => setInStockOnly(false)} style={{ marginLeft: 4 }}>
+                  <Text style={{ color: "white", fontSize: 12 }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
       </View>
 
       {/* Main Content */}
-      <View style={{ flex: 1, flexDirection: 'row' }}>
+      <View style={{ flex: 1, flexDirection: "row" }}>
         {/* Sidebar - Subcategories */}
-        <View style={{
-          width: width * 0.30,
-          backgroundColor: 'white',
-          borderRightWidth: 1,
-          borderRightColor: '#e5e7eb'
-        }}>
+        <View
+          style={{
+            width: width * 0.3,
+            backgroundColor: "white",
+            borderRightWidth: 1,
+            borderRightColor: "#e5e7eb",
+          }}
+        >
           <ScrollView
             showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={["#059669"]} />
-            }
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={["#059669"]} />}
           >
             <View style={{ paddingVertical: 8 }}>
               {loadingSubcategories ? (
-                <View style={{ padding: 20, alignItems: 'center' }}>
+                <View style={{ padding: 20, alignItems: "center" }}>
                   <ActivityIndicator size="small" color="#10b981" />
-                  <Text style={{ marginTop: 8, fontSize: 12, color: '#6b7280' }}>
-                    Loading categories...
-                  </Text>
+                  <Text style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>Loading categories...</Text>
                 </View>
               ) : (
                 <FlatList
@@ -696,54 +1040,64 @@ const SubcategoriesScreen = ({ navigation, route }) => {
         <View style={{ flex: 1 }}>
           <ScrollView
             showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={["#059669"]} />
-            }
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={["#059669"]} />}
           >
             <View style={{ padding: 16 }}>
               {selectedSubcategory && (
                 <View style={{ marginBottom: 16 }}>
-                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1f2937', marginBottom: 4 }}>
+                  <Text style={{ fontSize: 18, fontWeight: "bold", color: "#1f2937", marginBottom: 4 }}>
                     {selectedSubcategory.name}
                   </Text>
                   {selectedSubcategory.description && (
-                    <Text style={{ fontSize: 14, color: '#6b7280' }}>
-                      {selectedSubcategory.description}
-                    </Text>
+                    <Text style={{ fontSize: 14, color: "#6b7280" }}>{selectedSubcategory.description}</Text>
                   )}
                 </View>
               )}
 
-              {loadingProducts ? (
-                <View style={{ padding: 40, alignItems: 'center' }}>
+              {loadingSubcategories || loadingProducts ? (
+                <View style={{ padding: 40, alignItems: "center" }}>
                   <ActivityIndicator size="large" color="#10b981" />
-                  <Text style={{ marginTop: 12, fontSize: 14, color: '#6b7280' }}>
-                    Loading products...
+                  <Text style={{ marginTop: 12, fontSize: 14, color: "#6b7280" }}>
+                    {loadingSubcategories ? "Loading categories..." : "Loading products..."}
                   </Text>
                 </View>
               ) : updatingAllProducts ? (
-                <View style={{ padding: 20, alignItems: 'center' }}>
+                <View style={{ padding: 20, alignItems: "center" }}>
                   <ActivityIndicator size="small" color="#10b981" />
-                  <Text style={{ marginTop: 8, fontSize: 12, color: '#6b7280' }}>
-                    Updating product ratings...
-                  </Text>
+                  <Text style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>Updating product ratings...</Text>
                 </View>
-              ) : products.length === 0 ? (
-                <View style={{ padding: 40, alignItems: 'center' }}>
-                  <Text style={{ fontSize: 16, color: '#6b7280', textAlign: 'center' }}>
-                    No products found in this category
+              ) : filteredProducts.length === 0 ? (
+                <View style={{ padding: 40, alignItems: "center" }}>
+                  <Text style={{ fontSize: 16, color: "#6b7280", textAlign: "center" }}>
+                    {products.length === 0 ? "No products found in this category" : "No products match your filters"}
                   </Text>
-                  <Text style={{ fontSize: 14, color: '#9ca3af', textAlign: 'center', marginTop: 8 }}>
-                    Try selecting a different subcategory
+                  <Text style={{ fontSize: 14, color: "#9ca3af", textAlign: "center", marginTop: 8 }}>
+                    {products.length === 0
+                      ? "Try selecting a different subcategory"
+                      : "Try adjusting your search or filters"}
                   </Text>
+                  {products.length > 0 && (
+                    <TouchableOpacity
+                      onPress={clearFilters}
+                      style={{
+                        marginTop: 12,
+                        paddingHorizontal: 16,
+                        paddingVertical: 8,
+                        backgroundColor: "#10b981",
+                        borderRadius: 8,
+                      }}
+                    >
+                      <Text style={{ color: "white", fontWeight: "600" }}>Clear Filters</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               ) : (
                 <FlatList
-                  data={products}
+                  data={filteredProducts}
                   renderItem={renderProductItem}
                   keyExtractor={(item) => (item._id || item.id).toString()}
                   numColumns={2}
-                  columnWrapperStyle={{ justifyContent: 'space-between' }}
+                  columnWrapperStyle={{ justifyContent: "space-between" }}
                   scrollEnabled={false}
                   showsVerticalScrollIndicator={false}
                 />
@@ -752,8 +1106,11 @@ const SubcategoriesScreen = ({ navigation, route }) => {
           </ScrollView>
         </View>
       </View>
-    </View>
-  );
-};
 
-export default SubcategoriesScreen; 
+      {/* Filter Modal */}
+      {renderFilterModal()}
+    </View>
+  )
+}
+
+export default SubcategoriesScreen  

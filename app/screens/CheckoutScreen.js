@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, Alert, ActivityIndicator, TextInput, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, Alert, ActivityIndicator, TextInput, Image, Dimensions } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { ArrowLeft, MapPin, CreditCard, CheckCircle, Trash2, Check } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,42 +7,45 @@ import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { customerAPI, ordersAPI, cartAPI } from '../services/api';
 import { SCREEN_NAMES } from '../types';
-import UpiPay from 'react-native-upi-pay';
 import Modal from '../components/ui/Modal';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
+import PaymentService from '../services/paymentService';
+import PAYMENT_CONFIG from '../constants/paymentConfig';
 
-// Payment options for online payment
-const paymentOptions = [
-  {
-    id: 'gpay',
-    title: 'Google Pay',
-    icon: FontAwesome5,
-    iconName: 'google-pay',
-    bgColor: 'bg-blue-50',
-    imageUrl: null,
-    rightLogo: null,
-  },
-  {
-    id: 'phonepe',
-    title: 'PhonePe',
-    icon: MaterialCommunityIcons,
-    iconName: 'phone',
-    bgColor: 'bg-purple-50',
-    imageUrl: null,
-    rightLogo: null,
-  },
-  {
-    id: 'upi_id',
-    title: 'Other UPI',
-    icon: MaterialCommunityIcons,
-    iconName: 'plus-circle-outline',
-    bgColor: 'bg-green-50',
-    imageUrl: null,
-    rightLogo: null,
-  },
-  // Add more options as needed
-];
+const { width, height } = Dimensions.get('window');
+
+// Responsive sizing helper
+const responsiveValue = (mobile, tablet) => {
+  return width >= 768 ? tablet : mobile;
+};
+
+// Reusable PaymentOption component with responsive sizing
+const PaymentOption = ({ icon, title, selected, onPress, disabled, comingSoon }) => (
+  <TouchableOpacity
+    className={`flex-row items-center p-2 rounded-lg ${selected ? 'bg-green-50' : ''}`}
+    onPress={onPress}
+    disabled={disabled}
+    activeOpacity={0.7}
+    style={{ minHeight: responsiveValue(50, 60) }}
+  >
+    <View className="bg-white p-1.5 rounded-lg mr-3">
+      {icon}
+    </View>
+    <Text 
+      className={`flex-1 ${disabled ? 'text-gray-400' : 'text-gray-800'}`}
+      style={{ fontSize: responsiveValue(14, 16) }}
+    >
+      {title}
+      {comingSoon && <Text className="text-gray-400 text-xs"> (Coming Soon)</Text>}
+    </Text>
+    {!disabled && (
+      <View className={`w-5 h-5 rounded-full border-2 ${selected ? 'bg-green-500 border-green-500' : 'border-gray-300'}`}>
+        {selected && <Ionicons name="checkmark" size={14} color="white" />}
+      </View>
+    )}
+  </TouchableOpacity>
+);
 
 const CheckoutScreen = ({ route }) => {
   const navigation = useNavigation();
@@ -57,11 +60,12 @@ const CheckoutScreen = ({ route }) => {
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
-  const [expandedSection, setExpandedSection] = useState('upi'); // 'upi', 'wallet', 'card'
-  const [selectedPayment, setSelectedPayment] = useState('gpay'); // 'gpay', 'phonepe', 'upi_id', 'wallet', 'card'
+  const [expandedSection, setExpandedSection] = useState('upi');
+  const [selectedPayment, setSelectedPayment] = useState('gpay');
   const [customUpiId, setCustomUpiId] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
-  const [selectedOption, setSelectedOption] = useState(paymentOptions[0].id);
+  const [paymentError, setPaymentError] = useState(null);
+  const [orderId, setOrderId] = useState(null);
   
   // Get items from route params (for Buy Now functionality)
   const routeItems = route?.params?.items;
@@ -69,7 +73,7 @@ const CheckoutScreen = ({ route }) => {
   // GST rate (5%)
   const GST_RATE = 0.05;
 
-  // Calculation helpers (same as CartScreen)
+  // Calculation helpers
   const getSubtotal = (items) => items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const getTotalDiscount = (items) => items.reduce((sum, item) => {
     if (item.originalPrice) {
@@ -87,16 +91,12 @@ const CheckoutScreen = ({ route }) => {
     try {
       let items = [];
       
-      // If route items are provided (Buy Now), use them; otherwise fetch from cart
       if (routeItems && Array.isArray(routeItems)) {
         items = routeItems;
-        console.log('Using route items for checkout:', items);
       } else {
-        // Fetch cart
         const cartRes = await cartAPI.getCart();
         const cartData = cartRes?.data?.data?.cart || {};
         items = Array.isArray(cartData.items) ? cartData.items : [];
-        console.log('Using cart items for checkout:', items);
       }
       
       const subtotal = getSubtotal(items);
@@ -113,12 +113,10 @@ const CheckoutScreen = ({ route }) => {
         savings,
       });
       
-      // Only update cart items if we're not using route items (Buy Now)
       if (!routeItems) {
         updateCartItems(items);
       }
       
-      // Fetch addresses
       const response = await customerAPI.getProfile();
       const addresses = response?.data?.data?.customer?.addresses;
       setAddresses(Array.isArray(addresses) ? addresses : []);
@@ -134,31 +132,28 @@ const CheckoutScreen = ({ route }) => {
 
   useEffect(() => {
     fetchCartAndAddresses();
-  }, [routeItems]); // Re-run when route items change
+  }, [routeItems]);
 
   useFocusEffect(
     React.useCallback(() => {
       fetchCartAndAddresses();
-    }, [routeItems]) // Re-run when route items change
+    }, [routeItems])
   );
 
-  const handlePlaceOrder = async () => {
+  // Create order with payment status
+  const createOrderWithPayment = async (paymentResult) => {
     if (!selectedAddress) {
-      Alert.alert('Error', 'Please select a shipping address.');
-      return;
+      throw new Error('Please select a shipping address.');
     }
     if (!cart.items || cart.items.length === 0) {
-      Alert.alert('Error', 'Your cart is empty.');
-      return;
+      throw new Error('Your cart is empty.');
     }
+    
     const addressObj = addresses.find(addr => addr._id === selectedAddress);
     if (!addressObj) {
-      Alert.alert('Error', 'Selected address not found.');
-      return;
+      throw new Error('Selected address not found.');
     }
-    // Debug: log user object
-    console.log('DEBUG: user object at checkout:', user);
-    // Ensure phone is present and non-empty
+
     const deliveryAddress = {
       street: addressObj.street,
       city: addressObj.city,
@@ -166,39 +161,84 @@ const CheckoutScreen = ({ route }) => {
       postalCode: addressObj.postalCode,
       country: addressObj.country,
       phone: addressObj.phone || user?.phone || '',
+      location: {
+        type: 'Point',
+        coordinates: [0, 0]
+      }
     };
-    console.log('DEBUG: deliveryAddress.phone being sent:', deliveryAddress.phone);
+
     if (!deliveryAddress.phone || deliveryAddress.phone.trim() === '') {
-      Alert.alert('Error', 'No phone number found for delivery address. Please edit your address or profile.');
-      return;
+      throw new Error('No phone number found for delivery address. Please edit your address or profile.');
     }
-    // Map paymentMethod to backend enum
+
     let paymentMethodValue = paymentMethod;
     if (paymentMethod === 'Cash on Delivery') paymentMethodValue = 'cash_on_delivery';
     else if (paymentMethod === 'Online Payment') paymentMethodValue = 'upi';
-    // Build items array dynamically
+
     const items = cart.items.map(item => {
+      let productId = null;
+      if (item.product && typeof item.product === 'object') {
+        productId = item.product._id || item.product.id;
+      } else if (item.product) {
+        productId = item.product;
+      } else if (item._id) {
+        productId = item._id;
+      }
+      
+      if (!productId) {
+        console.error('Could not find product ID for item:', item);
+        throw new Error(`Product ID not found for item: ${item.name || 'Unknown item'}`);
+      }
+      
+      if (!item.quantity || item.quantity <= 0) {
+        console.error('Invalid quantity for item:', item);
+        throw new Error(`Invalid quantity for item: ${item.name || 'Unknown item'}`);
+      }
+      
       const base = {
-        product: item.product?._id || item.product?.id || item.product,
+        product: productId,
         quantity: item.quantity,
       };
+      
       if (item.variation && item.variation.name && item.variation.value) {
         base.variation = {
           name: item.variation.name,
           value: item.variation.value,
         };
       }
+      
       return base;
     });
+
+    const orderData = {
+      deliveryAddress,
+      paymentMethod: paymentMethodValue,
+      items,
+      clearCart: true,
+      ...(paymentResult && {
+        paymentStatus: 'paid',
+        transactionId: paymentResult.transactionId,
+        paymentDetails: {
+          method: paymentResult.paymentMethod,
+          amount: paymentResult.amount,
+          timestamp: paymentResult.timestamp
+        }
+      })
+    };
+
+    const response = await ordersAPI.createOrder(orderData);
+    const createdOrderId = response?.data?.data?.order?._id || response?.data?.data?._id;
+    setOrderId(createdOrderId);
+    
+    return response;
+  };
+
+  const handlePlaceOrder = async () => {
     setIsPlacingOrder(true);
+    setPaymentError(null);
+    
     try {
-      const response = await ordersAPI.createOrder({
-        deliveryAddress,
-        paymentMethod: paymentMethodValue,
-        items,
-        clearCart: true, // clear cart after order
-      });
-      console.log('Order API response:', response);
+      await createOrderWithPayment();
       updateCartItems([]);
       setShowSuccess(true);
       setTimeout(() => {
@@ -206,48 +246,74 @@ const CheckoutScreen = ({ route }) => {
         navigation.navigate('Orders');
       }, 3000);
     } catch (error) {
-      console.log('Order API error:', error, error?.response);
-      if (error.response) {
-        Alert.alert(
-          'Order Failed',
-          error.response?.data?.message || 'An unexpected error occurred. Please try again.'
-        );
-      }
-      // If no error.response, do not show alert (could be navigation/unmount issue)
+      Alert.alert(
+        'Order Failed',
+        error.message || error.response?.data?.message || 'An unexpected error occurred. Please try again.'
+      );
     } finally {
       setIsPlacingOrder(false);
     }
   };
 
-  // UPI Payment Handler
-  const handleUpiPayment = async (app) => {
+  const handlePayment = async () => {
+    if (!selectedPayment) {
+      Alert.alert('Error', 'Please select a payment method');
+      return;
+    }
+
+    if (selectedPayment === 'upi_id' && !customUpiId.trim()) {
+      Alert.alert('Error', 'Please enter a valid UPI ID');
+      return;
+    }
+
     setIsPaying(true);
+    setPaymentError(null);
+
     try {
-      const upiId = 'yourupiid@okicici'; // TODO: Replace with your business UPI ID
-      const payeeName = 'FarmFerry';
-      const amount = cart.total.toFixed(2);
-      const transactionRef = `FF${Date.now()}`;
-      const response = await UpiPay.initializePayment({
-        vpa: upiId,
-        payeeName,
-        amount,
-        transactionRef,
-        app,
-      });
-      if (response && response.Status && response.Status.toLowerCase() === 'success') {
-        // Payment successful, place order
-        handlePlaceOrder();
+      const orderId = `ORDER_${Date.now()}`;
+      const options = selectedPayment === 'upi_id' ? { upiId: customUpiId.trim() } : {};
+      
+      const paymentResult = await PaymentService.processPayment(
+        selectedPayment,
+        cart.total,
+        orderId,
+        options
+      );
+
+      if (paymentResult && paymentResult.success) {
+        await createOrderWithPayment(paymentResult);
+        updateCartItems([]);
+        setPaymentModalVisible(false);
+        
+        navigation.navigate('PaymentStatus', {
+          paymentMethod: selectedPayment,
+          amount: cart.total,
+          orderId: orderId,
+          transactionId: paymentResult.transactionId,
+          onPaymentComplete: () => {
+            setShowSuccess(true);
+            setTimeout(() => {
+              setShowSuccess(false);
+              navigation.navigate('Orders');
+            }, 3000);
+          },
+          onPaymentFailed: (error) => {
+            setPaymentError(error);
+            Alert.alert('Payment Failed', error);
+          }
+        });
       } else {
-        Alert.alert('Payment Failed', 'Payment was not successful. Please try again.');
+        throw new Error('Payment was not successful');
       }
+
     } catch (error) {
-      Alert.alert('Payment Error', 'An error occurred during payment.');
+      setPaymentError(error.message || 'Payment failed. Please try again.');
+      Alert.alert('Payment Failed', error.message || 'Payment was not successful. Please try again.');
     } finally {
       setIsPaying(false);
     }
   };
 
-  // Add delete handler for addresses
   const handleDeleteAddress = async (addressId) => {
     Alert.alert(
       'Delete Address',
@@ -271,10 +337,12 @@ const CheckoutScreen = ({ route }) => {
     );
   };
 
-  // Enhanced RadioButton with green theme
-  const RadioButton = ({ selected }) => (
-    <View className={`w-5 h-5 rounded-full border-2 ${selected ? 'border-green-600 bg-green-100' : 'border-gray-300'} items-center justify-center`}>
-      {selected ? <View className="w-2.5 h-2.5 rounded-full bg-green-600" /> : null}
+  const RadioButton = ({ selected, color = "#059669" }) => (
+    <View 
+      className={`w-5 h-5 rounded-full border-2 items-center justify-center ${selected ? 'border-green-600 bg-green-100' : 'border-gray-300'}`}
+      style={selected ? { borderColor: color, backgroundColor: `${color}20` } : {}}
+    >
+      {selected ? <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} /> : null}
     </View>
   );
 
@@ -286,7 +354,6 @@ const CheckoutScreen = ({ route }) => {
     );
   }
 
-  // Empty cart state
   if (!cart.items || cart.items.length === 0) {
     return (
       <SafeAreaView className="flex-1 justify-center items-center bg-gray-50">
@@ -298,7 +365,6 @@ const CheckoutScreen = ({ route }) => {
     );
   }
 
-  // Empty address state
   if (!addresses || addresses.length === 0) {
     return (
       <SafeAreaView className="flex-1 justify-center items-center bg-gray-50">
@@ -312,33 +378,55 @@ const CheckoutScreen = ({ route }) => {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
-      <ScrollView className="flex-1 px-4 pt-4">
+      <ScrollView 
+        className="flex-1"
+        contentContainerStyle={{ paddingHorizontal: responsiveValue(16, 24), paddingTop: responsiveValue(16, 24) }}
+      >
         {/* Shipping Address */}
-        <View className="bg-white rounded-2xl p-4 mb-4">
-          <Text className="text-lg font-semibold mb-2">Shipping Address</Text>
+        <View className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
+          <Text className="text-lg font-semibold mb-2" style={{ fontSize: responsiveValue(16, 18) }}>
+            Shipping Address
+          </Text>
           {(Array.isArray(addresses) ? addresses : []).map((address) => (
-            <View key={address._id} className={`border p-4 rounded-lg mb-2 ${selectedAddress === address._id ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}>
+            <View 
+              key={address._id} 
+              className={`border p-4 rounded-lg mb-2 ${selectedAddress === address._id ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}
+              style={{ minHeight: responsiveValue(100, 120) }}
+            >
               <TouchableOpacity
                 className="absolute top-2 right-2 z-10"
                 onPress={() => handleDeleteAddress(address._id)}
                 disabled={addresses.length <= 1}
                 style={{ opacity: addresses.length <= 1 ? 0.4 : 1 }}
               >
-                <Trash2 size={18} color="#ef4444" />
+                <Trash2 size={responsiveValue(16, 18)} color="#ef4444" />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setSelectedAddress(address._id)}
                 className="flex-1"
                 activeOpacity={0.8}
-                style={{ minHeight: 60 }}
               >
                 <View className="flex-row justify-between">
-                  <Text className="font-semibold">{user ? user.name : ''}</Text>
+                  <Text 
+                    className="font-semibold" 
+                    style={{ fontSize: responsiveValue(14, 16) }}
+                  >
+                    {user ? user.name : ''}
+                  </Text>
                 </View>
-                <Text>{address.street}, {address.city}</Text>
-                <Text>{address.state}, {address.postalCode}</Text>
-                <Text>{address.country}</Text>
-                <Text className="text-xs text-gray-500 mt-1">
+                <Text style={{ fontSize: responsiveValue(13, 14) }}>
+                  {address.street}, {address.city}
+                </Text>
+                <Text style={{ fontSize: responsiveValue(13, 14) }}>
+                  {address.state}, {address.postalCode}
+                </Text>
+                <Text style={{ fontSize: responsiveValue(13, 14) }}>
+                  {address.country}
+                </Text>
+                <Text 
+                  className="text-xs text-gray-500 mt-1"
+                  style={{ fontSize: responsiveValue(11, 12) }}
+                >
                   {address.phone && address.phone.trim() !== ''
                     ? address.phone
                     : user?.phone && user.phone.trim() !== ''
@@ -352,83 +440,138 @@ const CheckoutScreen = ({ route }) => {
             onPress={() => navigation.navigate("AddAddress")}
             className="mt-2"
           >
-            <Text className="text-green-600 font-semibold">Add New Address</Text>
+            <Text 
+              className="text-green-600 font-semibold"
+              style={{ fontSize: responsiveValue(14, 16) }}
+            >
+              Add New Address
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* Payment Method */}
-        <View className="bg-white rounded-2xl p-4 mb-4">
-          <Text className="text-lg font-semibold mb-2">Payment Method</Text>
+        <View className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
+          <Text 
+            className="text-lg font-semibold mb-2"
+            style={{ fontSize: responsiveValue(16, 18) }}
+          >
+            Payment Method
+          </Text>
           <TouchableOpacity
-            className={`border p-4 rounded-lg flex-row justify-between items-center ${paymentMethod === 'Cash on Delivery' ? 'border-green-500 bg-green-50' : 'border-gray-200'
-              }`}
+            className={`border p-4 rounded-lg flex-row justify-between items-center ${paymentMethod === 'Cash on Delivery' ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}
             onPress={() => {
               setPaymentMethod('Cash on Delivery');
               setShowPaymentOptions(false);
               setPaymentModalVisible(false);
             }}
+            style={{ minHeight: responsiveValue(60, 70) }}
           >
             <View className="flex-row items-center">
-              <CreditCard size={24} color="#6b7280" />
-              <Text className="ml-4">Cash on Delivery (COD)</Text>
+              <CreditCard size={responsiveValue(20, 24)} color="#6b7280" />
+              <Text 
+                className="ml-4"
+                style={{ fontSize: responsiveValue(14, 16) }}
+              >
+                Cash on Delivery (COD)
+              </Text>
             </View>
-            {paymentMethod === 'Cash on Delivery' && <CheckCircle size={20} color="#059669" />}
+            {paymentMethod === 'Cash on Delivery' && <CheckCircle size={responsiveValue(18, 20)} color="#059669" />}
           </TouchableOpacity>
           <TouchableOpacity
-            className={`border p-4 rounded-lg flex-row justify-between items-center mt-2 ${paymentMethod === 'Online Payment' ? 'border-green-500 bg-green-50' : 'border-gray-200'
-              }`}
+            className={`border p-4 rounded-lg flex-row justify-between items-center mt-2 ${paymentMethod === 'Online Payment' ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}
             onPress={() => {
               setPaymentMethod('Online Payment');
               setShowPaymentOptions(true);
               setPaymentModalVisible(true);
             }}
+            style={{ minHeight: responsiveValue(60, 70) }}
           >
             <View className="flex-row items-center">
-              <CreditCard size={24} color="#6b7280" />
-              <Text className="ml-4">Online Payment</Text>
+              <CreditCard size={responsiveValue(20, 24)} color="#6b7280" />
+              <Text 
+                className="ml-4"
+                style={{ fontSize: responsiveValue(14, 16) }}
+              >
+                Online Payment
+              </Text>
             </View>
-            {paymentMethod === 'Online Payment' && <CheckCircle size={20} color="#059669" />}
+            {paymentMethod === 'Online Payment' && <CheckCircle size={responsiveValue(18, 20)} color="#059669" />}
           </TouchableOpacity>
         </View>
 
         {/* Order Summary */}
-        <View className="bg-white rounded-2xl p-4 mb-4">
+        <View className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
           <View className="flex-row justify-between items-center mb-2">
-            <Text className="text-lg font-semibold">Order Summary</Text>
+            <Text 
+              className="text-lg font-semibold"
+              style={{ fontSize: responsiveValue(16, 18) }}
+            >
+              Order Summary
+            </Text>
             {routeItems && (
               <View className="bg-green-100 px-2 py-1 rounded-full">
-                <Text className="text-xs font-medium text-green-700">Buy Now</Text>
+                <Text 
+                  className="text-xs font-medium text-green-700"
+                  style={{ fontSize: responsiveValue(10, 12) }}
+                >
+                  Buy Now
+                </Text>
               </View>
             )}
           </View>
           {cart.items.map((item) => (
-            <View key={item.product?._id || item.product?.id || item.product} className="flex-row justify-between items-center mb-2">
-              <Text className="flex-1">{item.product?.name || item.name} x{item.quantity}</Text>
-              <Text>₹{(item.product?.price ? item.product.price * item.quantity : item.price * item.quantity).toFixed(2)}</Text>
+            <View 
+              key={item.product?._id || item.product?.id || item.product} 
+              className="flex-row justify-between items-center mb-2"
+              style={{ minHeight: responsiveValue(30, 36) }}
+            >
+              <Text 
+                className="flex-1"
+                style={{ fontSize: responsiveValue(13, 15) }}
+              >
+                {item.product?.name || item.name} x{item.quantity}
+              </Text>
+              <Text style={{ fontSize: responsiveValue(13, 15) }}>
+                ₹{(item.product?.price ? item.product.price * item.quantity : item.price * item.quantity).toFixed(2)}
+              </Text>
             </View>
           ))}
           <View className="border-t border-gray-200 mt-2 pt-2">
             <View className="flex-row justify-between items-center mb-1">
-              <Text>Subtotal</Text>
-              <Text>₹{cart.subtotal.toFixed(2)}</Text>
+              <Text style={{ fontSize: responsiveValue(13, 15) }}>Subtotal</Text>
+              <Text style={{ fontSize: responsiveValue(13, 15) }}>₹{cart.subtotal.toFixed(2)}</Text>
             </View>
             <View className="flex-row justify-between items-center mb-1">
-              <Text>GST (5%)</Text>
-              <Text>₹{cart.gst.toFixed(2)}</Text>
+              <Text style={{ fontSize: responsiveValue(13, 15) }}>GST (5%)</Text>
+              <Text style={{ fontSize: responsiveValue(13, 15) }}>₹{cart.gst.toFixed(2)}</Text>
             </View>
             <View className="flex-row justify-between items-center mb-1">
-              <Text>Shipping</Text>
-              <Text>₹{cart.shipping.toFixed(2)}</Text>
+              <Text style={{ fontSize: responsiveValue(13, 15) }}>Shipping</Text>
+              <Text style={{ fontSize: responsiveValue(13, 15) }}>₹{cart.shipping.toFixed(2)}</Text>
             </View>
             <View className="flex-row justify-between items-center font-bold">
-              <Text className="font-bold">Total</Text>
-              <Text className="font-bold">₹{cart.total.toFixed(2)}</Text>
+              <Text 
+                className="font-bold"
+                style={{ fontSize: responsiveValue(14, 16) }}
+              >
+                Total
+              </Text>
+              <Text 
+                className="font-bold"
+                style={{ fontSize: responsiveValue(14, 16) }}
+              >
+                ₹{cart.total.toFixed(2)}
+              </Text>
             </View>
           </View>
         </View>
       </ScrollView>
 
-      <View className="bg-white border-t border-gray-200 p-4">
+      {/* Bottom Action Button */}
+      <View 
+        className="bg-white border-t border-gray-200 p-4"
+        style={{ paddingHorizontal: responsiveValue(16, 24) }}
+      >
         <TouchableOpacity
           onPress={paymentMethod === 'Online Payment' ? () => setPaymentModalVisible(true) : handlePlaceOrder}
           disabled={isPlacingOrder}
@@ -438,8 +581,15 @@ const CheckoutScreen = ({ route }) => {
             colors={["#10b981", "#059669"]}
             className="py-4 flex-row items-center justify-center rounded-xl"
           >
-            <CheckCircle width={18} height={18} color="#fff" />
-            <Text className="text-white font-semibold text-sm ml-1.5">
+            <CheckCircle 
+              width={responsiveValue(16, 18)} 
+              height={responsiveValue(16, 18)} 
+              color="#fff" 
+            />
+            <Text 
+              className="text-white font-semibold text-sm ml-1.5"
+              style={{ fontSize: responsiveValue(14, 16) }}
+            >
               {isPlacingOrder
                 ? 'Placing Order...'
                 : paymentMethod === 'Online Payment'
@@ -454,155 +604,320 @@ const CheckoutScreen = ({ route }) => {
       <Modal
         visible={paymentModalVisible}
         onClose={() => setPaymentModalVisible(false)}
-        title="Pay Online"
+        title="Payment Options"
         size="full"
         showCloseButton
         closeOnBackdropPress
         style="pb-0"
       >
-        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-          {/* Offer/discount info */}
-          <View className="rounded-2xl bg-white border border-green-200 p-4 mb-4 shadow-md flex-row items-center justify-between">
-            <View>
-              <Text className="text-2xl font-extrabold text-green-700">₹{cart.total.toFixed(0)}</Text>
-              <Text className="text-xs text-gray-400 line-through">₹{(cart.total + 19).toFixed(0)}</Text>
-              <Text className="text-xs text-green-700 font-semibold mt-1">Save ₹19</Text>
+        <ScrollView 
+          className="flex-1" 
+          contentContainerStyle={{ 
+            paddingHorizontal: responsiveValue(16, 24),
+            paddingBottom: responsiveValue(100, 120)
+          }}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Amount Summary */}
+          <View className="bg-white rounded-xl p-4 mb-4 border border-gray-200">
+            <View className="flex-row justify-between items-center mb-2">
+              <Text 
+                className="text-gray-600"
+                style={{ fontSize: responsiveValue(13, 15) }}
+              >
+                Total Amount
+              </Text>
+              <Text 
+                className="text-gray-400 line-through"
+                style={{ fontSize: responsiveValue(13, 15) }}
+              >
+                ₹{(cart.total + 19).toFixed(0)}
+              </Text>
             </View>
-            <View className="flex-row items-center">
-              <MaterialCommunityIcons name="bank-transfer" size={28} color="#059669" />
-              <Text className="ml-2 font-bold text-green-700">Pay Online</Text>
+            <View className="flex-row justify-between items-center">
+              <Text 
+                className="text-2xl font-bold text-green-700"
+                style={{ fontSize: responsiveValue(20, 24) }}
+              >
+                ₹{cart.total.toFixed(0)}
+              </Text>
+              <View className="bg-green-100 px-2 py-1 rounded-full">
+                <Text 
+                  className="text-green-700 text-xs font-medium"
+                  style={{ fontSize: responsiveValue(10, 12) }}
+                >
+                  Save ₹19
+                </Text>
+              </View>
             </View>
           </View>
-          <TouchableOpacity className="mb-4 flex-row items-center justify-between px-2" onPress={() => { }}>
-            <Text className="text-green-700 font-medium">Extra discount with bank offers</Text>
-            <Text className="text-green-700 underline font-semibold">View Offers</Text>
+
+          {/* Payment Error Display */}
+          {paymentError && (
+            <View className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+              <Text 
+                className="text-red-700 text-sm"
+                style={{ fontSize: responsiveValue(12, 14) }}
+              >
+                {paymentError}
+              </Text>
+            </View>
+          )}
+
+          {/* Offers Banner */}
+          <TouchableOpacity 
+            className="bg-amber-50 rounded-lg p-3 mb-4 border border-amber-200 flex-row justify-between items-center"
+            onPress={() => {}}
+          >
+            <Text 
+              className="text-amber-800 font-medium"
+              style={{ fontSize: responsiveValue(13, 15) }}
+            >
+              Bank offers available
+            </Text>
+            <Ionicons 
+              name="chevron-forward" 
+              size={responsiveValue(16, 18)} 
+              color="#d97706" 
+            />
           </TouchableOpacity>
 
-          {/* UPI Section */}
-          <View className="bg-white rounded-2xl shadow-sm mb-4 p-3 border border-green-100">
-            <TouchableOpacity className="flex-row items-center justify-between pb-2" onPress={() => setExpandedSection(expandedSection === 'upi' ? '' : 'upi')}>
-              <View className="flex-row items-center">
-                <MaterialCommunityIcons name="bank" size={22} color="#059669" />
-                <Text className="ml-2 font-bold text-green-700 text-base">Pay by any UPI App</Text>
-              </View>
-              <Ionicons name={expandedSection === 'upi' ? 'chevron-up' : 'chevron-down'} size={22} color="#059669" />
-            </TouchableOpacity>
-            {expandedSection === 'upi' && (
-              <View className="mt-2">
-                <TouchableOpacity className="flex-row items-center py-3 px-2 rounded-lg" style={{ backgroundColor: selectedPayment === 'gpay' ? '#e6f9f0' : 'transparent' }} onPress={() => setSelectedPayment('gpay')}>
-                  <FontAwesome5 name="google-pay" size={28} color="#34A853" />
-                  <Text className="ml-3 flex-1 text-base font-medium">GPay</Text>
-                  <RadioButton selected={selectedPayment === 'gpay'} />
-                </TouchableOpacity>
-                <TouchableOpacity className="flex-row items-center py-3 px-2 rounded-lg" style={{ backgroundColor: selectedPayment === 'phonepe' ? '#e6f9f0' : 'transparent' }} onPress={() => setSelectedPayment('phonepe')}>
-                  <MaterialCommunityIcons name="phone" size={28} color="#5F259F" />
-                  <Text className="ml-3 flex-1 text-base font-medium">PhonePe</Text>
-                  <RadioButton selected={selectedPayment === 'phonepe'} />
-                </TouchableOpacity>
-                <TouchableOpacity className="flex-row items-center py-3 px-2 rounded-lg" style={{ backgroundColor: selectedPayment === 'upi_id' ? '#e6f9f0' : 'transparent' }} onPress={() => setSelectedPayment('upi_id')}>
-                  <MaterialCommunityIcons name="plus-circle-outline" size={28} color="#059669" />
-                  <Text className="ml-3 flex-1 text-base font-medium">Add UPI ID</Text>
-                  <RadioButton selected={selectedPayment === 'upi_id'} />
-                </TouchableOpacity>
-                {selectedPayment === 'upi_id' && (
-                  <View className="flex-row items-center mt-2 px-2">
-                    <Text className="mr-2 text-green-700 font-semibold">UPI ID:</Text>
-                    <View className="flex-1 border-b border-green-300">
+          {/* Payment Options */}
+          <View className="space-y-3">
+            {/* UPI */}
+            <View className="bg-white rounded-xl p-3 border border-gray-200">
+              <TouchableOpacity 
+                className="flex-row justify-between items-center"
+                onPress={() => setExpandedSection(expandedSection === 'upi' ? '' : 'upi')}
+              >
+                <View className="flex-row items-center">
+                  <View className="bg-green-100 p-2 rounded-full mr-3">
+                    <MaterialCommunityIcons 
+                      name="bank" 
+                      size={responsiveValue(16, 18)} 
+                      color="#059669" 
+                    />
+                  </View>
+                  <Text 
+                    className="font-medium"
+                    style={{ fontSize: responsiveValue(14, 16) }}
+                  >
+                    UPI Payment
+                  </Text>
+                </View>
+                <Ionicons 
+                  name={expandedSection === 'upi' ? 'chevron-up' : 'chevron-down'} 
+                  size={responsiveValue(16, 18)} 
+                  color="#6b7280" 
+                />
+              </TouchableOpacity>
+
+              {expandedSection === 'upi' && (
+                <View className="mt-3 space-y-2">
+                  <PaymentOption 
+                    icon={<FontAwesome5 name="google-pay" size={responsiveValue(18, 20)} color="#34A853" />}
+                    title="Google Pay"
+                    selected={selectedPayment === 'gpay'}
+                    onPress={() => setSelectedPayment('gpay')}
+                  />
+                  <PaymentOption 
+                    icon={<MaterialCommunityIcons name="phone" size={responsiveValue(18, 20)} color="#5F259F" />}
+                    title="PhonePe"
+                    selected={selectedPayment === 'phonepe'}
+                    onPress={() => setSelectedPayment('phonepe')}
+                  />
+                  <PaymentOption 
+                    icon={<MaterialCommunityIcons name="account-plus-outline" size={responsiveValue(18, 20)} color="#059669" />}
+                    title="Enter UPI ID"
+                    selected={selectedPayment === 'upi_id'}
+                    onPress={() => setSelectedPayment('upi_id')}
+                  />
+
+                  {selectedPayment === 'upi_id' && (
+                    <View className="mt-2 bg-gray-50 rounded-lg p-3">
                       <TextInput
                         value={customUpiId}
                         onChangeText={setCustomUpiId}
-                        placeholder="yourupi@bank"
-                        className="py-1 px-2 text-green-900"
+                        placeholder="yourname@upi"
+                        className="border-b border-gray-200 pb-1"
+                        autoCapitalize="none"
+                        style={{ fontSize: responsiveValue(14, 16) }}
                       />
                     </View>
+                  )}
+                </View>
+              )}
+            </View>
+
+            {/* Wallet */}
+            <View className="bg-white rounded-xl p-3 border border-gray-200">
+              <TouchableOpacity 
+                className="flex-row justify-between items-center"
+                onPress={() => setExpandedSection(expandedSection === 'wallet' ? '' : 'wallet')}
+              >
+                <View className="flex-row items-center">
+                  <View className="bg-purple-100 p-2 rounded-full mr-3">
+                    <MaterialCommunityIcons 
+                      name="wallet" 
+                      size={responsiveValue(16, 18)} 
+                      color="#7e22ce" 
+                    />
                   </View>
-                )}
-                <Text className="text-xs text-green-700 mt-2 font-semibold px-2">Offers Available</Text>
-              </View>
-            )}
+                  <Text 
+                    className="font-medium"
+                    style={{ fontSize: responsiveValue(14, 16) }}
+                  >
+                    Wallet
+                  </Text>
+                </View>
+                <Ionicons 
+                  name={expandedSection === 'wallet' ? 'chevron-up' : 'chevron-down'} 
+                  size={responsiveValue(16, 18)} 
+                  color="#6b7280" 
+                />
+              </TouchableOpacity>
+
+              {expandedSection === 'wallet' && (
+                <View className="mt-3">
+                  <PaymentOption 
+                    icon={<MaterialCommunityIcons name="wallet-outline" size={responsiveValue(18, 20)} color="#7e22ce" />}
+                    title="Wallet Balance"
+                    selected={false}
+                    disabled
+                    comingSoon
+                  />
+                </View>
+              )}
+            </View>
+
+            {/* Cards */}
+            <View className="bg-white rounded-xl p-3 border border-gray-200">
+              <TouchableOpacity 
+                className="flex-row justify-between items-center"
+                onPress={() => setExpandedSection(expandedSection === 'card' ? '' : 'card')}
+              >
+                <View className="flex-row items-center">
+                  <View className="bg-blue-100 p-2 rounded-full mr-3">
+                    <MaterialCommunityIcons 
+                      name="credit-card-outline" 
+                      size={responsiveValue(16, 18)} 
+                      color="#1d4ed8" 
+                    />
+                  </View>
+                  <Text 
+                    className="font-medium"
+                    style={{ fontSize: responsiveValue(14, 16) }}
+                  >
+                    Credit/Debit Card
+                  </Text>
+                </View>
+                <Ionicons 
+                  name={expandedSection === 'card' ? 'chevron-up' : 'chevron-down'} 
+                  size={responsiveValue(16, 18)} 
+                  color="#6b7280" 
+                />
+              </TouchableOpacity>
+
+              {expandedSection === 'card' && (
+                <View className="mt-3">
+                  <PaymentOption 
+                    icon={<MaterialCommunityIcons name="credit-card" size={responsiveValue(18, 20)} color="#1d4ed8" />}
+                    title="Add Card"
+                    selected={false}
+                    disabled
+                    comingSoon
+                  />
+                </View>
+              )}
+            </View>
           </View>
 
-          {/* Wallet Section */}
-          <View className="bg-white rounded-2xl shadow-sm mb-4 p-3 border border-green-100">
-            <TouchableOpacity className="flex-row items-center justify-between pb-2" onPress={() => setExpandedSection(expandedSection === 'wallet' ? '' : 'wallet')}>
-              <View className="flex-row items-center">
-                <MaterialCommunityIcons name="wallet" size={22} color="#059669" />
-                <Text className="ml-2 font-bold text-green-700 text-base">Wallet</Text>
-              </View>
-              <Ionicons name={expandedSection === 'wallet' ? 'chevron-up' : 'chevron-down'} size={22} color="#059669" />
-            </TouchableOpacity>
-            {expandedSection === 'wallet' && (
-              <View className="mt-2">
-                <Text className="text-xs text-green-700 font-semibold px-2">Offers Available</Text>
-                <TouchableOpacity className="flex-row items-center py-3 px-2 rounded-lg mt-2" style={{ backgroundColor: selectedPayment === 'wallet' ? '#e6f9f0' : 'transparent' }} onPress={() => setSelectedPayment('wallet')}>
-                  <MaterialCommunityIcons name="wallet-outline" size={28} color="#059669" />
-                  <Text className="ml-3 flex-1 text-base font-medium">Wallet (Coming Soon)</Text>
-                  <RadioButton selected={selectedPayment === 'wallet'} />
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-
-          {/* Card Section */}
-          <View className="bg-white rounded-2xl shadow-sm mb-4 p-3 border border-green-100">
-            <TouchableOpacity className="flex-row items-center justify-between pb-2" onPress={() => setExpandedSection(expandedSection === 'card' ? '' : 'card')}>
-              <View className="flex-row items-center">
-                <MaterialCommunityIcons name="credit-card-outline" size={22} color="#059669" />
-                <Text className="ml-2 font-bold text-green-700 text-base">Debit/Credit Cards</Text>
-              </View>
-              <Ionicons name={expandedSection === 'card' ? 'chevron-up' : 'chevron-down'} size={22} color="#059669" />
-            </TouchableOpacity>
-            {expandedSection === 'card' && (
-              <View className="mt-2">
-                <TouchableOpacity className="flex-row items-center py-3 px-2 rounded-lg" style={{ backgroundColor: selectedPayment === 'card' ? '#e6f9f0' : 'transparent' }} onPress={() => setSelectedPayment('card')}>
-                  <MaterialCommunityIcons name="credit-card" size={28} color="#059669" />
-                  <Text className="ml-3 flex-1 text-base font-medium">Debit/Credit Card (Coming Soon)</Text>
-                  <RadioButton selected={selectedPayment === 'card'} />
-                </TouchableOpacity>
-              </View>
-            )}
+          {/* Security Note */}
+          <View className="mt-4 flex-row items-center">
+            <Ionicons 
+              name="shield-checkmark" 
+              size={responsiveValue(14, 16)} 
+              color="#059669" 
+            />
+            <Text 
+              className="text-gray-500 text-xs ml-1"
+              style={{ fontSize: responsiveValue(11, 13) }}
+            >
+              Secure and encrypted payments
+            </Text>
           </View>
         </ScrollView>
-        {/* Divider above Place Order button */}
-        <View className="border-t border-green-200" />
-        {/* Place Order button in a white card */}
-        <View className="bg-white p-4 shadow-lg rounded-t-2xl">
+
+        {/* Payment Button */}
+        <View 
+          className="bg-white p-4 border-t border-gray-200"
+          style={{ paddingHorizontal: responsiveValue(16, 24) }}
+        >
           <TouchableOpacity
-            className="bg-green-600 rounded-xl py-3 items-center shadow-md"
-            onPress={() => {
-              if (selectedOption === 'gpay') handleUpiPayment(UpiPay.UPI_APPS.GOOGLE_PAY);
-              else if (selectedOption === 'phonepe') handleUpiPayment(UpiPay.UPI_APPS.PHONEPE);
-              else if (selectedOption === 'upi_id' && customUpiId) handleUpiPayment(customUpiId);
-              else Alert.alert('Select a valid payment method or enter UPI ID.');
-            }}
-            disabled={isPaying || (selectedOption === 'upi_id' && !customUpiId)}
+            className={`rounded-lg py-3 items-center ${isPaying || (selectedPayment === 'upi_id' && !customUpiId) ? 'bg-gray-300' : 'bg-green-600'}`}
+            onPress={handlePayment}
+            disabled={isPaying || (selectedPayment === 'upi_id' && !customUpiId)}
           >
-            <Text className="text-white font-extrabold text-lg">Place Order</Text>
+            {isPaying ? (
+              <ActivityIndicator color="#ffffff" size={responsiveValue('small', 'large')} />
+            ) : (
+              <Text 
+                className="text-white font-bold"
+                style={{ fontSize: responsiveValue(14, 16) }}
+              >
+                Pay ₹{cart.total.toFixed(0)}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       </Modal>
 
       {/* Success Modal */}
-      {/* Success Modal */}
       <Modal visible={showSuccess} transparent animationType="fade">
-        <View className="bg-white rounded-3xl p-8 items-center shadow-lg w-[300px] max-w-[360px]">
-          {/* Animation Container */}
+        <View 
+          className="bg-white rounded-3xl p-8 items-center shadow-lg"
+          style={{ 
+            width: responsiveValue(280, 320),
+            maxWidth: responsiveValue(300, 360)
+          }}
+        >
           <LottieView
-            source={require('../../assets/Payment-Success.json')} // Make sure this path is correct
+            source={require('../../assets/Payment-Success.json')}
             autoPlay
             loop={false}
-            style={{ width: 150, height: 150 }}
+            style={{ 
+              width: responsiveValue(120, 150),
+              height: responsiveValue(120, 150)
+            }}
             resizeMode="cover"
           />
-
-          <Text className="text-2xl font-bold text-green-600 mt-2 text-center">Order Placed!</Text>
-          <Text className="text-gray-700 mt-2 text-base text-center font-medium">
+          <Text 
+            className="text-2xl font-bold text-green-600 mt-2 text-center"
+            style={{ fontSize: responsiveValue(20, 24) }}
+          >
+            Order Placed!
+          </Text>
+          <Text 
+            className="text-gray-700 mt-2 text-base text-center font-medium"
+            style={{ fontSize: responsiveValue(14, 16) }}
+          >
             Your order has been confirmed
           </Text>
           <View className="mt-4 w-full items-center">
-            <Text className="text-gray-500 text-sm text-center">
+            <Text 
+              className="text-gray-500 text-sm text-center"
+              style={{ fontSize: responsiveValue(12, 14) }}
+            >
               Thank you for shopping with FarmFerry!
             </Text>
+            {orderId && (
+              <Text 
+                className="text-gray-400 text-xs mt-2"
+                style={{ fontSize: responsiveValue(10, 12) }}
+              >
+                Order ID: {orderId}
+              </Text>
+            )}
           </View>
         </View>
       </Modal>
@@ -610,4 +925,4 @@ const CheckoutScreen = ({ route }) => {
   );
 };
 
-export default CheckoutScreen; 
+export default CheckoutScreen;

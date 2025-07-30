@@ -100,7 +100,7 @@ const MyReviewsScreen = ({ navigation }) => {
   };
 
   const renderStars = (rating) => (
-    <View style={{ flexDirection: 'row' }}>
+    <View className="flex-row">
       {[1, 2, 3, 4, 5].map((star) => (
         <Star
           key={star}
@@ -115,126 +115,85 @@ const MyReviewsScreen = ({ navigation }) => {
   const renderReviewItem = (review) => (
     <Animated.View
       key={review._id}
-      style={{
-        opacity: fadeAnim,
-        backgroundColor: 'white',
-        padding: 18,
-        marginBottom: 18,
-        borderRadius: 18,
-        borderWidth: 1,
-        borderColor: '#e5e7eb',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 3,
-      }}
+      className="bg-white p-4 mb-4 rounded-xl border border-gray-200 shadow-sm"
+      style={{ opacity: fadeAnim }}
     >
       {/* Product Info */}
-      <View style={{ flexDirection: 'row', marginBottom: 12, alignItems: 'center' }}>
+      <View className="flex-row mb-3 items-center">
         <Image
           source={{ uri: review.product?.images?.[0]?.url || EMPTY_ILLUSTRATION }}
-          style={{ width: 60, height: 60, borderRadius: 12, marginRight: 16, borderWidth: 1, borderColor: '#f3f4f6', backgroundColor: '#f9fafb' }}
+          className="w-14 h-14 rounded-lg mr-3 border border-gray-100 bg-gray-50"
         />
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: '#1f2937', marginBottom: 2 }}>{review.product?.name || 'Product Name'}</Text>
-          <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>{review.product?.categoryId?.name || 'Category'}</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-            <View style={{ backgroundColor: '#d1fae5', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2, marginRight: 8, flexDirection: 'row', alignItems: 'center' }}>
-              <CheckCircle size={12} color="#10b981" style={{ marginRight: 2 }} />
-              <Text style={{ fontSize: 10, color: '#047857', fontWeight: '600' }}>Verified Purchase</Text>
+        <View className="flex-1">
+          <Text className="text-base font-bold text-gray-800 mb-1" numberOfLines={1}>
+            {review.product?.name || 'Product Name'}
+          </Text>
+          <Text className="text-xs text-gray-500 mb-1">
+            {review.product?.categoryId?.name || 'Category'}
+          </Text>
+          <View className="flex-row items-center">
+            <View className="bg-green-100 rounded px-2 py-1 mr-2 flex-row items-center">
+              <CheckCircle size={12} color="#10b981" className="mr-1" />
+              <Text className="text-xs text-green-800 font-semibold">Verified Purchase</Text>
             </View>
-            <Text style={{ fontSize: 10, color: '#9ca3af' }}>{new Date(review.createdAt).toLocaleDateString()}</Text>
+            <Text className="text-xs text-gray-400">
+              {new Date(review.createdAt).toLocaleDateString()}
+            </Text>
           </View>
         </View>
       </View>
+
       {/* Rating and Review Content */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+      <View className="flex-row items-center mb-2">
         {renderStars(review.rating)}
-        {review.title ? <Text style={{ fontSize: 13, fontWeight: '600', color: '#1f2937', marginLeft: 10 }}>{review.title}</Text> : null}
+        {review.title && (
+          <Text className="text-sm font-semibold text-gray-800 ml-2">
+            {review.title}
+          </Text>
+        )}
       </View>
-      <Text style={{ fontSize: 14, color: '#374151', lineHeight: 20, marginBottom: 12 }}>{review.comment}</Text>
+      <Text className="text-sm text-gray-700 mb-3 leading-5">
+        {review.comment}
+      </Text>
+
       {/* Seller Reply */}
       {review.reply && (
-        <View style={{ backgroundColor: '#f0fdf4', padding: 12, borderRadius: 8, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#10b981' }}>
-          <Text style={{ fontSize: 12, fontWeight: '600', color: '#166534', marginBottom: 4 }}>Seller Response:</Text>
-          <Text style={{ fontSize: 12, color: '#047857' }}>{review.reply.content}</Text>
+        <View className="bg-green-50 p-3 rounded-lg mb-3 border-l-4 border-green-500">
+          <Text className="text-xs font-semibold text-green-800 mb-1">Seller Response:</Text>
+          <Text className="text-xs text-green-700">{review.reply.content}</Text>
         </View>
       )}
+
       {/* Action Buttons */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+      <View className="flex-row justify-between items-center mt-2">
         <TouchableOpacity
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: 10,
-            paddingVertical: 6,
-            backgroundColor: '#f3f4f6',
-            borderRadius: 8,
-            marginRight: 8,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.05,
-            shadowRadius: 2,
-            elevation: 1,
-          }}
+          className="flex-row items-center px-3 py-1.5 bg-gray-100 rounded-lg mr-2"
           onPress={() => handleViewProduct(review.product._id || review.product.id)}
-          activeOpacity={0.8}
           disabled={productLoadingId === (review.product._id || review.product.id)}
         >
           {productLoadingId === (review.product._id || review.product.id) ? (
-            <ActivityIndicator size={14} color="#10b981" style={{ marginRight: 4 }} />
+            <ActivityIndicator size={14} color="#10b981" className="mr-1" />
           ) : (
-            <MessageCircle size={14} color="#10b981" />
+            <MessageCircle size={14} color="#10b981" className="mr-1" />
           )}
-          <Text style={{ fontSize: 12, color: '#10b981', marginLeft: 4 }}>View Product</Text>
+          <Text className="text-xs text-green-600">View Product</Text>
         </TouchableOpacity>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+
+        <View className="flex-row">
           <TouchableOpacity
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingHorizontal: 10,
-              paddingVertical: 6,
-              backgroundColor: '#10b981',
-              borderRadius: 8,
-              marginRight: 8,
-              shadowColor: '#10b981',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.10,
-              shadowRadius: 2,
-              elevation: 2,
-            }}
-            onPress={() => handleViewProduct(review.product._id || review.product.id)}
-            activeOpacity={0.8}
-            disabled={productLoadingId === (review.product._id || review.product.id)}
+            className="flex-row items-center px-3 py-1.5 bg-green-600 rounded-lg mr-2"
+            onPress={() => navigation.navigate('EditReview', { review })}
           >
-            {productLoadingId === (review.product._id || review.product.id) ? (
-              <ActivityIndicator size={14} color="#fff" style={{ marginRight: 4 }} />
-            ) : (
-              <Edit size={14} color="white" />
-            )}
-            <Text style={{ fontSize: 12, color: 'white', marginLeft: 4 }}>Edit</Text>
+            <Edit size={14} color="white" className="mr-1" />
+            <Text className="text-xs text-white">Edit</Text>
           </TouchableOpacity>
+
           <TouchableOpacity
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingHorizontal: 10,
-              paddingVertical: 6,
-              backgroundColor: '#ef4444',
-              borderRadius: 8,
-              shadowColor: '#ef4444',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.10,
-              shadowRadius: 2,
-              elevation: 2,
-            }}
+            className="flex-row items-center px-3 py-1.5 bg-red-500 rounded-lg"
             onPress={() => handleDeleteReview(review._id)}
-            activeOpacity={0.8}
           >
-            <Trash2 size={14} color="white" />
-            <Text style={{ fontSize: 12, color: 'white', marginLeft: 4 }}>Delete</Text>
+            <Trash2 size={14} color="white" className="mr-1" />
+            <Text className="text-xs text-white">Delete</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -244,163 +203,117 @@ const MyReviewsScreen = ({ navigation }) => {
   const renderPendingProduct = (product) => (
     <Animated.View
       key={product._id}
-      style={{
-        opacity: fadeAnim,
-        backgroundColor: 'white',
-        padding: 18,
-        marginBottom: 18,
-        borderRadius: 18,
-        borderWidth: 1,
-        borderColor: '#e5e7eb',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 3,
-        flexDirection: 'row',
-        alignItems: 'center',
-      }}
+      className="bg-white p-4 mb-4 rounded-xl border border-gray-200 shadow-sm flex-row items-center"
+      style={{ opacity: fadeAnim }}
     >
       <Image
         source={{ uri: product.images?.[0]?.url || EMPTY_ILLUSTRATION }}
-        style={{ width: 60, height: 60, borderRadius: 12, marginRight: 16, borderWidth: 1, borderColor: '#f3f4f6', backgroundColor: '#f9fafb' }}
+        className="w-14 h-14 rounded-lg mr-3 border border-gray-100 bg-gray-50"
       />
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 16, fontWeight: '700', color: '#1f2937' }} numberOfLines={1} ellipsizeMode='tail'>
+      <View className="flex-1">
+        <Text className="text-base font-bold text-gray-800 mb-1" numberOfLines={1}>
           {product.name}
         </Text>
-        <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>{product.categoryId?.name}</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-          <View style={{ backgroundColor: '#fef3c7', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2, marginRight: 8 }}>
-            <Text style={{ fontSize: 10, color: '#92400e', fontWeight: '600' }}>Pending Review</Text>
-          </View>
-          {/* <Clock size={12} color="#92400e" />
-          <Text style={{ fontSize: 10, color: '#9ca3af', marginLeft: 4}}>Delivered</Text> */}
+        <Text className="text-xs text-gray-500 mb-2">
+          {product.categoryId?.name}
+        </Text>
+        <View className="bg-yellow-100 rounded px-2 py-1 self-start">
+          <Text className="text-xs text-yellow-800 font-semibold">Pending Review</Text>
         </View>
       </View>
       <TouchableOpacity
-        style={{
-          backgroundColor: '#10b981',
-          borderRadius: 10,
-          paddingVertical: 10,
-          paddingHorizontal: 16,
-          flexDirection: 'row',
-          alignItems: 'center',
-          marginLeft: 8,
-          shadowColor: '#10b981',
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.10,
-          shadowRadius: 2,
-          elevation: 2,
-        }}
+        className="bg-green-600 rounded-lg px-3 py-2 flex-row items-center ml-2"
         onPress={() => {
           navigation.navigate('ProductDetails', {
             product,
             openReviewModal: true
           });
         }}
-        activeOpacity={0.85}
       >
-        <PlusCircle size={18} color="white" />
-        <Text style={{ color: 'white', fontWeight: '700', marginLeft: 8, fontSize: 13 }}>
-          Write a Review
-        </Text>
+        <PlusCircle size={16} color="white" className="mr-1" />
+        <Text className="text-xs text-white font-semibold">Review</Text>
       </TouchableOpacity>
     </Animated.View>
   );
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f9fafb' }}>
+      <View className="flex-1 justify-center items-center bg-gray-50">
         <ActivityIndicator size="large" color="#10b981" />
-        <Text style={{ marginTop: 12, fontSize: 14, color: '#6b7280' }}>
-          Loading your reviews...
-        </Text>
+        <Text className="text-sm text-gray-500 mt-3">Loading your reviews...</Text>
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f9fafb' }}>
+    <View className="flex-1 bg-gray-50">
       {/* Header */}
-      <View style={{
-        backgroundColor: 'white',
-        paddingTop: 50,
-        paddingBottom: 16,
-        paddingHorizontal: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#e5e7eb',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 2
-      }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <View className="bg-white pt-12 pb-3 px-4 border-b border-gray-200">
+        <View className="flex-row items-center">
           <TouchableOpacity
             onPress={() => navigation.goBack()}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: '#f3f4f6',
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginRight: 12
-            }}
-            activeOpacity={0.8}
+            className="w-10 h-10 rounded-full bg-gray-100 justify-center items-center mr-3"
           >
-            <ArrowLeft width={20} height={20} color="#374151" />
+            <ArrowLeft size={20} color="#374151" />
           </TouchableOpacity>
-          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
-            {/* <MessageCircle size={20} color="#10b981" style={{ marginRight: 8 }} /> */}
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1f2937' }}>
-              My Reviews
-            </Text>
-          </View>
+          <Text className="text-xl font-bold text-gray-800">My Reviews</Text>
         </View>
       </View>
+
       {/* Content */}
       <ScrollView
-        style={{ flex: 1, padding: 16 }}
+        className="flex-1 px-4 pt-4"
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={["#10b981"]} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={handleRefresh} 
+            colors={["#10b981"]}
+          />
         }
-        showsVerticalScrollIndicator={false}
       >
         {/* Submitted Reviews Section */}
-        <View style={{ marginBottom: 16 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-            <CheckCircle size={18} color="#10b981" style={{ marginRight: 8 }} />
-            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1f2937' }}>Your Reviews</Text>
+        <View className="mb-6">
+          <View className="flex-row items-center mb-3">
+            <CheckCircle size={18} color="#10b981" className="mr-2" />
+            <Text className="text-lg font-bold text-gray-800">Your Reviews</Text>
           </View>
+
           {reviews.length === 0 ? (
-            <View style={{ padding: 40, alignItems: 'center' }}>
-              <Image source={{ uri: EMPTY_ILLUSTRATION }} style={{ width: 80, height: 80, marginBottom: 16, opacity: 0.7 }} />
-              <Text style={{ fontSize: 16, color: '#6b7280', textAlign: 'center', marginTop: 12 }}>
+            <View className="py-8 items-center">
+              <Image 
+                source={{ uri: EMPTY_ILLUSTRATION }} 
+                className="w-20 h-20 opacity-70 mb-4" 
+              />
+              <Text className="text-base text-gray-500 text-center mb-1">
                 You haven't written any reviews yet
               </Text>
-              <Text style={{ fontSize: 14, color: '#9ca3af', textAlign: 'center', marginTop: 8 }}>
-                Start reviewing products you've purchased to help other customers
+              <Text className="text-sm text-gray-400 text-center">
+                Start reviewing products you've purchased
               </Text>
             </View>
           ) : (
             reviews.map(renderReviewItem)
           )}
         </View>
+
         {/* Divider */}
-        <View style={{ height: 1, backgroundColor: '#e5e7eb', marginVertical: 16, borderRadius: 1 }} />
+        <View className="h-px bg-gray-200 my-4" />
+
         {/* Pending Reviews Section */}
-        <View style={{ marginBottom: 16 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-            <Clock size={18} color="#92400e" style={{ marginRight: 8 }} />
-            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1f2937' }}>Pending Reviews</Text>
+        <View className="mb-6">
+          <View className="flex-row items-center mb-3">
+            <Clock size={18} color="#92400e" className="mr-2" />
+            <Text className="text-lg font-bold text-gray-800">Pending Reviews</Text>
           </View>
+
           {pendingProducts.length === 0 ? (
-            <View style={{ padding: 40, alignItems: 'center' }}>
-              <Image source={{ uri: EMPTY_ILLUSTRATION }} style={{ width: 80, height: 80, marginBottom: 16, opacity: 0.7 }} />
-              <Text style={{ fontSize: 16, color: '#9ca3af', textAlign: 'center', marginTop: 12 }}>
-                No pending reviews! You have reviewed all purchased products.
+            <View className="py-8 items-center">
+              <Image 
+                source={{ uri: EMPTY_ILLUSTRATION }} 
+                className="w-20 h-20 opacity-70 mb-4" 
+              />
+              <Text className="text-base text-gray-500 text-center">
+                No pending reviews
               </Text>
             </View>
           ) : (
@@ -412,4 +325,4 @@ const MyReviewsScreen = ({ navigation }) => {
   );
 };
 
-export default MyReviewsScreen; 
+export default MyReviewsScreen;

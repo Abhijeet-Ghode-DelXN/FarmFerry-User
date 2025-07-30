@@ -1,44 +1,39 @@
 const CategoryItem = ({ item }) => {
   const isSelected = selectedCategory === item.name;
+  const isSmallScreen = width < 375;
+  const isMediumScreen = width >= 375 && width < 768;
+  const isLargeScreen = width >= 768;
+
+  // Responsive sizing
+  const itemWidth = isSmallScreen ? width * 0.28 : isMediumScreen ? width * 0.23 : width * 0.18;
+  const textSize = isSmallScreen ? 'text-xs' : 'text-sm';
+  const borderSize = isSmallScreen ? 'border' : 'border-2';
 
   return (
-    <View style={{ width: width * 0.23, alignItems: 'center', marginBottom: 16 }}>
+    <View className={`items-center mb-4`} style={{ width: itemWidth }}>
       <TouchableOpacity
         activeOpacity={0.9}
-        style={{ width: '100%' }}
+        className="w-full"
         onPress={() => setSelectedCategory(item.name)}
       >
-        <View
-          style={{
-            backgroundColor: 'white',
-            borderRadius: 16,
-            padding: 8,
-            marginBottom: 8,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 2,
-            borderWidth: 2,
-            borderColor: isSelected ? '#10b981' : '#f3f4f6',
-          }}
-        >
-          <View style={{ width: '100%', aspectRatio: 1, borderRadius: 12, overflow: 'hidden' }}>
+        <View className={`
+          bg-white rounded-xl p-2 mb-2 
+          ${borderSize} 
+          ${isSelected ? 'border-green-500' : 'border-gray-100'}
+          shadow-sm
+        `}>
+          <View className="w-full aspect-square rounded-lg overflow-hidden">
             <Image
               source={{ uri: item.image }}
-              style={{ width: '100%', height: '100%' }}
+              className="w-full h-full"
               resizeMode="cover"
             />
           </View>
         </View>
-        <Text
-          style={{
-            fontSize: 14,
-            color: isSelected ? '#10b981' : '#1f2937',
-            fontWeight: '600',
-            textAlign: 'center',
-          }}
-        >
+        <Text className={`
+          ${textSize} font-semibold text-center
+          ${isSelected ? 'text-green-500' : 'text-gray-800'}
+        `}>
           {item.name}
         </Text>
       </TouchableOpacity>

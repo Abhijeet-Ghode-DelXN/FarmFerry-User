@@ -131,9 +131,10 @@ export const cartAPI = {
 };
 
 export const categoriesAPI = {
-  getCategories: () => api.get(CONFIG.ENDPOINTS.CATEGORIES.LIST),
+  getCategories: (params = {}) => api.get(CONFIG.ENDPOINTS.CATEGORIES.LIST, { params }),
   getSubcategories: (parentId) => api.get(`${CONFIG.ENDPOINTS.CATEGORIES.LIST}?parent=${parentId}`),
   getCategoryById: (id) => api.get(`${CONFIG.ENDPOINTS.CATEGORIES.LIST}/${id}`),
+  getCategoryTree: () => api.get(`${CONFIG.ENDPOINTS.CATEGORIES.LIST}/tree`),
 };
 
 export const notificationsAPI = {

@@ -8,6 +8,7 @@ import Toast from 'react-native-toast-message';
 
 export default function App() {
   return (
+    <NavigationContainer>
     <AuthProvider>
       <AppProvider>
         <AppNavigator />
@@ -15,5 +16,6 @@ export default function App() {
         <StatusBar style="auto" />
       </AppProvider>
     </AuthProvider>
+    </NavigationContainer>
   );
 }

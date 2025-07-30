@@ -14,7 +14,7 @@ export default function App() {
       <AppProvider>
         <AppNavigator />
         <Toast />
-        <StatusBar style="auto" />
+        <StatusBar style="dark" backgroundColor="#000000" />
       </AppProvider>
     </AuthProvider>
     </NavigationContainer>

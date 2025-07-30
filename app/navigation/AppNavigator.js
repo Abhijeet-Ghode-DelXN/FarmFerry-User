@@ -14,6 +14,8 @@ import RegisterScreen from '../screens/RegisterScreen';
 import MainTabNavigator from './MainTabNavigator';
 import ProductStackNavigator from './ProductsStackNavigator';
 import SubcategoriesScreen from '../screens/SubcategoriesScreen';
+import ProductListScreen from '../screens/ProductListScreen';
+import CategoriesScreen from '../screens/CategoriesScreen';
 
 // Extra Feature Screens (Add/Edit/Profile)
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
@@ -32,6 +34,7 @@ import LogoScreen from '../screens/LogoScreen';
 import LoadingScreen from '../screens/LoadingScreen';
 import ProductDetailsScreen from '../screens/ProductDetailsScreen';
 import CheckoutScreen from '../screens/CheckoutScreen';
+import PaymentStatusScreen from '../screens/PaymentStatusScreen';
 import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import AddAddressScreen from '../screens/AddAddressScreen';
 import OrdersScreen from '../screens/OrdersScreen';
@@ -100,6 +103,11 @@ const AppStack = () => (
       component={CheckoutScreen}
       options={{ headerShown: true, title: 'Checkout' }}
     />
+    <Stack.Screen
+      name="PaymentStatus"
+      component={PaymentStatusScreen}
+      options={{ headerShown: false }}
+    />
     {/* <Stack.Screen
       name={SCREEN_NAMES.ADD_ADDRESS}
       component={AddAddressScreen}
@@ -153,7 +161,7 @@ const AppStack = () => (
     <Stack.Screen
       name="AddAddress"
       component={AddAddressScreen}
-      options={{ headerShown: true, title: 'Add Address' }}
+      options={{ headerShown: false, title: 'Add Address' }}
     />
     <Stack.Screen
       name="Orders"
@@ -161,9 +169,19 @@ const AppStack = () => (
       options={{ headerShown: false }}
     />
     <Stack.Screen
+      name="Categories"
+      component={CategoriesScreen}
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen
       name="Subcategories"
       component={SubcategoriesScreen}
       options={{ headerShown: false }}
+    />
+    <Stack.Screen
+      name="ProductList"
+      component={ProductListScreen}
+      options={{ headerShown: true, title: 'All Categories' }}
     />
   </Stack.Navigator>
 );

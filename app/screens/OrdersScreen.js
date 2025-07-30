@@ -480,34 +480,35 @@ export default function OrdersScreen() {
     <SafeAreaView className="flex-1 bg-gray-50">
       <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
       {/* Header */}
-      <View className="bg-white px-4 py-6 shadow-sm">
-        <View className="flex-row items-center justify-between mb-4">
-          <View className="flex-row items-center">
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              className="mr-4 p-2 rounded-full bg-gray-100"
-            >
-              <Ionicons name="arrow-back" size={24} color="#10B981" />
-            </TouchableOpacity>
-            <Text className="text-2xl font-bold text-gray-800">My Orders</Text>
-          </View>
-          {/* <TouchableOpacity className="p-2 rounded-full bg-gray-100">
-            <Ionicons name="search" size={24} color="#10B981" />
-          </TouchableOpacity> */}
-        </View>
-        {/* Filter Tabs - dynamic */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row">
-          {filterOptions.map(renderFilterTab)}
-        </ScrollView>
-        {/* Add New Address Button (always visible) */}
-        {/* <Button
-          title="Add New Address"
-          onPress={() => navigation.navigate('AddAddress')}
-          fullWidth
-          size="large"
-          style={{ marginTop: 16 }}
-        /> */}
-      </View>
+      <View className="bg-white px-4 pt-5 pb-3 shadow-sm">
+  <View className="flex-row items-center mb-3">
+    <TouchableOpacity
+      onPress={() => navigation.goBack()}
+      className="mr-3 p-1.5 rounded-full bg-gray-100"
+      hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}  // Better touch area
+    >
+      <Ionicons 
+        name="arrow-back" 
+        size={20} 
+        color="#10B981" 
+        style={{ marginTop: 1 }}  // Minor visual adjustment
+      />
+    </TouchableOpacity>
+    <Text className="text-xl font-bold text-gray-800">
+      My Orders
+    </Text>
+  </View>
+  
+  {/* Filter Tabs */}
+  <ScrollView 
+    horizontal 
+    showsHorizontalScrollIndicator={false} 
+    className="py-1"
+    contentContainerStyle={{ paddingRight: 16 }}  // Ensures last tab isn't cut off
+  >
+    {filterOptions.map(renderFilterTab)}
+  </ScrollView>
+</View>
       {/* Orders List */}
       <View className="flex-1">
         {filteredOrders.length === 0 ? (
