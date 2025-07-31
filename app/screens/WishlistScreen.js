@@ -36,14 +36,15 @@ export default function WishlistScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const getAnimatedValue = (id) => {
-    if (!animatedValues.has(id)) {
-      animatedValues.set(id, new Animated.Value(1));
+    const key = id || 'default';
+    if (!animatedValues.has(key)) {
+      animatedValues.set(key, new Animated.Value(1));
     }
-    return animatedValues.get(id);
+    return animatedValues.get(key);
   };
 
   const handleAddToCart = async (item) => {
-    const animatedValue = getAnimatedValue(item.id);
+    const animatedValue = getAnimatedValue(item._id || item.id);
     Animated.sequence([
       Animated.timing(animatedValue, {
         toValue: 0.98,
@@ -76,13 +77,13 @@ export default function WishlistScreen() {
           text: 'Remove',
           style: 'destructive',
           onPress: () => {
-            const animatedValue = getAnimatedValue(item.id);
+            const animatedValue = getAnimatedValue(item._id || item.id);
             Animated.timing(animatedValue, {
               toValue: 0,
               duration: 250,
               useNativeDriver: true,
             }).start(() => {
-              removeFromWishlist(item.id);
+              removeFromWishlist(item._id || item.id);
             });
           },
         },
@@ -91,7 +92,7 @@ export default function WishlistScreen() {
   };
 
   const renderItem = ({ item }) => {
-    const animatedValue = getAnimatedValue(item.id);
+    const animatedValue = getAnimatedValue(item._id || item.id);
     return (
       <TouchableOpacity
         activeOpacity={0.9}
@@ -118,7 +119,7 @@ export default function WishlistScreen() {
             {/* Image */}
             <View className="relative">
               <Image
-                source={{ uri: item.image || (item.images && item.images[0]?.url) || 'https://via.placeholder.com/256?text=No+Image' }}
+                source={{ uri: (item.images && item.images[0]?.url) || item.image || 'https://via.placeholder.com/256?text=No+Image' }}
                 className="w-full h-36 rounded-t-2xl"
                 resizeMode="cover"
               />
@@ -152,10 +153,10 @@ export default function WishlistScreen() {
               >
                 <Trash2 size={14} color="#ef4444" />
               </TouchableOpacity>
-              {item.discount > 0 && (
+              {item.offerPercentage > 0 && (
                 <View className="absolute bottom-2 right-2 bg-emerald-500 rounded-lg px-2 py-1">
                   <Text className="text-white text-xs font-bold">
-                    -{item.discount}%
+                    -{Math.round(item.offerPercentage)}%
                   </Text>
                 </View>
               )}
@@ -179,30 +180,40 @@ export default function WishlistScreen() {
                       key={i}
                       size={12}
                       color={
-                        i < Math.round(item.rating) ? '#f59e0b' : '#e5e7eb'
+                        i < Math.round(item.averageRating || 0) ? '#f59e0b' : '#e5e7eb'
                       }
-                      fill={i < Math.round(item.rating) ? '#f59e0b' : 'none'}
+                      fill={i < Math.round(item.averageRating || 0) ? '#f59e0b' : 'none'}
                     />
                   ))}
                 </View>
-                <Text className="text-gray-500 text-xs">({item.rating})</Text>
+                <Text className="text-gray-500 text-xs">({item.averageRating || 0})</Text>
               </View>
 
               {/* Price */}
               <View className="flex-row items-center justify-between mb-3">
                 <View className="flex-row items-center">
-                  <Text className="text-gray-400 line-through text-xs mr-1">
-                    ₹{item.originalPrice}
-                  </Text>
-                  <Text className="text-gray-900 font-bold text-base">
-                    ₹{item.price}
-                  </Text>
+                  {item.discountedPrice && item.discountedPrice < item.price ? (
+                    <>
+                      <Text className="text-gray-400 line-through text-xs mr-1">
+                        ₹{item.price}
+                      </Text>
+                      <Text className="text-gray-900 font-bold text-base">
+                        ₹{item.discountedPrice}
+                      </Text>
+                    </>
+                  ) : (
+                    <Text className="text-gray-900 font-bold text-base">
+                      ₹{item.price}
+                    </Text>
+                  )}
                 </View>
-                <View className="bg-emerald-50 rounded-md px-1.5 py-0.5">
-                  <Text className="text-emerald-600 text-xs font-semibold">
-                    Save ₹{item.originalPrice - item.price}
-                  </Text>
-                </View>
+                {item.discountedPrice && item.discountedPrice < item.price && (
+                  <View className="bg-emerald-50 rounded-md px-1.5 py-0.5">
+                    <Text className="text-emerald-600 text-xs font-semibold">
+                      Save ₹{Math.round(item.price - item.discountedPrice)}
+                    </Text>
+                  </View>
+                )}
               </View>
 
               {/* Add to Cart */}
@@ -301,7 +312,7 @@ export default function WishlistScreen() {
       <View className="flex-1 px-4">
         <FlatList
           data={wishlistItems}
-          keyExtractor={(item) => item._id || item.id}
+          keyExtractor={(item) => item._id || item.id || Math.random().toString()}
           renderItem={renderItem}
           numColumns={2}
           columnWrapperStyle={{ justifyContent: 'space-between' }}

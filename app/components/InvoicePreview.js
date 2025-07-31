@@ -19,7 +19,7 @@ export default function InvoicePreview({ order, customer, supplier }) {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>FARM FERRY</Text>
-        <Text style={styles.headerSubtitle}>Fresh from Farm to Your Table</Text>
+        <Text style={styles.headerSubtitle}>Purely Fresh, Perfectly Delivered!!</Text>
       </View>
 
       {/* Invoice Details */}

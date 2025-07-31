@@ -245,7 +245,7 @@ export class InvoiceService {
         <div class="invoice-container">
           <div class="header">
             <h1>FARM FERRY</h1>
-            <div class="subtitle">Fresh from Farm to Your Table</div>
+            <div class="subtitle">Purely Fresh, Perfectly Delivered!!</div>
           </div>
           
           <div class="invoice-details">

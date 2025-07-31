@@ -43,7 +43,7 @@ const SettingsScreen = () => {
           />
         </View>
       </View>
-
+{/* 
       <View className="mb-6">
         <Text className="text-lg font-semibold text-gray-700 mb-2">Development</Text>
         <TouchableOpacity
@@ -52,7 +52,7 @@ const SettingsScreen = () => {
         >
           <Text className="text-blue-600 font-semibold text-base">Test Razorpay Payment</Text>
         </TouchableOpacity>
-      </View>
+      </View> */}
 
       <View className="mb-6">
         <Text className="text-lg font-semibold text-gray-700 mb-2">Account</Text>
