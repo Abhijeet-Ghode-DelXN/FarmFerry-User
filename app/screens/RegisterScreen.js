@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, Image } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { SCREEN_NAMES } from '../types';
 
@@ -23,11 +23,7 @@ export default function RegisterScreen({ navigation }) {
     setIsLoading(true);
     try {
       const response = await register({ name, email, phone, password });
-      console.log('Registration response:', response);
-      console.log('Response data:', response.data);
-      console.log('Requires phone verification:', response.data?.data?.requiresPhoneVerification);
       
-      // Check if phone verification is required
       if (response.data?.data?.requiresPhoneVerification === true) {
         setShowPhoneVerification(true);
         Alert.alert(
@@ -36,19 +32,11 @@ export default function RegisterScreen({ navigation }) {
           [{ text: 'OK' }]
         );
       } else {
-        // Registration successful, redirect to login
-        console.log('Redirecting to login...');
-        console.log('Screen name:', SCREEN_NAMES.LOGIN);
-        console.log('Navigation object:', navigation);
-        
-        // Use replace to ensure navigation works
         setTimeout(() => {
           try {
             navigation.replace(SCREEN_NAMES.LOGIN);
-            console.log('Navigation successful');
           } catch (error) {
             console.error('Navigation error:', error);
-            // Fallback: try with string
             navigation.replace('Login');
           }
         }, 100);
@@ -72,7 +60,6 @@ export default function RegisterScreen({ navigation }) {
 
     setIsVerifying(true);
     try {
-      // Call the verify phone OTP API
       const response = await fetch('http://192.168.0.109:9000/api/v1/auth/verify-phone-otp', {
         method: 'POST',
         headers: {
@@ -109,7 +96,6 @@ export default function RegisterScreen({ navigation }) {
 
   const handleResendOTP = async () => {
     try {
-      // Call the send phone verification API
       const response = await fetch('http://192.168.0.109:9000/api/v1/auth/send-phone-verification', {
         method: 'POST',
         headers: {
@@ -131,90 +117,134 @@ export default function RegisterScreen({ navigation }) {
   if (showPhoneVerification) {
     return (
       <KeyboardAvoidingView
-        className="flex-1 bg-gray-50 justify-center px-5"
+        className="flex-1 bg-gradient-to-b from-blue-50 to-white justify-center px-8"
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <Text className="text-2xl font-bold text-gray-800 mb-6">Verify Phone Number</Text>
+        <View className="items-center mb-8">
+          <Image 
+            source={require('../../assets/images/icon.png')} 
+            className="w-38 h-38"
+            resizeMode="contain"
+          />
+        </View>
         
-        <Text className="text-gray-600 mb-4">
-          Enter the 6-digit OTP sent to {phone}
+        <Text className="text-3xl font-bold text-gray-800 mb-2 text-center">Verify Phone</Text>
+        <Text className="text-gray-500 mb-8 text-center">
+          We've sent a verification code to {'\n'}
+          <Text className="font-semibold text-gray-700">{phone}</Text>
         </Text>
-
-        <TextInput
-          value={phoneOTP}
-          onChangeText={setPhoneOTP}
-          placeholder="Enter 6-digit OTP"
-          keyboardType="numeric"
-          maxLength={6}
-          className="bg-white border border-gray-200 rounded-xl p-4 text-base mb-4"
-        />
+        
+        <View className="mb-6">
+          <Text className="text-gray-700 mb-2">Enter OTP</Text>
+          <TextInput
+            value={phoneOTP}
+            onChangeText={setPhoneOTP}
+            placeholder="Enter 6-digit code"
+            keyboardType="numeric"
+            maxLength={6}
+            className="bg-white border-2 border-gray-200 rounded-xl p-4 text-lg mb-2 shadow-sm"
+          />
+        </View>
 
         <TouchableOpacity
           onPress={handleVerifyPhone}
           disabled={isVerifying}
-          className="bg-green-500 py-4 rounded-2xl items-center mb-4"
+          className="bg-blue-600 py-4 rounded-xl items-center mb-4 shadow-md"
+          activeOpacity={0.8}
         >
-          <Text className="text-white text-base font-semibold">
-            {isVerifying ? 'Verifying...' : 'Verify Phone'}
+          <Text className="text-white text-lg font-bold">
+            {isVerifying ? 'Verifying...' : 'Verify & Continue'}
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={handleResendOTP}
-          className="py-2 items-center"
-        >
-          <Text className="text-green-500 text-base">
-            Didn't receive OTP? Resend
-          </Text>
-        </TouchableOpacity>
+        <View className="flex-row justify-center items-center">
+          <Text className="text-gray-500 mr-1">Didn't receive code?</Text>
+          <TouchableOpacity onPress={handleResendOTP}>
+            <Text className="text-blue-600 font-bold">Resend OTP</Text>
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     );
   }
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-gray-50 justify-center px-5"
+      className="flex-1 bg-gradient-to-b from-blue-50 to-white justify-center px-8"
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <Text className="text-2xl font-bold text-gray-800 mb-6">Create Account</Text>
+      {/* <View className="items-center mb-8">
+        <Image 
+          source={require('../../assets/images/OutlookLogo2.png')} 
+          className="w-56 h-56"
+          resizeMode="contain"
+        />
+      </View> */}
+      
+      <Text className="text-3xl font-bold text-gray-800 mb-1">Create Account</Text>
+      <Text className="text-gray-500 mb-6">Join us today! It takes only few minutes</Text>
 
-      <TextInput
-        value={name}
-        onChangeText={setName}
-        placeholder="Full Name"
-        className="bg-white border border-gray-200 rounded-xl p-4 text-base mb-3"
-      />
-      <TextInput
-        value={email}
-        onChangeText={setEmail}
-        placeholder="Email"
-        keyboardType="email-address"
-        className="bg-white border border-gray-200 rounded-xl p-4 text-base mb-3"
-      />
-      <TextInput
-        value={phone}
-        onChangeText={setPhone}
-        placeholder="Phone Number"
-        keyboardType="phone-pad"
-        className="bg-white border border-gray-200 rounded-xl p-4 text-base mb-3"
-      />
-      <TextInput
-        value={password}
-        onChangeText={setPassword}
-        placeholder="Password"
-        secureTextEntry
-        className="bg-white border border-gray-200 rounded-xl p-4 text-base mb-6"
-      />
+      <View className="space-y-4 mb-6">
+        <View>
+          <Text className="text-gray-700 mb-1">Full Name</Text>
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            placeholder="John Doe"
+            className="bg-white border-2 border-gray-200 rounded-xl p-4 text-lg shadow-sm"
+          />
+        </View>
+        
+        <View>
+          <Text className="text-gray-700 mb-1">Email</Text>
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            placeholder="your@email.com"
+            keyboardType="email-address"
+            className="bg-white border-2 border-gray-200 rounded-xl p-4 text-lg shadow-sm"
+          />
+        </View>
+        
+        <View>
+          <Text className="text-gray-700 mb-1">Phone Number</Text>
+          <TextInput
+            value={phone}
+            onChangeText={setPhone}
+            placeholder="+1 234 567 890"
+            keyboardType="phone-pad"
+            className="bg-white border-2 border-gray-200 rounded-xl p-4 text-lg shadow-sm"
+          />
+        </View>
+        
+        <View>
+          <Text className="text-gray-700 mb-1">Password</Text>
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            placeholder="••••••••"
+            secureTextEntry
+            className="bg-white border-2 border-gray-200 rounded-xl p-4 text-lg shadow-sm"
+          />
+        </View>
+      </View>
 
       <TouchableOpacity
         onPress={handleRegister}
         disabled={isLoading}
-        className="bg-green-500 py-4 rounded-2xl items-center"
+        className="bg-green-700 py-4 rounded-xl items-center shadow-md"
+        activeOpacity={0.8}
       >
-        <Text className="text-white text-base font-semibold">
-          {isLoading ? 'Registering...' : 'Register'}
+        <Text className="text-white text-lg font-bold">
+          {isLoading ? 'Creating Account...' : 'Sign Up'}
         </Text>
       </TouchableOpacity>
+
+      <View className="flex-row justify-center mt-4">
+        <Text className="text-gray-500">Already have an account? </Text>
+        <TouchableOpacity onPress={() => navigation.navigate(SCREEN_NAMES.LOGIN)}>
+          <Text className="text-green-800 font-bold">Sign In</Text>
+        </TouchableOpacity>
+      </View>
     </KeyboardAvoidingView>
   );
 }

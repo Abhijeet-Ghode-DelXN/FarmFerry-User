@@ -90,14 +90,14 @@ const ForgotPasswordScreen = ({ navigation }) => {
           size="large"
         />
 
-        <View className="mt-6">
+        {/* <View className="mt-6">
           <Text className="text-gray-600 text-center text-sm">
             Remember your password?{' '}
             <Text className="text-green-600 font-medium">
               Sign in here
             </Text>
           </Text>
-        </View>
+        </View> */}
       </View>
     </SafeAreaView>
   );

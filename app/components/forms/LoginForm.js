@@ -102,15 +102,11 @@ const LoginForm = ({ onSuccess, onForgotPassword, onRegister }) => {
         </Text>
       </TouchableOpacity>
 
-      <View style={{ marginTop: 24 }}>
-        <Text style={{ textAlign: 'center', color: '#666', fontSize: 14 }}>
-          Don't have an account?{' '}
-          <TouchableOpacity onPress={onRegister}>
-            <Text style={{ color: '#059669', fontWeight: '500' }}>
-              Register here
-            </Text>
-          </TouchableOpacity>
-        </Text>
+      <View style={{ marginTop: 24, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ color: '#666', fontSize: 14 }}>Don't have an account?</Text>
+        <TouchableOpacity onPress={onRegister} style={{ marginLeft: 4 }}>
+          <Text style={{ color: '#059669', fontWeight: '500', fontSize: 14 }}>Register here</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
