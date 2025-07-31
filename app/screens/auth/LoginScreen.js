@@ -42,7 +42,7 @@ const LoginScreen = () => {
         <View className="flex-1 justify-center px-6 py-8">
           {/* Logo and Branding */}
           <View style={{ alignItems: 'center' }}>
-            <Image source={require('../../../assets/images/Icon2.jpeg')} style={{ width: 200, height: 200, resizeMode: 'contain' }} />
+            <Image source={require('../../../assets/images/Icon2.jpeg')} style={{ width: 150, height: 150, resizeMode: 'contain' }} />
           </View>
           {/* Login Form */}
           <LoginForm
