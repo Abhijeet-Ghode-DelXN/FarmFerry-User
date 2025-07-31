@@ -9,10 +9,13 @@ import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
 import { Image as RNImage } from 'react-native';
 import { CONFIG } from '../constants/config';
+import InvoiceService from '../services/invoiceService';
+import { useAuth } from '../context/AuthContext';
 
 export default function OrderDetailsScreen() {
   const route = useRoute();
   const { orderId } = route.params || {};
+  const { user } = useAuth();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -129,34 +132,95 @@ export default function OrderDetailsScreen() {
   const handleGenerateInvoice = async () => {
     setGeneratingInvoice(true);
     try {
-      const response = await ordersAPI.generateInvoice(order._id);
-      const invoiceUrl = response.data.data.invoiceUrl;
+      // Get order details with customer and supplier information
+      const orderResponse = await ordersAPI.getOrderDetails(order._id);
+      const orderDetails = orderResponse.data.data.order || orderResponse.data.data;
       
-      // For React Native, we'll open the PDF in a web browser
-      const baseUrl = CONFIG.API_BASE_URL.replace('/api/v1', '');
-      const fullUrl = `${baseUrl}${invoiceUrl}`;
+      console.log('Order details received in OrderDetailsScreen:', JSON.stringify(orderDetails, null, 2));
+      console.log('Customer data:', JSON.stringify(orderDetails.customer, null, 2));
+      console.log('Supplier data:', JSON.stringify(orderDetails.supplier, null, 2));
+      console.log('Items data:', JSON.stringify(orderDetails.items, null, 2));
       
-      console.log('Invoice URL construction:', {
-        apiBaseUrl: CONFIG.API_BASE_URL,
-        baseUrl,
-        invoiceUrl,
-        fullUrl
-      });
+      // Validate the data structure
+      InvoiceService.validateOrderData(orderDetails, orderDetails.customer, orderDetails.supplier);
       
+      // Try using the original order data if the fetched data is empty
+      let finalOrderData = orderDetails;
+      let finalCustomerData = orderDetails.customer;
+      let finalSupplierData = orderDetails.supplier;
+      
+      // If the fetched data is missing information, try using the original order
+      if (!orderDetails.orderId && !orderDetails._id) {
+        console.log('Using original order data as fallback');
+        finalOrderData = order;
+        finalCustomerData = order.customer;
+        finalSupplierData = order.supplier;
+      }
+      
+      // If we still don't have customer data, try to get it from the user context
+      if (!finalCustomerData || !finalCustomerData.firstName) {
+        console.log('Customer data missing, trying to get from user context');
+        if (user) {
+          finalCustomerData = {
+            firstName: user.firstName || 'Customer',
+            lastName: user.lastName || 'Name',
+            email: user.email || 'customer@example.com',
+            phone: user.phone || 'N/A'
+          };
+          console.log('Using user data from context:', finalCustomerData);
+        } else {
+          finalCustomerData = {
+            firstName: 'Customer',
+            lastName: 'Name',
+            email: 'customer@example.com',
+            phone: 'N/A'
+          };
+        }
+      }
+      
+      // Generate PDF invoice locally
+      const pdfUri = await InvoiceService.generateInvoicePDF(
+        finalOrderData,
+        finalCustomerData,
+        finalSupplierData
+      );
+      
+      // Show options to user
       Alert.alert(
         'Invoice Generated Successfully! 📄',
-        'Your invoice has been created and is ready to download.',
+        'Your invoice has been created. What would you like to do with it?',
         [
           { text: 'Cancel', style: 'cancel' },
           { 
-            text: 'Download Invoice', 
+            text: 'Share Invoice', 
             onPress: async () => {
               try {
-                const { Linking } = await import('react-native');
-                await Linking.openURL(fullUrl);
-              } catch (linkError) {
-                console.error('Error opening invoice:', linkError);
-                Alert.alert('Error', 'Unable to open invoice. Please try again.');
+                const shared = await InvoiceService.shareInvoice(pdfUri, order.orderId);
+                if (!shared) {
+                  Alert.alert(
+                    'Sharing Not Available',
+                    'Sharing is not available on this device. The invoice has been generated successfully.'
+                  );
+                }
+              } catch (error) {
+                console.error('Error sharing invoice:', error);
+                Alert.alert('Error', 'Failed to share invoice. Please try again.');
+              }
+            }
+          },
+          { 
+            text: 'Save to Device', 
+            onPress: async () => {
+              try {
+                const savedPath = await InvoiceService.saveInvoiceToDevice(pdfUri, order.orderId);
+                Alert.alert(
+                  'Invoice Saved!',
+                  `Invoice has been saved to your device.\nPath: ${savedPath}`,
+                  [{ text: 'OK', style: 'default' }]
+                );
+              } catch (error) {
+                console.error('Error saving invoice:', error);
+                Alert.alert('Error', 'Failed to save invoice to device. Please try again.');
               }
             }
           }
@@ -342,32 +406,32 @@ export default function OrderDetailsScreen() {
 
         {/* Invoice button for delivered orders */}
         {order.status === 'delivered' && (
-          <Button
-            title={generatingInvoice ? 'Generating Invoice...' : 'Generate Invoice'}
-            onPress={handleGenerateInvoice}
-            variant="primary"
-            className="mb-4"
-            fullWidth
-            loading={generatingInvoice}
-            disabled={generatingInvoice}
-          />
+         <Button
+         title={generatingInvoice ? 'Generating Invoice...' : 'Generate Invoice'}
+         onPress={handleGenerateInvoice}
+         variant="primary"
+         className="mt-2"  // Changed from mt-4 to mt-2 for smaller top margin
+         fullWidth
+         loading={generatingInvoice}
+         disabled={generatingInvoice}
+       />
         )}
 
         {isDeliveryVerificationNeeded && (
           <View className="flex-row space-x-3">
-            <Button
+            {/* <Button
               title="Verify Delivery (OTP)"
               onPress={() => setShowOtpModal(true)}
               variant="primary"
               className="flex-1"
-            />
-            <Button
+            /> */}
+            {/* <Button
               title={isLoadingQr ? 'Loading...' : 'Show QR'}
               onPress={handleShowQr}
               variant="outline"
               className="flex-1"
               disabled={isLoadingQr}
-            />
+            /> */}
           </View>
         )}
       </View>

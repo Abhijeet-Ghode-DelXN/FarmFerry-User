@@ -26,11 +26,14 @@ import { getStatusColor, getStatusText } from '../utils/helpers';
 import Button from '../components/ui/Button';
 import { SCREEN_NAMES } from '../types';
 import { CONFIG } from '../constants/config';
+import InvoiceService from '../services/invoiceService';
+import { useAuth } from '../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
 export default function OrdersScreen() {
   const navigation = useNavigation();
+  const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [orders, setOrders] = useState([]);
@@ -169,60 +172,115 @@ export default function OrdersScreen() {
   const handleGenerateInvoice = async (order) => {
     setGeneratingInvoiceId(order._id);
     try {
-      // First generate the invoice if it doesn't exist
-      const response = await ordersAPI.generateInvoice(order._id);
-      const invoiceUrl = response.data.data.invoiceUrl;
+      // Get order details with customer and supplier information
+      const orderResponse = await ordersAPI.getOrderDetails(order._id);
+      console.log('Full API Response:', JSON.stringify(orderResponse.data, null, 2));
       
-      // For React Native, we'll open the PDF in a web browser or use Linking
-      const baseUrl = CONFIG.API_BASE_URL.replace('/api/v1', '');
-      const fullUrl = `${baseUrl}${invoiceUrl}`;
+      // Handle different possible response structures
+      let orderDetails;
+      if (orderResponse.data.data.order) {
+        orderDetails = orderResponse.data.data.order;
+      } else if (orderResponse.data.data) {
+        orderDetails = orderResponse.data.data;
+      } else {
+        orderDetails = orderResponse.data;
+      }
       
-      console.log('Invoice URL construction:', {
-        apiBaseUrl: CONFIG.API_BASE_URL,
-        baseUrl,
-        invoiceUrl,
-        fullUrl
-      });
+      console.log('Processed order details:', JSON.stringify(orderDetails, null, 2));
+      console.log('Customer data:', JSON.stringify(orderDetails.customer, null, 2));
+      console.log('Supplier data:', JSON.stringify(orderDetails.supplier, null, 2));
+      console.log('Items data:', JSON.stringify(orderDetails.items, null, 2));
+      console.log('Order ID:', orderDetails.orderId || orderDetails._id);
+      console.log('Status:', orderDetails.status);
+      console.log('Payment Method:', orderDetails.paymentMethod);
+      console.log('Total Amount:', orderDetails.totalAmount);
       
+      // Validate the data structure
+      InvoiceService.validateOrderData(orderDetails, orderDetails.customer, orderDetails.supplier);
+      
+      // Test: Let's also try using the original order data to see if it has more information
+      console.log('=== COMPARISON TEST ===');
+      console.log('Original order from list:', JSON.stringify(order, null, 2));
+      console.log('Fetched order details:', JSON.stringify(orderDetails, null, 2));
+      console.log('=== END COMPARISON ===');
+      
+      // Try using the original order data if the fetched data is empty
+      let finalOrderData = orderDetails;
+      let finalCustomerData = orderDetails.customer;
+      let finalSupplierData = orderDetails.supplier;
+      
+      // If the fetched data is missing information, try using the original order
+      if (!orderDetails.orderId && !orderDetails._id) {
+        console.log('Using original order data as fallback');
+        finalOrderData = order;
+        finalCustomerData = order.customer;
+        finalSupplierData = order.supplier;
+      }
+      
+      // If we still don't have customer data, try to get it from the user context
+      if (!finalCustomerData || !finalCustomerData.firstName) {
+        console.log('Customer data missing, trying to get from user context');
+        if (user) {
+          finalCustomerData = {
+            firstName: user.firstName || 'Customer',
+            lastName: user.lastName || 'Name',
+            email: user.email || 'customer@example.com',
+            phone: user.phone || 'N/A'
+          };
+          console.log('Using user data from context:', finalCustomerData);
+        } else {
+          finalCustomerData = {
+            firstName: 'Customer',
+            lastName: 'Name',
+            email: 'customer@example.com',
+            phone: 'N/A'
+          };
+        }
+      }
+      
+      // Generate PDF invoice locally
+      const pdfUri = await InvoiceService.generateInvoicePDF(
+        finalOrderData,
+        finalCustomerData,
+        finalSupplierData
+      );
+      
+      // Show options to user
       Alert.alert(
         'Invoice Generated Successfully! 📄',
-        'Your invoice has been created and is ready to download.',
+        'Your invoice has been created. What would you like to do with it?',
         [
           { text: 'Cancel', style: 'cancel' },
           { 
-            text: 'Download Invoice', 
+            text: 'Share Invoice', 
             onPress: async () => {
               try {
-                // Import Linking dynamically to avoid issues
-                const { Linking } = await import('react-native');
-                console.log('Attempting to download invoice from URL:', fullUrl);
-                
-                // Check if URL can be opened
-                const canOpen = await Linking.canOpenURL(fullUrl);
-                if (canOpen) {
-                  await Linking.openURL(fullUrl);
-                } else {
-                  // Fallback: show URL to user
+                const shared = await InvoiceService.shareInvoice(pdfUri, order.orderId);
+                if (!shared) {
                   Alert.alert(
-                    'Download Invoice', 
-                    `Please copy and paste this URL in your browser to download the invoice:\n\n${fullUrl}`,
-                    [
-                      { text: 'Copy URL', onPress: () => {
-                        // You can add clipboard functionality here if needed
-                        console.log('URL to copy:', fullUrl);
-                      }},
-                      { text: 'OK', style: 'default' }
-                    ]
+                    'Sharing Not Available',
+                    'Sharing is not available on this device. The invoice has been generated successfully.'
                   );
                 }
-              } catch (linkError) {
-                console.error('Error downloading invoice:', linkError);
-                // Show the URL to user as fallback
+              } catch (error) {
+                console.error('Error sharing invoice:', error);
+                Alert.alert('Error', 'Failed to share invoice. Please try again.');
+              }
+            }
+          },
+          { 
+            text: 'Save to Device', 
+            onPress: async () => {
+              try {
+                const savedPath = await InvoiceService.saveInvoiceToDevice(pdfUri, order.orderId);
                 Alert.alert(
-                  'Error Downloading Invoice', 
-                  `Unable to download invoice automatically. Please copy and paste this URL in your browser:\n\n${fullUrl}`,
+                  'Invoice Saved!',
+                  `Invoice has been saved to your device.\nPath: ${savedPath}`,
                   [{ text: 'OK', style: 'default' }]
                 );
+              } catch (error) {
+                console.error('Error saving invoice:', error);
+                Alert.alert('Error', 'Failed to save invoice to device. Please try again.');
               }
             }
           }
