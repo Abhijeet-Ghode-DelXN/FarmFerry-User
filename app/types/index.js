@@ -63,6 +63,7 @@ export const SCREEN_NAMES = {
   REGISTER: 'Register',
   FORGOT_PASSWORD: 'ForgotPassword',
   RESET_PASSWORD: 'ResetPassword',
+  RESET_PASSWORD_WITH_OTP: 'ResetPasswordWithOTP',
   PHONE_VERIFICATION: 'PhoneVerification',
   
   // Main App Screens

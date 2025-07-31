@@ -14,13 +14,19 @@ const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   async (config) => {
-    // Do not add Authorization header for login, register, refresh-token
+    // Do not add Authorization header for login, register, refresh-token, forgot-password, reset-password
     const authEndpoints = [
       CONFIG.ENDPOINTS.AUTH.LOGIN,
       CONFIG.ENDPOINTS.AUTH.REGISTER,
       CONFIG.ENDPOINTS.AUTH.REFRESH_TOKEN,
+      CONFIG.ENDPOINTS.AUTH.FORGOT_PASSWORD,
+      '/auth/reset-password-otp', // OTP reset endpoint
     ];
-    if (authEndpoints.some((ep) => config.url.endsWith(ep))) {
+    
+    // Check if the URL contains any of the auth endpoints (not just ends with)
+    const shouldSkipAuth = authEndpoints.some((ep) => config.url.includes(ep));
+    if (shouldSkipAuth) {
+      console.log('🔐 API Request - Skipping auth for:', config.url);
       return config;
     }
     try {
@@ -96,8 +102,9 @@ export const authAPI = {
   login: (credentials) => api.post(CONFIG.ENDPOINTS.AUTH.LOGIN, credentials),
   register: (userData) => api.post(CONFIG.ENDPOINTS.AUTH.REGISTER, userData),
   logout: () => api.post(CONFIG.ENDPOINTS.AUTH.LOGOUT),
-  forgotPassword: (email) => api.post(CONFIG.ENDPOINTS.AUTH.FORGOT_PASSWORD, { email }),
+  forgotPassword: (email, role = 'customer') => api.post(CONFIG.ENDPOINTS.AUTH.FORGOT_PASSWORD, { email, role }),
   resetPassword: (token, password) => api.post(`${CONFIG.ENDPOINTS.AUTH.RESET_PASSWORD}/${token}`, { password }),
+  resetPasswordWithOTP: (email, otp, password) => api.post('/auth/reset-password-otp', { email, otp, password }),
   changePassword: (currentPassword, newPassword) => api.post('/auth/change-password', { currentPassword, newPassword }),
 };
 

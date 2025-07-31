@@ -7,8 +7,9 @@ import { useAuth } from '../../context/AuthContext';
 import { forgotPasswordSchema } from '../../utils/validation';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
+import { SCREEN_NAMES } from '../../types';
 
-const ForgotPasswordScreen = () => {
+const ForgotPasswordScreen = ({ navigation }) => {
   const [isLoading, setIsLoading] = useState(false);
   const { forgotPassword } = useAuth();
 
@@ -26,15 +27,21 @@ const ForgotPasswordScreen = () => {
   const onSubmit = async (data) => {
     try {
       setIsLoading(true);
-      await forgotPassword(data.email);
+      // Send email with role parameter for OTP-based reset
+      await forgotPassword(data.email, 'customer');
       Alert.alert(
-        'Success',
-        'Password reset instructions have been sent to your email address.',
-        [{ text: 'OK' }]
+        'OTP Sent',
+        'A 6-digit OTP has been sent to your email. Please check your inbox and enter the OTP to reset your password.',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate(SCREEN_NAMES.RESET_PASSWORD_WITH_OTP, { email: data.email })
+          }
+        ]
       );
     } catch (error) {
       console.error('Forgot password error:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to send reset email. Please try again.';
+      const errorMessage = error.response?.data?.message || 'Failed to send OTP. Please try again.';
       Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
@@ -50,7 +57,7 @@ const ForgotPasswordScreen = () => {
             Forgot Password?
           </Text>
           <Text className="text-gray-600 text-center">
-            Enter your email address and we'll send you instructions to reset your password.
+            Enter your email address and we'll send you a 6-digit OTP to reset your password.
           </Text>
         </View>
 
@@ -76,7 +83,7 @@ const ForgotPasswordScreen = () => {
         />
 
         <Button
-          title="Send Reset Instructions"
+          title="Send OTP"
           onPress={handleSubmit(onSubmit)}
           loading={isLoading}
           fullWidth

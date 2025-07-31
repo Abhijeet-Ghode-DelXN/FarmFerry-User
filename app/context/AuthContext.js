@@ -86,7 +86,15 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
-    checkAuthStatus();
+    // Add timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.log('AuthContext - Timeout reached, setting loading to false');
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }, 5000); // 5 second timeout
+
+    checkAuthStatus().finally(() => {
+      clearTimeout(timeoutId);
+    });
   }, []);
 
   const login = async (email, password) => {
@@ -118,12 +126,20 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: 'SET_LOADING', payload: true });
       
       const response = await authAPI.register(userData);
-      const { user, accessToken, refreshToken } = response.data.data;
-
-      // Do not log in the user automatically after registration
-      // The user should log in manually
       
-      return { success: true };
+      // Don't store tokens automatically - user should log in manually
+      // Clear any existing tokens to ensure clean state
+      await AsyncStorage.multiRemove([
+        CONFIG.STORAGE_KEYS.ACCESS_TOKEN,
+        CONFIG.STORAGE_KEYS.REFRESH_TOKEN,
+        CONFIG.STORAGE_KEYS.USER_DATA,
+      ]);
+      
+      // Set loading to false since registration is complete
+      dispatch({ type: 'SET_LOADING', payload: false });
+      
+      // Return the full response so the frontend can check if phone verification is required
+      return response;
     } catch (error) {
       dispatch({ type: 'SET_LOADING', payload: false });
       throw error;
@@ -171,6 +187,15 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const resetPasswordWithOTP = async (email, otp, password) => {
+    try {
+      await authAPI.resetPasswordWithOTP(email, otp, password);
+      return { success: true };
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const refreshUserData = async () => {
     try {
       console.log('AuthContext - Manual refresh requested');
@@ -209,6 +234,7 @@ export const AuthProvider = ({ children }) => {
     updateUser,
     forgotPassword,
     resetPassword,
+    resetPasswordWithOTP,
     refreshUserData,
   };
 

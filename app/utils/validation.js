@@ -118,6 +118,16 @@ export const resetPasswordSchema = z.object({
   path: ["confirmPassword"],
 });
 
+// Reset password with OTP validation schema
+export const resetPasswordOTPSchema = z.object({
+  otp: z.string().length(6, 'OTP must be exactly 6 digits'),
+  password: passwordSchema,
+  confirmPassword: z.string().min(1, 'Please confirm your password'),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
 // Helper function to validate data against a schema
 export const validateData = (schema, data) => {
   try {

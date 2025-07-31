@@ -7,6 +7,7 @@ import { SCREEN_NAMES } from '../types';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
+import ResetPasswordWithOTPScreen from '../screens/auth/ResetPasswordWithOTPScreen';
 import PhoneVerificationScreen from '../screens/PhoneVerificationScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 
@@ -68,6 +69,11 @@ const AuthStack = () => (
       name={SCREEN_NAMES.RESET_PASSWORD}
       component={ResetPasswordScreen}
       options={{ headerShown: true, title: 'Reset Password' }}
+    />
+    <Stack.Screen
+      name={SCREEN_NAMES.RESET_PASSWORD_WITH_OTP}
+      component={ResetPasswordWithOTPScreen}
+      options={{ headerShown: true, title: 'Reset Password with OTP' }}
     />
   </Stack.Navigator>
 );
