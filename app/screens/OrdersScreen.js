@@ -19,7 +19,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ShoppingCart } from 'lucide-react-native';
+import { ShoppingCart, RotateCcw, FileText, X } from 'lucide-react-native';
 import { ordersAPI } from '../services/api';
 import { format } from 'date-fns';
 import { getStatusColor, getStatusText } from '../utils/helpers';
@@ -172,11 +172,7 @@ export default function OrdersScreen() {
   const handleGenerateInvoice = async (order) => {
     setGeneratingInvoiceId(order._id);
     try {
-      // Get order details with customer and supplier information
       const orderResponse = await ordersAPI.getOrderDetails(order._id);
-      console.log('Full API Response:', JSON.stringify(orderResponse.data, null, 2));
-      
-      // Handle different possible response structures
       let orderDetails;
       if (orderResponse.data.data.order) {
         orderDetails = orderResponse.data.data.order;
@@ -185,41 +181,18 @@ export default function OrdersScreen() {
       } else {
         orderDetails = orderResponse.data;
       }
-      
-      console.log('Processed order details:', JSON.stringify(orderDetails, null, 2));
-      console.log('Customer data:', JSON.stringify(orderDetails.customer, null, 2));
-      console.log('Supplier data:', JSON.stringify(orderDetails.supplier, null, 2));
-      console.log('Items data:', JSON.stringify(orderDetails.items, null, 2));
-      console.log('Order ID:', orderDetails.orderId || orderDetails._id);
-      console.log('Status:', orderDetails.status);
-      console.log('Payment Method:', orderDetails.paymentMethod);
-      console.log('Total Amount:', orderDetails.totalAmount);
-      
-      // Validate the data structure
-      InvoiceService.validateOrderData(orderDetails, orderDetails.customer, orderDetails.supplier);
-      
-      // Test: Let's also try using the original order data to see if it has more information
-      console.log('=== COMPARISON TEST ===');
-      console.log('Original order from list:', JSON.stringify(order, null, 2));
-      console.log('Fetched order details:', JSON.stringify(orderDetails, null, 2));
-      console.log('=== END COMPARISON ===');
-      
-      // Try using the original order data if the fetched data is empty
+
       let finalOrderData = orderDetails;
       let finalCustomerData = orderDetails.customer;
       let finalSupplierData = orderDetails.supplier;
-      
-      // If the fetched data is missing information, try using the original order
+
       if (!orderDetails.orderId && !orderDetails._id) {
-        console.log('Using original order data as fallback');
         finalOrderData = order;
         finalCustomerData = order.customer;
         finalSupplierData = order.supplier;
       }
-      
-      // If we still don't have customer data, try to get it from the user context
+
       if (!finalCustomerData || !finalCustomerData.firstName) {
-        console.log('Customer data missing, trying to get from user context');
         if (user) {
           finalCustomerData = {
             firstName: user.firstName || 'Customer',
@@ -227,7 +200,6 @@ export default function OrdersScreen() {
             email: user.email || 'customer@example.com',
             phone: user.phone || 'N/A'
           };
-          console.log('Using user data from context:', finalCustomerData);
         } else {
           finalCustomerData = {
             firstName: 'Customer',
@@ -237,22 +209,20 @@ export default function OrdersScreen() {
           };
         }
       }
-      
-      // Generate PDF invoice locally
+
       const pdfUri = await InvoiceService.generateInvoicePDF(
         finalOrderData,
         finalCustomerData,
         finalSupplierData
       );
-      
-      // Show options to user
+
       Alert.alert(
         'Invoice Generated Successfully! 📄',
         'Your invoice has been created. What would you like to do with it?',
         [
           { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Share Invoice', 
+          {
+            text: 'Share Invoice',
             onPress: async () => {
               try {
                 const shared = await InvoiceService.shareInvoice(pdfUri, order.orderId);
@@ -268,8 +238,8 @@ export default function OrdersScreen() {
               }
             }
           },
-          { 
-            text: 'Save to Device', 
+          {
+            text: 'Save to Device',
             onPress: async () => {
               try {
                 const savedPath = await InvoiceService.saveInvoiceToDevice(pdfUri, order.orderId);
@@ -289,7 +259,7 @@ export default function OrdersScreen() {
     } catch (error) {
       console.error('Invoice generation error:', error);
       Alert.alert(
-        'Invoice Generation Failed', 
+        'Invoice Generation Failed',
         'Unable to generate invoice at this time. Please try again later.'
       );
     } finally {
@@ -351,9 +321,9 @@ export default function OrdersScreen() {
           <View className="flex-row justify-between items-start mb-3">
             <View className="flex-1 flex-row items-center">
               {item.items && item.items.length > 0 && item.items[0].product?.images && item.items[0].product.images.length > 0 && item.items[0].product.images[0].url ? (
-                <Image 
-                  source={{ uri: item.items[0].product.images[0].url }} 
-                  className="w-10 h-10 rounded-lg mr-3" 
+                <Image
+                  source={{ uri: item.items[0].product.images[0].url }}
+                  className="w-10 h-10 rounded-lg mr-3"
                 />
               ) : (
                 <View className="w-10 h-10 rounded-lg bg-gray-100 items-center justify-center mr-3">
@@ -455,9 +425,10 @@ export default function OrdersScreen() {
             >
               <LinearGradient
                 colors={['#10b981', '#059669']}
-                className="py-2 px-2 items-center justify-center"
+                className="py-2 px-2 items-center justify-center flex-row"
               >
-                <Text className="text-white font-medium text-xs">Details</Text>
+                <Ionicons name="eye-outline" size={16} color="white" />
+                <Text className="text-white font-medium text-xs ml-2">Order Details</Text>
               </LinearGradient>
             </TouchableOpacity>
 
@@ -470,12 +441,15 @@ export default function OrdersScreen() {
               >
                 <LinearGradient
                   colors={['#f59e0b', '#d97706']}
-                  className="py-2 px-2 items-center justify-center"
+                  className="py-2 px-2 items-center justify-center flex-row"
                 >
                   {orderAgainLoadingId === item._id ? (
                     <ActivityIndicator size="small" color="#ffffff" />
                   ) : (
-                    <Text className="text-white font-medium text-xs">Order Again</Text>
+                    <>
+                      <Ionicons name="repeat-outline" size={16} color="white" />
+                      <Text className="text-white font-medium text-xs ml-2">Order Again</Text>
+                    </>
                   )}
                 </LinearGradient>
               </TouchableOpacity>
@@ -486,18 +460,13 @@ export default function OrdersScreen() {
               <TouchableOpacity
                 onPress={() => handleCancelOrder(item)}
                 disabled={cancellingOrderId === item._id}
-                className="flex-1 mx-1 rounded-lg overflow-hidden"
+                className="w-8 h-8 rounded-full bg-red-500 items-center justify-center mx-1"
               >
-                <LinearGradient
-                  colors={['#ef4444', '#dc2626']}
-                  className="py-2 px-2 items-center justify-center"
-                >
-                  {cancellingOrderId === item._id ? (
-                    <ActivityIndicator size="small" color="#ffffff" />
-                  ) : (
-                    <Text className="text-white font-medium text-xs">Cancel</Text>
-                  )}
-                </LinearGradient>
+                {cancellingOrderId === item._id ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <X size={16} color="#ffffff" />
+                )}
               </TouchableOpacity>
             )}
 
@@ -506,14 +475,9 @@ export default function OrdersScreen() {
               <TouchableOpacity
                 onPress={() => returnAvailable ? handleOpenReturnModal(item) : null}
                 disabled={!returnAvailable}
-                className={`flex-1 mx-1 rounded-lg overflow-hidden ${!returnAvailable ? 'opacity-50' : ''}`}
+                className={`w-8 h-8 rounded-full ${returnAvailable ? 'bg-gray-200' : 'bg-gray-100'} items-center justify-center mx-1`}
               >
-                <LinearGradient
-                  colors={returnAvailable ? ['#6366f1', '#4f46e5'] : ['#9ca3af', '#6b7280']}
-                  className="py-2 px-2 items-center justify-center"
-                >
-                  <Text className="text-white font-medium text-xs">Return</Text>
-                </LinearGradient>
+                <RotateCcw size={16} color={returnAvailable ? "blue" : "blue"} />
               </TouchableOpacity>
             )}
 
@@ -522,18 +486,13 @@ export default function OrdersScreen() {
               <TouchableOpacity
                 onPress={() => handleGenerateInvoice(item)}
                 disabled={generatingInvoiceId === item._id}
-                className="flex-1 ml-1 rounded-lg overflow-hidden"
+                className={`w-8 h-8 rounded-full ${generatingInvoiceId === item._id ? 'bg-gray-100' : 'bg-gray-200'} items-center justify-center ml-1`}
               >
-                <LinearGradient
-                  colors={generatingInvoiceId === item._id ? ['#9ca3af', '#6b7280'] : ['#10b981', '#059669']}
-                  className="py-2 px-2 items-center justify-center"
-                >
-                  {generatingInvoiceId === item._id ? (
-                    <ActivityIndicator size="small" color="#ffffff" />
-                  ) : (
-                    <Text className="text-white font-medium text-xs">Invoice</Text>
-                  )}
-                </LinearGradient>
+                {generatingInvoiceId === item._id ? (
+                  <ActivityIndicator size="small" color="#e5e7eb" />
+                ) : (
+                  <FileText size={16} color="green" />
+                )}
               </TouchableOpacity>
             )}
           </View>
@@ -573,7 +532,7 @@ export default function OrdersScreen() {
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
       <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
-      
+
       {/* Header */}
       <View className="bg-white px-4 pt-5 pb-3 shadow-sm">
         <View className="flex-row items-center mb-3">
@@ -586,11 +545,11 @@ export default function OrdersScreen() {
           </TouchableOpacity>
           <Text className="text-xl font-bold text-gray-800">My Orders</Text>
         </View>
-        
+
         {/* Filter Tabs */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
           className="py-1"
           contentContainerStyle={{ paddingRight: 16 }}
         >
