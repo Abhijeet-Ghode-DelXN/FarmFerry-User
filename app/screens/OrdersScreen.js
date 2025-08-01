@@ -155,6 +155,7 @@ export default function OrdersScreen() {
       return;
     }
     setIsSubmittingReturn(true);
+    setReturningOrderId(returningOrder._id);
     setReturnError('');
     try {
       await ordersAPI.returnOrder(returningOrder._id, returnReason);
@@ -166,6 +167,7 @@ export default function OrdersScreen() {
       setReturnError(err?.response?.data?.message || 'Failed to request return.');
     } finally {
       setIsSubmittingReturn(false);
+      setReturningOrderId(null);
     }
   };
 
@@ -298,7 +300,8 @@ export default function OrdersScreen() {
   const renderOrderItem = ({ item }) => {
     let returnAvailable = false;
     let daysLeft = 0;
-    if (item.status === 'delivered' && item.deliveredAt) {
+    // Only allow returns for delivered orders that are not already returned
+    if (item.status === 'delivered' && item.status !== 'returned' && item.deliveredAt) {
       const daysSinceDelivery = (new Date() - new Date(item.deliveredAt)) / (1000 * 60 * 60 * 24);
       daysLeft = Math.max(0, 7 - Math.floor(daysSinceDelivery));
       returnAvailable = daysSinceDelivery <= 7;
@@ -364,8 +367,15 @@ export default function OrdersScreen() {
               <View className={`px-2 py-1 rounded-md ${returnAvailable ? 'bg-green-100' : 'bg-gray-100'}`}>
                 <Text className={`text-xs font-medium ${returnAvailable ? 'text-green-800' : 'text-gray-500'}`}>
                   {returnAvailable
-                    ? `Return Available (${daysLeft} day${daysLeft !== 1 ? 's' : ''} left)`
-                    : 'Return Not Available'}
+                    ? `🔄 Return Available (${daysLeft} day${daysLeft !== 1 ? 's' : ''} left)`
+                    : '❌ Return Window Expired'}
+                </Text>
+              </View>
+            )}
+            {item.status === 'returned' && (
+              <View className="px-2 py-1 rounded-md bg-red-100">
+                <Text className="text-xs font-medium text-red-800">
+                  Returned{item.returnReason ? `: ${item.returnReason}` : ''}
                 </Text>
               </View>
             )}
@@ -470,14 +480,18 @@ export default function OrdersScreen() {
               </TouchableOpacity>
             )}
 
-            {/* Return Button - Only for delivered */}
-            {item.status === 'delivered' && (
+            {/* Return Button - Only for delivered orders that are eligible for return */}
+            {item.status === 'delivered' && returnAvailable && (
               <TouchableOpacity
-                onPress={() => returnAvailable ? handleOpenReturnModal(item) : null}
-                disabled={!returnAvailable}
-                className={`w-8 h-8 rounded-full ${returnAvailable ? 'bg-gray-200' : 'bg-gray-100'} items-center justify-center mx-1`}
+                onPress={() => handleOpenReturnModal(item)}
+                disabled={returningOrderId === item._id}
+                className={`w-8 h-8 rounded-full bg-blue-100 items-center justify-center mx-1`}
               >
-                <RotateCcw size={16} color={returnAvailable ? "blue" : "blue"} />
+                {returningOrderId === item._id ? (
+                  <ActivityIndicator size="small" color="#3b82f6" />
+                ) : (
+                  <RotateCcw size={16} color="#3b82f6" />
+                )}
               </TouchableOpacity>
             )}
 
@@ -589,22 +603,44 @@ export default function OrdersScreen() {
       >
         <View className="flex-1 bg-black/50 justify-center items-center p-5">
           <View className="bg-white rounded-xl p-6 w-full max-w-md">
-            <Text className="text-lg font-bold mb-4">Return Reason</Text>
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-lg font-bold">Return Order</Text>
+              <TouchableOpacity
+                onPress={() => setShowReturnModal(false)}
+                className="p-1"
+              >
+                <X size={20} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+            
+            {returningOrder && (
+              <View className="bg-gray-50 p-3 rounded-lg mb-4">
+                <Text className="text-sm font-medium text-gray-800 mb-1">
+                  Order #{returningOrder.orderId || returningOrder._id}
+                </Text>
+                <Text className="text-xs text-gray-600">
+                  {returningOrder.items?.length || 0} item{(returningOrder.items?.length || 0) > 1 ? 's' : ''} • ₹{returningOrder.totalAmount?.toFixed(2) || '0.00'}
+                </Text>
+              </View>
+            )}
+            
+            <Text className="text-sm font-medium text-gray-700 mb-2">Return Reason *</Text>
             <TextInput
               value={returnReason}
               onChangeText={setReturnReason}
-              placeholder="Enter reason for return..."
+              placeholder="Please provide a detailed reason for your return request..."
               placeholderTextColor="#9ca3af"
               className="border border-gray-200 rounded-lg p-3 h-24 text-gray-800"
               multiline
+              textAlignVertical="top"
             />
             {returnError && <Text className="text-red-500 text-sm mt-2">{returnError}</Text>}
             <View className="mt-4">
               <Button
-                title={isSubmittingReturn ? 'Submitting...' : 'Submit Return Request'}
+                title={isSubmittingReturn ? 'Submitting Return Request...' : 'Submit Return Request'}
                 onPress={handleSubmitReturn}
                 loading={isSubmittingReturn}
-                disabled={isSubmittingReturn}
+                disabled={isSubmittingReturn || !returnReason.trim()}
                 fullWidth
               />
               <Button
