@@ -292,18 +292,18 @@ const renderOfferItem = ({ item }) => {
 };
 
 
-  const quickActions = [
-    {
-      title: 'Quick Order',
-      subtitle: '30 min delivery',
-      icon: Truck,
-      bgColor: 'bg-green-50',
-      borderColor: 'border-green-100',
-      iconBg: 'bg-green-500',
-      textColor: 'text-green-800',
-      subtitleColor: 'text-green-600'
-    },
-  ];
+  // const quickActions = [
+  //   {
+  //     title: 'Quick Order',
+  //     subtitle: '30 min delivery',
+  //     icon: Truck,
+  //     bgColor: 'bg-green-50',
+  //     borderColor: 'border-green-100',
+  //     iconBg: 'bg-green-500',
+  //     textColor: 'text-green-800',
+  //     subtitleColor: 'text-green-600'
+  //   },
+  // ];
 
   const featuredProducts = [
     {
@@ -740,7 +740,7 @@ const renderOfferItem = ({ item }) => {
             </View>
 
             {/* Quick Actions */}
-            <View className={`px-${responsivePadding} mb-6`}>
+            {/* <View className={`px-${responsivePadding} mb-6`}>
               <FlatList
                 data={quickActions}
                 renderItem={renderQuickAction}
@@ -749,7 +749,7 @@ const renderOfferItem = ({ item }) => {
                 scrollEnabled={false}
                 contentContainerStyle={{ gap: 8 }}
               />
-            </View>
+            </View> */}
 
             {/* Farmers */}
             <View className={`px-${responsivePadding} mb-6`}>
