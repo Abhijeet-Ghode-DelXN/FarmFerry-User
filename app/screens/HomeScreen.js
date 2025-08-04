@@ -69,7 +69,8 @@ const HomeScreen = ({ navigation }) => {
           reviews: p.totalReviews,
           farmer: p.supplierId?.businessName || '',
           category: p.categoryId?.name || '',
-          price: p.discountedPrice ?? p.price,
+          //price: p.discountedPrice ?? p.price,
+          price: (p.discountedPrice > 0) ? p.discountedPrice : p.price,
           originalPrice: p.price,
         }));
         setFetchedProducts(products);
@@ -150,146 +151,147 @@ const HomeScreen = ({ navigation }) => {
     }
   ];
 
-const specialOffers = [
-  // {
-  //   id: 1,
-  //   title: 'Summer Special',
-  //   subtitle: '20% OFF on Fruits',
-  //   description: 'Fresh seasonal fruits with extra discount',
-  //   icon: <Percent size={24} color="#fff" />,
-  //   bgColor: '#fff7ed',  // Light orange background
-  //   borderColor:' #fb923c', // Light orange border
-  //   iconBg: '#f97316', // Orange icon background
-  //   textColor: '#9a3412', // Dark orange text
-  //   highlightText: 'FRUIT20',
-  //   cta: 'Shop Fruits',
-  //   ctaColor: '#fff',
-  //   expiration: 'Offer ends in 2 days'
-  // },
-  {
-    id: 2,
-    title: 'Organic Week',
-    subtitle: '15% OFF on Organic',
-    description: 'Premium quality organic produce',
-    icon: <Leaf size={24} color="#fff" />,
-    bgColor: '#f0fdf4', // Light green background
-    borderColor: '#bbf7d0', // Light green border
-    iconBg: '#16a34a', // Green icon background
-    textColor: '#166534', // Dark green text
-    highlightText: 'ORGANIC15',
-    cta: 'Shop Organic',
-    ctaColor: '#fff',
-    expiration: 'Limited time only'
-  },
-  {
-    id: 3,
-    title: 'New Customer',
-    subtitle: '10% OFF on First Order',
-    description: 'Welcome discount for new customers',
-    icon: <User size={24} color="#fff" />,
-    bgColor: '#eff6ff', // Light blue background
-    borderColor: '#dbeafe', // Light blue border
-    iconBg: '#2563eb', // Blue icon background
-    textColor: '#1e40af', // Dark blue text
-    highlightText: 'WELCOME10',
-    cta: 'Start Shopping',
-    ctaColor: '#fff',
-    expiration: 'First order only'
-  },
-  {
-    id: 4,
-    title: 'Free Delivery',
-    subtitle: 'On orders above ₹500',
-    description: 'No delivery charges for all orders',
-    icon: <Truck size={24} color="#fff" />,
-    bgColor: '#fff7ed',  // Light orange background
-    borderColor:'#fed7aa', // Light orange border
-    iconBg: '#f97316', // Orange icon background
-    textColor: '#9a3412', // Dark orange text
-    highlightText: 'FREESHIP',
-    cta: 'Shop Now',
-    ctaColor: '#fff',
-    expiration: 'Limited period offer'
-  }
-];
+  const specialOffers = [
+    // {
+    //   id: 1,
+    //   title: 'Summer Special',
+    //   subtitle: '20% OFF on Fruits',
+    //   description: 'Fresh seasonal fruits with extra discount',
+    //   icon: <Percent size={24} color="#fff" />,
+    //   bgColor: '#fff7ed',  // Light orange background
+    //   borderColor:' #fb923c', // Light orange border
+    //   iconBg: '#f97316', // Orange icon background
+    //   textColor: '#9a3412', // Dark orange text
+    //   highlightText: 'FRUIT20',
+    //   cta: 'Shop Fruits',
+    //   ctaColor: '#fff',
+    //   expiration: 'Offer ends in 2 days'
+    // },
+
+    {
+      id: 2,
+      title: 'Organic Week',
+      subtitle: '15% OFF on Organic',
+      description: 'Premium quality organic produce',
+      icon: <Leaf size={24} color="#fff" />,
+      bgColor: '#f0fdf4', // Light green background
+      borderColor: '#bbf7d0', // Light green border
+      iconBg: '#16a34a', // Green icon background
+      textColor: '#166534', // Dark green text
+      highlightText: 'ORGANIC15',
+      cta: 'Shop Organic',
+      ctaColor: '#fff',
+      expiration: 'Limited time only'
+    },
+    {
+      id: 3,
+      title: 'New Customer',
+      subtitle: '10% OFF on First Order',
+      description: 'Welcome discount for new customers',
+      icon: <User size={24} color="#fff" />,
+      bgColor: '#eff6ff', // Light blue background
+      borderColor: '#dbeafe', // Light blue border
+      iconBg: '#2563eb', // Blue icon background
+      textColor: '#1e40af', // Dark blue text
+      highlightText: 'WELCOME10',
+      cta: 'Start Shopping',
+      ctaColor: '#fff',
+      expiration: 'First order only'
+    },
+    {
+      id: 4,
+      title: 'Free Delivery',
+      subtitle: 'On orders above ₹500',
+      description: 'No delivery charges for all orders',
+      icon: <Truck size={24} color="#fff" />,
+      bgColor: '#fff7ed',  // Light orange background
+      borderColor: '#fed7aa', // Light orange border
+      iconBg: '#f97316', // Orange icon background
+      textColor: '#9a3412', // Dark orange text
+      highlightText: 'FREESHIP',
+      cta: 'Shop Now',
+      ctaColor: '#fff',
+      expiration: 'Limited period offer'
+    }
+  ];
 
 
-const renderOfferItem = ({ item }) => {
-  return (
-    <Animated.View
-      entering={SlideInRight.duration(500)}
-      exiting={SlideOutLeft.duration(500)}
-      className="flex-1 mx-2 rounded-2xl overflow-hidden shadow-xl border-2"
-      style={{ 
-        backgroundColor: item.bgColor,
-        borderColor: item.borderColor
-      }}
-    >
-      <View className="h-full p-6 justify-between">
-        <View className="flex-row justify-between items-start">
-          <View className="flex-1">
-            <Text 
-              className="text-sm font-medium mb-1" 
-              style={{ color: item.textColor }}
-            >
-              {item.subtitle}
-            </Text>
-            <Text 
-              className="text-2xl font-bold mb-2" 
-              style={{ color: item.textColor }}
-            >
-              {item.title}
-            </Text>
-            <Text 
-              className="text-xs" 
-              style={{ color: item.textColor, opacity: 0.8 }}
-            >
-              {item.description}
-            </Text>
-            <View className="mt-2">
-              <Text 
-                className="text-xs italic" 
-                style={{ color: item.textColor, opacity: 0.7 }}
+  const renderOfferItem = ({ item }) => {
+    return (
+      <Animated.View
+        entering={SlideInRight.duration(500)}
+        exiting={SlideOutLeft.duration(500)}
+        className="flex-1 mx-2 rounded-2xl overflow-hidden shadow-xl border-2"
+        style={{
+          backgroundColor: item.bgColor,
+          borderColor: item.borderColor
+        }}
+      >
+        <View className="h-full p-6 justify-between">
+          <View className="flex-row justify-between items-start">
+            <View className="flex-1">
+              <Text
+                className="text-sm font-medium mb-1"
+                style={{ color: item.textColor }}
               >
-                {item.expiration}
+                {item.subtitle}
               </Text>
+              <Text
+                className="text-2xl font-bold mb-2"
+                style={{ color: item.textColor }}
+              >
+                {item.title}
+              </Text>
+              <Text
+                className="text-xs"
+                style={{ color: item.textColor, opacity: 0.8 }}
+              >
+                {item.description}
+              </Text>
+              <View className="mt-2">
+                <Text
+                  className="text-xs italic"
+                  style={{ color: item.textColor, opacity: 0.7 }}
+                >
+                  {item.expiration}
+                </Text>
+              </View>
+            </View>
+            <View
+              className="w-12 h-12 rounded-full justify-center items-center shadow-md"
+              style={{ backgroundColor: item.iconBg }}
+            >
+              {item.icon}
             </View>
           </View>
-          <View 
-            className="w-12 h-12 rounded-full justify-center items-center shadow-md"
-            style={{ backgroundColor: item.iconBg }}
-          >
-            {item.icon}
-          </View>
-        </View>
 
-        <View className="flex-row justify-between items-center mt-6">
-          <View 
-            className="rounded-lg px-3 py-2"
-            style={{ backgroundColor: `${item.iconBg}20` }} // 20% opacity of icon color
-          >
-            <Text 
-              className="font-bold text-xs" 
-              style={{ color: item.textColor }}
+          <View className="flex-row justify-between items-center mt-6">
+            <View
+              className="rounded-lg px-3 py-2"
+              style={{ backgroundColor: `${item.iconBg}20` }} // 20% opacity of icon color
             >
-              Use code: {item.highlightText}
-            </Text>
-          </View>
+              <Text
+                className="font-bold text-xs"
+                style={{ color: item.textColor }}
+              >
+                Use code: {item.highlightText}
+              </Text>
+            </View>
 
-          <TouchableOpacity
-            className="rounded-lg px-4 py-2"
-            style={{ backgroundColor: item.iconBg }}
-            onPress={() => navigation.navigate('Products')}
-          >
-            <Text className="text-white font-semibold text-sm">
-              {item.cta}
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              className="rounded-lg px-4 py-2"
+              style={{ backgroundColor: item.iconBg }}
+              onPress={() => navigation.navigate('Products')}
+            >
+              <Text className="text-white font-semibold text-sm">
+                {item.cta}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </Animated.View>
-  );
-};
+      </Animated.View>
+    );
+  };
 
 
   // const quickActions = [
@@ -485,7 +487,11 @@ const renderOfferItem = ({ item }) => {
             <Text className="text-xs text-green-500 font-medium mb-1" numberOfLines={1}>by {item.farmer}</Text>
             <View className="flex-row justify-between items-center mb-1">
               <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} font-bold text-green-500`}>₹{item.price}</Text>
-              <Text className="text-xs text-gray-400 line-through">₹{item.originalPrice}</Text>
+              {(item.discountedPrice > 0) && (
+                <Text className="text-xs text-gray-400 line-through">
+                  ₹{item.originalPrice}
+                </Text>
+              )}
               <View className="flex-row items-center bg-amber-50 rounded-lg px-1.5 py-1 border border-amber-200">
                 <Star width={10} height={10} fill="#facc15" color="#facc15" />
                 <Text className="text-xs text-amber-800 ml-1">{item.rating}</Text>
@@ -623,54 +629,54 @@ const renderOfferItem = ({ item }) => {
           <>
             {/* Special Offers Carousel */}
 
- <View className={`h-16 mb-3`}>
-  <Carousel
-    width={width}
-    height={60}
-    data={specialOffers}
-    scrollAnimationDuration={1000}
-    autoPlay={true}
-    autoPlayInterval={3000}
-    renderItem={({ item }) => (
-      <Animated.View
-        entering={SlideInRight.duration(500)}
-        exiting={SlideOutLeft.duration(500)}
-        className="flex-1 mx-1 rounded-xl overflow-hidden shadow-sm"
-        style={{ backgroundColor: item.bgColor, borderColor: item.borderColor, borderWidth: 1 }}
-      >
-        <View className="h-full px-4 flex-row items-center justify-between">
-          <View className="flex-row items-center">
-            <View 
-              className="w-8 h-8 rounded-full justify-center items-center mr-3"
-              style={{ backgroundColor: item.iconBg }}
-            >
-              {item.icon}
+            <View className={`h-16 mb-3`}>
+              <Carousel
+                width={width}
+                height={60}
+                data={specialOffers}
+                scrollAnimationDuration={1000}
+                autoPlay={true}
+                autoPlayInterval={3000}
+                renderItem={({ item }) => (
+                  <Animated.View
+                    entering={SlideInRight.duration(500)}
+                    exiting={SlideOutLeft.duration(500)}
+                    className="flex-1 mx-1 rounded-xl overflow-hidden shadow-sm"
+                    style={{ backgroundColor: item.bgColor, borderColor: item.borderColor, borderWidth: 1 }}
+                  >
+                    <View className="h-full px-4 flex-row items-center justify-between">
+                      <View className="flex-row items-center">
+                        <View
+                          className="w-8 h-8 rounded-full justify-center items-center mr-3"
+                          style={{ backgroundColor: item.iconBg }}
+                        >
+                          {item.icon}
+                        </View>
+                        <View>
+                          <Text
+                            className="text-lg font-bold"
+                            style={{ color: item.textColor }}
+                          >
+                            {item.title}
+                          </Text>
+                          <Text
+                            className="text-xs font-medium"
+                            style={{ color: item.textColor, opacity: 0.8 }}
+                          >
+                            {item.subtitle}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  </Animated.View>
+                )}
+                mode="parallax"
+                modeConfig={{
+                  parallaxScrollingScale: 0.95,
+                  parallaxScrollingOffset: 20,
+                }}
+              />
             </View>
-            <View>
-              <Text 
-                className="text-lg font-bold" 
-                style={{ color: item.textColor }}
-              >
-                {item.title}
-              </Text>
-              <Text 
-                className="text-xs font-medium" 
-                style={{ color: item.textColor, opacity: 0.8 }}
-              >
-                {item.subtitle}
-              </Text>
-            </View>
-          </View>
-        </View>
-      </Animated.View>
-    )}
-    mode="parallax"
-    modeConfig={{
-      parallaxScrollingScale: 0.95,
-      parallaxScrollingOffset: 20,
-    }}
-  />
-</View>
             {/* Categories */}
             <View className={`px-${responsivePadding} mb-6`}>
               <View className="flex-row justify-between items-center mb-4">
