@@ -29,7 +29,7 @@ import { CONFIG } from '../constants/config';
 import InvoiceService from '../services/invoiceService';
 import { useAuth } from '../context/AuthContext';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default function OrdersScreen() {
   const navigation = useNavigation();
@@ -49,6 +49,17 @@ export default function OrdersScreen() {
   const [returnError, setReturnError] = useState('');
   const [returnSuccess, setReturnSuccess] = useState(false);
   const [generatingInvoiceId, setGeneratingInvoiceId] = useState(null);
+
+  // Responsive values
+  const isSmallScreen = width < 375;
+  const isMediumScreen = width >= 375 && width < 768;
+  const isLargeScreen = width >= 768;
+
+  const responsiveValue = (small, medium, large) => {
+    if (isSmallScreen) return small;
+    if (isMediumScreen) return medium;
+    return large;
+  };
 
   const fetchOrders = async () => {
     setIsLoading(true);
@@ -289,7 +300,7 @@ export default function OrdersScreen() {
       onPress={() => setSelectedFilter(filter)}
       className={`px-4 py-2 mr-3 rounded-full ${selectedFilter === filter ? 'bg-emerald-500' : 'bg-gray-200'}`}
     >
-      <Text className={`font-medium ${selectedFilter === filter ? 'text-white' : 'text-gray-600'}`}>
+      <Text className={`font-medium ${selectedFilter === filter ? 'text-white' : 'text-gray-600'} ${responsiveValue('text-xs', 'text-sm', 'text-sm')}`}>
         {filter}
       </Text>
     </TouchableOpacity>
@@ -307,7 +318,7 @@ export default function OrdersScreen() {
     return (
       <TouchableOpacity
         onPress={() => navigation.navigate('OrderDetails', { orderId: item._id })}
-        className="bg-white mx-4 mb-4 rounded-2xl shadow-sm border border-gray-100"
+        className={`bg-white mx-4 mb-4 rounded-2xl shadow-sm border border-gray-100 ${responsiveValue('p-3', 'p-4', 'p-4')}`}
         style={{
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 2 },
@@ -316,186 +327,192 @@ export default function OrdersScreen() {
           elevation: 3,
         }}
       >
-        <View className="p-4">
-          {/* Header */}
-          <View className="flex-row justify-between items-start mb-3">
-            <View className="flex-1 flex-row items-center">
-              {item.items && item.items.length > 0 && item.items[0].product?.images && item.items[0].product.images.length > 0 && item.items[0].product.images[0].url ? (
-                <Image
-                  source={{ uri: item.items[0].product.images[0].url }}
-                  className="w-10 h-10 rounded-lg mr-3"
-                />
-              ) : (
-                <View className="w-10 h-10 rounded-lg bg-gray-100 items-center justify-center mr-3">
-                  <ShoppingCart size={20} color="#6b7280" />
-                </View>
-              )}
-              <View className="flex-1">
-                <Text className="text-base font-bold text-gray-800" numberOfLines={1}>
-                  {item.items && item.items.length > 0
-                    ? item.items.map(i => i.product?.name || 'Product').join(', ')
-                    : 'No Products'}
-                </Text>
-                <Text className="text-xs text-gray-500">
-                  {item.items.length} item{item.items.length > 1 ? 's' : ''}
-                </Text>
+        {/* Header */}
+        <View className="flex-row justify-between items-start mb-3">
+          <View className="flex-1 flex-row items-center">
+            {item.items && item.items.length > 0 && item.items[0].product?.images && item.items[0].product.images.length > 0 && item.items[0].product.images[0].url ? (
+              <Image
+                source={{ uri: item.items[0].product.images[0].url }}
+                className={`${responsiveValue('w-8 h-8', 'w-10 h-10', 'w-12 h-12')} rounded-lg mr-3`}
+              />
+            ) : (
+              <View className={`${responsiveValue('w-8 h-8', 'w-10 h-10', 'w-12 h-12')} rounded-lg bg-gray-100 items-center justify-center mr-3`}>
+                <ShoppingCart size={responsiveValue(16, 20, 20)} color="#6b7280" />
               </View>
-            </View>
-            <View className={`px-2 py-1 rounded-full ${getStatusColorClass(item.status)}`}>
-              <View className="flex-row items-center">
-                <Ionicons
-                  name="ellipse"
-                  size={10}
-                  color={getStatusColor(item.status, 'order')}
-                />
-                <Text
-                  className="ml-1 text-xs font-semibold"
-                  style={{ color: getStatusColor(item.status, 'order') }}
-                >
-                  {getStatusText(item.status)}
-                </Text>
-              </View>
+            )}
+            <View className="flex-1">
+              <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} font-bold text-gray-800`} numberOfLines={1}>
+                {item.items && item.items.length > 0
+                  ? item.items.map(i => i.product?.name || 'Product').join(', ')
+                  : 'No Products'}
+              </Text>
+              <Text className={`${responsiveValue('text-xs', 'text-xs', 'text-sm')} text-gray-500`}>
+                {item.items.length} item{item.items.length > 1 ? 's' : ''}
+              </Text>
             </View>
           </View>
-
-          {/* Status Badges */}
-          <View className="flex-row flex-wrap gap-2 mb-3">
-            {item.status === 'delivered' && (
-              <View className={`px-2 py-1 rounded-md ${returnAvailable ? 'bg-green-100' : 'bg-gray-100'}`}>
-                <Text className={`text-xs font-medium ${returnAvailable ? 'text-green-800' : 'text-gray-500'}`}>
-                  {returnAvailable
-                    ? `Return Available (${daysLeft} day${daysLeft !== 1 ? 's' : ''} left)`
-                    : 'Return Not Available'}
-                </Text>
-              </View>
-            )}
-            {item.replacementStatus && (
-              <View className="px-2 py-1 rounded-md bg-amber-100">
-                <Text className="text-xs font-medium text-amber-800">
-                  Replacement: {item.replacementStatus.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {/* Order Details */}
-          <View className="bg-gray-50 p-3 rounded-xl mb-3">
-            <View className="flex-row justify-between mb-2">
-              <View className="flex-row items-center">
-                <Ionicons name="calendar-outline" size={14} color="#6b7280" />
-                <Text className="text-xs text-gray-600 ml-2">
-                  {item.createdAt ? format(new Date(item.createdAt), 'dd MMM yyyy') : ''}
-                </Text>
-              </View>
-              <View className="flex-row items-center">
-                <Ionicons name="pricetag-outline" size={14} color="#6b7280" />
-                <Text className="text-xs text-gray-600 ml-2">₹{item.totalAmount?.toFixed(2) ?? '0.00'}</Text>
-              </View>
+          <View className={`px-2 py-1 rounded-full ${getStatusColorClass(item.status)}`}>
+            <View className="flex-row items-center">
+              <Ionicons
+                name="ellipse"
+                size={responsiveValue(8, 10, 10)}
+                color={getStatusColor(item.status, 'order')}
+              />
+              <Text
+                className={`ml-1 ${responsiveValue('text-xs', 'text-xs', 'text-sm')} font-semibold`}
+                style={{ color: getStatusColor(item.status, 'order') }}
+              >
+                {getStatusText(item.status)}
+              </Text>
             </View>
-            {item.address && (
-              <View className="flex-row items-start mt-1">
-                <Ionicons name="location-outline" size={14} color="#6b7280" style={{ marginTop: 2 }} />
-                <Text className="text-xs text-gray-500 ml-2 flex-1" numberOfLines={2}>
-                  {item.address?.addressLine1 || item.address}
-                </Text>
-              </View>
-            )}
-            {item.paymentMethod && (
-              <View className="flex-row items-center mt-1">
-                <Ionicons name="card-outline" size={14} color="#6b7280" />
-                <Text className="text-xs text-gray-500 ml-2 flex-1" numberOfLines={1}>
-                  {item.paymentMethod}
-                </Text>
-              </View>
-            )}
           </View>
+        </View>
 
-          {/* Total Amount */}
-          <View className="flex-row justify-between items-center mb-3">
-            <Text className="text-sm text-gray-600">Total Amount:</Text>
-            <Text className="text-lg font-bold text-gray-800">₹{item.totalAmount?.toFixed(2) ?? '0.00'}</Text>
+        {/* Status Badges */}
+        <View className="flex-row flex-wrap gap-2 mb-3">
+          {item.status === 'delivered' && (
+            <View className={`px-2 py-1 rounded-md ${returnAvailable ? 'bg-green-100' : 'bg-gray-100'}`}>
+              <Text className={`${responsiveValue('text-xs', 'text-xs', 'text-sm')} ${returnAvailable ? 'text-green-800' : 'text-gray-500'} font-medium`}>
+                {returnAvailable
+                  ? `Return Available (${daysLeft} day${daysLeft !== 1 ? 's' : ''} left)`
+                  : 'Return Not Available'}
+              </Text>
+            </View>
+          )}
+          {item.replacementStatus && (
+            <View className="px-2 py-1 rounded-md bg-amber-100">
+              <Text className={`${responsiveValue('text-xs', 'text-xs', 'text-sm')} font-medium text-amber-800`}>
+                Replacement: {item.replacementStatus.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Order Details */}
+        <View className="bg-gray-50 p-3 rounded-xl mb-3">
+          <View className="flex-row justify-between mb-2">
+            <View className="flex-row items-center">
+              <Ionicons name="calendar-outline" size={responsiveValue(12, 14, 14)} color="#6b7280" />
+              <Text className={`${responsiveValue('text-xs', 'text-xs', 'text-sm')} text-gray-600 ml-2`}>
+                {item.createdAt ? format(new Date(item.createdAt), 'dd MMM yyyy') : ''}
+              </Text>
+            </View>
+            <View className="flex-row items-center">
+              <Ionicons name="pricetag-outline" size={responsiveValue(12, 14, 14)} color="#6b7280" />
+              <Text className={`${responsiveValue('text-xs', 'text-xs', 'text-sm')} text-gray-600 ml-2`}>
+                ₹{item.totalAmount?.toFixed(2) ?? '0.00'}
+              </Text>
+            </View>
           </View>
+          {item.address && (
+            <View className="flex-row items-start mt-1">
+              <Ionicons name="location-outline" size={responsiveValue(12, 14, 14)} color="#6b7280" style={{ marginTop: 2 }} />
+              <Text className={`${responsiveValue('text-xs', 'text-xs', 'text-sm')} text-gray-500 ml-2 flex-1`} numberOfLines={2}>
+                {item.address?.addressLine1 || item.address}
+              </Text>
+            </View>
+          )}
+          {item.paymentMethod && (
+            <View className="flex-row items-center mt-1">
+              <Ionicons name="card-outline" size={responsiveValue(12, 14, 14)} color="#6b7280" />
+              <Text className={`${responsiveValue('text-xs', 'text-xs', 'text-sm')} text-gray-500 ml-2 flex-1`} numberOfLines={1}>
+                {item.paymentMethod}
+              </Text>
+            </View>
+          )}
+        </View>
 
-          {/* Action Buttons - All in one row */}
-          <View className="flex-row justify-between items-center mt-3">
-            {/* View Details Button */}
+        {/* Total Amount */}
+        <View className="flex-row justify-between items-center mb-3">
+          <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-gray-600`}>Total Amount:</Text>
+          <Text className={`${responsiveValue('text-base', 'text-lg', 'text-lg')} font-bold text-gray-800`}>
+            ₹{item.totalAmount?.toFixed(2) ?? '0.00'}
+          </Text>
+        </View>
+
+        {/* Action Buttons */}
+        <View className="flex-row justify-between items-center mt-3">
+          {/* View Details Button */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('OrderDetails', { orderId: item._id })}
+            className={`${responsiveValue('flex-1', 'flex-1', 'flex-1')} mr-1 rounded-lg overflow-hidden`}
+          >
+            <LinearGradient
+              colors={['#10b981', '#059669']}
+              className={`${responsiveValue('py-1.5', 'py-2', 'py-2')} px-2 items-center justify-center flex-row`}
+            >
+              <Ionicons name="eye-outline" size={responsiveValue(14, 16, 16)} color="white" />
+              <Text className={`text-white font-medium ${responsiveValue('text-xs', 'text-xs', 'text-sm')} ml-2`}>
+                Details
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          {/* Order Again Button - Only for delivered */}
+          {item.status === 'delivered' && (
             <TouchableOpacity
-              onPress={() => navigation.navigate('OrderDetails', { orderId: item._id })}
-              className="flex-1 mr-1 rounded-lg overflow-hidden"
+              onPress={() => handleOrderAgain(item)}
+              disabled={orderAgainLoadingId === item._id}
+              className={`${responsiveValue('flex-1', 'flex-1', 'flex-1')} mx-1 rounded-lg overflow-hidden`}
             >
               <LinearGradient
-                colors={['#10b981', '#059669']}
-                className="py-2 px-2 items-center justify-center flex-row"
+                colors={['#f59e0b', '#d97706']}
+                className={`${responsiveValue('py-1.5', 'py-2', 'py-2')} px-2 items-center justify-center flex-row`}
               >
-                <Ionicons name="eye-outline" size={16} color="white" />
-                <Text className="text-white font-medium text-xs ml-2">Order Details</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            {/* Order Again Button - Only for delivered */}
-            {item.status === 'delivered' && (
-              <TouchableOpacity
-                onPress={() => handleOrderAgain(item)}
-                disabled={orderAgainLoadingId === item._id}
-                className="flex-1 mx-1 rounded-lg overflow-hidden"
-              >
-                <LinearGradient
-                  colors={['#f59e0b', '#d97706']}
-                  className="py-2 px-2 items-center justify-center flex-row"
-                >
-                  {orderAgainLoadingId === item._id ? (
-                    <ActivityIndicator size="small" color="#ffffff" />
-                  ) : (
-                    <>
-                      <Ionicons name="repeat-outline" size={16} color="white" />
-                      <Text className="text-white font-medium text-xs ml-2">Order Again</Text>
-                    </>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
-
-            {/* Cancel Button - Only for pending/processing */}
-            {(item.status === 'pending' || item.status === 'processing') && (
-              <TouchableOpacity
-                onPress={() => handleCancelOrder(item)}
-                disabled={cancellingOrderId === item._id}
-                className="w-8 h-8 rounded-full bg-red-500 items-center justify-center mx-1"
-              >
-                {cancellingOrderId === item._id ? (
+                {orderAgainLoadingId === item._id ? (
                   <ActivityIndicator size="small" color="#ffffff" />
                 ) : (
-                  <X size={16} color="#ffffff" />
+                  <>
+                    <Ionicons name="repeat-outline" size={responsiveValue(14, 16, 16)} color="white" />
+                    <Text className={`text-white font-medium ${responsiveValue('text-xs', 'text-xs', 'text-sm')} ml-2`}>
+                      Order Again
+                    </Text>
+                  </>
                 )}
-              </TouchableOpacity>
-            )}
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
 
-            {/* Return Button - Only for delivered */}
-            {item.status === 'delivered' && (
-              <TouchableOpacity
-                onPress={() => returnAvailable ? handleOpenReturnModal(item) : null}
-                disabled={!returnAvailable}
-                className={`w-8 h-8 rounded-full ${returnAvailable ? 'bg-gray-200' : 'bg-gray-100'} items-center justify-center mx-1`}
-              >
-                <RotateCcw size={16} color={returnAvailable ? "blue" : "blue"} />
-              </TouchableOpacity>
-            )}
+          {/* Cancel Button - Only for pending/processing */}
+          {(item.status === 'pending' || item.status === 'processing') && (
+            <TouchableOpacity
+              onPress={() => handleCancelOrder(item)}
+              disabled={cancellingOrderId === item._id}
+              className={`${responsiveValue('w-7 h-7', 'w-8 h-8', 'w-8 h-8')} rounded-full bg-red-500 items-center justify-center mx-1`}
+            >
+              {cancellingOrderId === item._id ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <X size={responsiveValue(14, 16, 16)} color="#ffffff" />
+              )}
+            </TouchableOpacity>
+          )}
 
-            {/* Invoice Button - Only for delivered */}
-            {item.status === 'delivered' && (
-              <TouchableOpacity
-                onPress={() => handleGenerateInvoice(item)}
-                disabled={generatingInvoiceId === item._id}
-                className={`w-8 h-8 rounded-full ${generatingInvoiceId === item._id ? 'bg-gray-100' : 'bg-gray-200'} items-center justify-center ml-1`}
-              >
-                {generatingInvoiceId === item._id ? (
-                  <ActivityIndicator size="small" color="#e5e7eb" />
-                ) : (
-                  <FileText size={16} color="green" />
-                )}
-              </TouchableOpacity>
-            )}
-          </View>
+          {/* Return Button - Only for delivered */}
+          {item.status === 'delivered' && (
+            <TouchableOpacity
+              onPress={() => returnAvailable ? handleOpenReturnModal(item) : null}
+              disabled={!returnAvailable}
+              className={`${responsiveValue('w-7 h-7', 'w-8 h-8', 'w-8 h-8')} rounded-full ${returnAvailable ? 'bg-gray-200' : 'bg-gray-100'} items-center justify-center mx-1`}
+            >
+              <RotateCcw size={responsiveValue(14, 16, 16)} color={returnAvailable ? "blue" : "blue"} />
+            </TouchableOpacity>
+          )}
+
+          {/* Invoice Button - Only for delivered */}
+          {item.status === 'delivered' && (
+            <TouchableOpacity
+              onPress={() => handleGenerateInvoice(item)}
+              disabled={generatingInvoiceId === item._id}
+              className={`${responsiveValue('w-7 h-7', 'w-8 h-8', 'w-8 h-8')} rounded-full ${generatingInvoiceId === item._id ? 'bg-gray-100' : 'bg-gray-200'} items-center justify-center ml-1`}
+            >
+              {generatingInvoiceId === item._id ? (
+                <ActivityIndicator size="small" color="#e5e7eb" />
+              ) : (
+                <FileText size={responsiveValue(14, 16, 16)} color="green" />
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -503,18 +520,20 @@ export default function OrdersScreen() {
 
   const renderEmptyState = () => (
     <View className="flex-1 justify-center items-center px-8">
-      <View className="w-24 h-24 bg-gray-100 rounded-full items-center justify-center mb-6">
-        <ShoppingCart size={40} color="#9ca3af" />
+      <View className={`${responsiveValue('w-20 h-20', 'w-24 h-24', 'w-28 h-28')} bg-gray-100 rounded-full items-center justify-center mb-6`}>
+        <ShoppingCart size={responsiveValue(32, 40, 40)} color="#9ca3af" />
       </View>
-      <Text className="text-xl font-bold text-gray-800 mb-2">No Orders Yet</Text>
-      <Text className="text-gray-500 text-center mb-6">
+      <Text className={`${responsiveValue('text-lg', 'text-xl', 'text-xl')} font-bold text-gray-800 mb-2`}>
+        No Orders Yet
+      </Text>
+      <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} text-gray-500 text-center mb-6`}>
         {selectedFilter === 'All'
           ? 'Start exploring our products and place your first order!'
           : `No ${selectedFilter.toLowerCase()} orders found`}
       </Text>
       <TouchableOpacity
         onPress={() => navigation.navigate(SCREEN_NAMES.HOME)}
-        className="bg-emerald-500 px-6 py-3 rounded-full"
+        className={`bg-emerald-500 ${responsiveValue('px-4 py-2', 'px-6 py-3', 'px-6 py-3')} rounded-full`}
       >
         <Text className="text-white font-medium">Browse Products</Text>
       </TouchableOpacity>
@@ -523,27 +542,29 @@ export default function OrdersScreen() {
 
   if (isLoading && !refreshing) {
     return (
-      <View className="flex-1 justify-center items-center">
+      <View className="flex-1 justify-center items-center bg-gray-50">
         <ActivityIndicator size="large" color="#10B981" />
       </View>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-gray-50 pt-7">
       <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
 
       {/* Header */}
-      <View className="bg-white px-4 pt-5 pb-3 shadow-sm">
+      <View className={`bg-white px-4 ${responsiveValue('pt-3 pb-2', 'pt-4 pb-3', 'pt-5 pb-3')} shadow-sm`}>
         <View className="flex-row items-center mb-3">
           <TouchableOpacity
             onPress={() => navigation.goBack()}
-            className="mr-3 p-1.5 rounded-full bg-gray-100"
+            className={`mr-3 p-1.5 rounded-full bg-gray-100`}
             hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
           >
-            <Ionicons name="arrow-back" size={20} color="#10B981" />
+            <Ionicons name="arrow-back" size={responsiveValue(18, 20, 20)} color="#10B981" />
           </TouchableOpacity>
-          <Text className="text-xl font-bold text-gray-800">My Orders</Text>
+          <Text className={`${responsiveValue('text-lg', 'text-xl', 'text-xl')} font-bold text-gray-800`}>
+            My Orders
+          </Text>
         </View>
 
         {/* Filter Tabs */}
@@ -588,8 +609,10 @@ export default function OrdersScreen() {
         onRequestClose={() => setShowReturnModal(false)}
       >
         <View className="flex-1 bg-black/50 justify-center items-center p-5">
-          <View className="bg-white rounded-xl p-6 w-full max-w-md">
-            <Text className="text-lg font-bold mb-4">Return Reason</Text>
+          <View className={`bg-white rounded-xl p-6 w-full ${responsiveValue('max-w-xs', 'max-w-sm', 'max-w-md')}`}>
+            <Text className={`${responsiveValue('text-lg', 'text-xl', 'text-xl')} font-bold mb-4`}>
+              Return Reason
+            </Text>
             <TextInput
               value={returnReason}
               onChangeText={setReturnReason}
@@ -598,7 +621,11 @@ export default function OrdersScreen() {
               className="border border-gray-200 rounded-lg p-3 h-24 text-gray-800"
               multiline
             />
-            {returnError && <Text className="text-red-500 text-sm mt-2">{returnError}</Text>}
+            {returnError && (
+              <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-red-500 mt-2`}>
+                {returnError}
+              </Text>
+            )}
             <View className="mt-4">
               <Button
                 title={isSubmittingReturn ? 'Submitting...' : 'Submit Return Request'}

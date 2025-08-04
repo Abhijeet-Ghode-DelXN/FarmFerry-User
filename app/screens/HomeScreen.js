@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, image } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
 import AppBar from '../components/ui/AppBar';
 import {
@@ -11,7 +11,8 @@ import {
   Dimensions,
   FlatList,
   Alert,
-  RefreshControl
+  RefreshControl,
+  Platform
 } from 'react-native';
 import { productsAPI, categoriesAPI } from '../services/api';
 import { MapPin, Plus, Heart, Search as SearchIcon, Filter, Star, Bell, User, ChevronRight, ArrowRight, Clock, Truck, Leaf, Percent, ShoppingCart} from 'lucide-react-native';
@@ -32,17 +33,21 @@ const HomeScreen = ({ navigation }) => {
   const [buyNowPressedId, setBuyNowPressedId] = useState(null);
 
   // Get screen dimensions
-  const { width } = Dimensions.get('window');
+  const { width, height } = Dimensions.get('window');
   const isSmallScreen = width < 375;
-  const isMediumScreen = width >= 375 && width < 768;
-  const isLargeScreen = width >= 768;
+  const isMediumScreen = width >= 375 && width < 414;
+  const isLargeScreen = width >= 414;
 
-  // Responsive sizing
+  // Responsive sizing utility
   const responsiveValue = (small, medium, large) => {
     if (isSmallScreen) return small;
     if (isMediumScreen) return medium;
     return large;
   };
+
+  // Responsive padding/margin
+  const responsivePadding = responsiveValue(3, 4, 5);
+  const responsiveMargin = responsiveValue(2, 3, 4);
 
   useEffect(() => {
     (async () => {
@@ -189,6 +194,7 @@ const HomeScreen = ({ navigation }) => {
 
   const CategoryItem = ({ item }) => {
     const categoryItemSize = responsiveValue(width * 0.28, width * 0.23, width * 0.18);
+    const imageSize = responsiveValue(60, 70, 80);
     
     return (
       <View className={`items-center mb-4`} style={{ width: categoryItemSize }}>
@@ -196,7 +202,7 @@ const HomeScreen = ({ navigation }) => {
           activeOpacity={0.9}
           onPress={() => navigation.navigate('Subcategories', { category: item })}
         >
-          <View className="bg-white rounded-2xl p-2 mb-2 shadow-sm border border-gray-100">
+          <View className={`bg-white rounded-2xl p-2 mb-2 shadow-sm border border-gray-100`}>
             <View className="w-full aspect-square rounded-xl overflow-hidden">
               <Image
                 source={
@@ -206,12 +212,12 @@ const HomeScreen = ({ navigation }) => {
                     ? { uri: item.image }
                     : { uri: 'https://via.placeholder.com/100' }
                 }
-                className="w-full h-full"
+                style={{ width: '100%', height: '100%' }}
                 resizeMode="cover"
               />
             </View>
           </View>
-          <Text className="text-sm font-semibold text-gray-800 text-center" numberOfLines={1}>
+          <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} font-semibold text-gray-800 text-center`} numberOfLines={1}>
             {item.name}
           </Text>
         </TouchableOpacity>
@@ -219,31 +225,48 @@ const HomeScreen = ({ navigation }) => {
     );
   };
 
-  const renderFarmerItem = ({ item }) => (
-    <View className={`bg-white rounded-3xl p-4 items-center shadow-md border border-gray-100 mr-4`} 
-      style={{ width: responsiveValue(140, 160, 180) }}>
-      <View className="relative mb-3">
-        <Image source={{ uri: item.image }} className="w-16 h-16 rounded-full border-4 border-gray-100" />
-        {item.verified && (
-          <View className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-green-500 justify-center items-center border-2 border-white">
-            <Text className="text-white text-xs">✓</Text>
-          </View>
-        )}
+  const renderFarmerItem = ({ item }) => {
+    const farmerItemWidth = responsiveValue(140, 160, 180);
+    const farmerImageSize = responsiveValue(16, 18, 20);
+    
+    return (
+      <View className={`bg-white rounded-3xl p-4 items-center shadow-md border border-gray-100 mr-4`} 
+        style={{ width: farmerItemWidth }}>
+        <View className="relative mb-3">
+          <Image 
+            source={{ uri: item.image }} 
+            style={{ 
+              width: farmerImageSize, 
+              height: farmerImageSize,
+              borderRadius: farmerImageSize / 2,
+              borderWidth: 2,
+              borderColor: '#f3f4f6'
+            }} 
+          />
+          {item.verified && (
+            <View className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-green-500 justify-center items-center border-2 border-white">
+              <Text className="text-white text-xs">✓</Text>
+            </View>
+          )}
+        </View>
+        <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} font-bold text-gray-800 mb-0.5 text-center`} numberOfLines={1}>{item.name}</Text>
+        <Text className={`text-xs text-gray-500 mb-0.5 text-center`} numberOfLines={1}>{item.farm}</Text>
+        <Text className={`text-xs text-green-500 font-medium mb-0.5 text-center`} numberOfLines={1}>{item.location}</Text>
+        <View className="flex-row items-center bg-amber-50 rounded-lg px-2 py-1 border border-amber-200 mt-2">
+          <Star width={12} height={12} fill="#facc15" color="#facc15" />
+          <Text className="text-xs font-bold text-amber-800 ml-1">{item.rating}</Text>
+        </View>
       </View>
-      <Text className="text-sm font-bold text-gray-800 mb-0.5 text-center" numberOfLines={1}>{item.name}</Text>
-      <Text className="text-xs text-gray-500 mb-0.5 text-center" numberOfLines={1}>{item.farm}</Text>
-      <Text className="text-xs text-green-500 font-medium mb-0.5 text-center" numberOfLines={1}>{item.location}</Text>
-      <View className="flex-row items-center bg-amber-50 rounded-lg px-2 py-1 border border-amber-200 mt-2">
-        <Star width={12} height={12} fill="#facc15" color="#facc15" />
-        <Text className="text-xs font-bold text-amber-800 ml-1">{item.rating}</Text>
-      </View>
-    </View>
-  );
+    );
+  };
 
   const renderProductItem = ({ item }) => {
     const productId = item._id || item.id;
     const inWishlist = isInWishlist(productId);
     const inCart = isInCart(productId);
+    const productHeight = responsiveValue(120, 140, 160);
+    const productPadding = responsiveValue(2, 3, 3);
+    const productTextSize = responsiveValue('text-xs', 'text-sm', 'text-sm');
     
     return (
       <TouchableOpacity
@@ -253,7 +276,12 @@ const HomeScreen = ({ navigation }) => {
       >
         <View className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
           <View className="relative">
-            <Image source={{ uri: item.image }} className="w-full" style={{ height: responsiveValue(120, 140, 160) }} />
+            <Image 
+              source={{ uri: item.image }} 
+              className="w-full" 
+              style={{ height: productHeight }} 
+              resizeMode="cover"
+            />
             <View className="absolute inset-0 bg-black/20" />
             {item.discount && (
               <View className="absolute top-2 left-2 bg-red-500 px-2 py-1 rounded-lg shadow-md">
@@ -275,11 +303,11 @@ const HomeScreen = ({ navigation }) => {
               />
             </TouchableOpacity>
           </View>
-          <View className="p-3">
-            <Text className="text-sm font-bold text-gray-800 mb-1" numberOfLines={1}>{item.name}</Text>
+          <View className={`p-${productPadding}`}>
+            <Text className={`${productTextSize} font-bold text-gray-800 mb-1`} numberOfLines={1}>{item.name}</Text>
             <Text className="text-xs text-green-500 font-medium mb-1" numberOfLines={1}>by {item.farmer}</Text>
             <View className="flex-row justify-between items-center mb-1">
-              <Text className="text-base font-bold text-green-500">₹{item.price}</Text>
+              <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} font-bold text-green-500`}>₹{item.price}</Text>
               <Text className="text-xs text-gray-400 line-through">₹{item.originalPrice}</Text>
               <View className="flex-row items-center bg-amber-50 rounded-lg px-1.5 py-1 border border-amber-200">
                 <Star width={10} height={10} fill="#facc15" color="#facc15" />
@@ -324,7 +352,7 @@ const HomeScreen = ({ navigation }) => {
                 backgroundColor: buyNowPressedId === productId ? '#10b981' : '#f3f4f6',
               }}
             >
-              <Text className={`font-semibold text-sm ${buyNowPressedId === productId ? 'text-white' : 'text-gray-800'}`}>
+              <Text className={`font-semibold ${responsiveValue('text-xs', 'text-sm', 'text-sm')} ${buyNowPressedId === productId ? 'text-white' : 'text-gray-800'}`}>
                 Buy Now
               </Text>
             </TouchableOpacity>
@@ -336,13 +364,18 @@ const HomeScreen = ({ navigation }) => {
 
   const renderQuickAction = ({ item }) => {
     const Icon = item.icon;
+    const quickActionPadding = responsiveValue(2, 3, 3);
+    const iconSize = responsiveValue(16, 18, 18);
+    
     return (
-      <TouchableOpacity className={`flex-1 flex-row items-center rounded-xl p-3 border-2 m-1 min-w-[48%] shadow-sm ${item.bgColor} ${item.borderColor}`}>
+      <TouchableOpacity 
+        className={`flex-1 flex-row items-center rounded-xl p-${quickActionPadding} border-2 m-1 min-w-[48%] shadow-sm ${item.bgColor} ${item.borderColor}`}
+      >
         <View className={`w-10 h-10 rounded-lg justify-center items-center mr-3 ${item.iconBg}`}>
-          <Icon width={18} height={18} color="#fff" />
+          <Icon width={iconSize} height={iconSize} color="#fff" />
         </View>
         <View className="flex-1">
-          <Text className={`text-sm font-semibold ${item.textColor}`} numberOfLines={1}>{item.title}</Text>
+          <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} font-semibold ${item.textColor}`} numberOfLines={1}>{item.title}</Text>
           <Text className={`text-xs ${item.subtitleColor}`} numberOfLines={1}>{item.subtitle}</Text>
         </View>
       </TouchableOpacity>
@@ -372,18 +405,18 @@ const HomeScreen = ({ navigation }) => {
   };
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-gray-50 pt-2">
       {/* Header */}
       <AppBar />
 
       {/* Search Bar */}
-      <View className="px-4 pt-2 pb-3">
-        <View className="flex-row items-center bg-white rounded-xl px-4 py-3 shadow-sm border border-gray-200">
+      <View className={`px-${responsivePadding} pt-2 pb-3`}>
+        <View className={`flex-row items-center bg-white rounded-xl px-${responsivePadding} py-3 shadow-sm border border-gray-200`}>
           <SearchIcon width={20} height={20} color="#6b7280" />
           <TextInput
             placeholder="Search fresh produce, grains, organic foods..."
             placeholderTextColor="#94a3b8"
-            className="flex-1 ml-3 text-gray-800 text-sm"
+            className={`flex-1 ml-3 text-gray-800 ${responsiveValue('text-xs', 'text-sm', 'text-sm')}`}
           />
           <View className="w-px h-6 bg-gray-200 mx-3" />
           <TouchableOpacity className="p-1">
@@ -398,13 +431,18 @@ const HomeScreen = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         className="flex-1"
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={["#059669"]} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={handleRefresh} 
+            colors={["#059669"]} 
+            progressViewOffset={Platform.OS === 'ios' ? responsiveValue(40, 50, 60) : 0}
+          />
         }
       >
         {/* Categories */}
-        <View className="px-4 mb-6">
+        <View className={`px-${responsivePadding} mb-6`}>
           <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-xl font-bold text-gray-800">Shop by Category</Text>
+            <Text className={`${responsiveValue('text-lg', 'text-xl', 'text-xl')} font-bold text-gray-800`}>Shop by Category</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Categories')}>
               <Text className="text-green-600 font-semibold text-sm">View All</Text>
             </TouchableOpacity>
@@ -421,13 +459,14 @@ const HomeScreen = ({ navigation }) => {
         </View>
 
         {/* Banner */}
-        <View className="h-64 rounded-2xl overflow-hidden mx-4 mb-6 shadow-md">
+        <View className={`h-64 rounded-2xl overflow-hidden mx-${responsivePadding} mb-6 shadow-md`}>
           <Image
             source={{ uri: banners[currentBanner].image }}
             className="w-full h-full absolute"
+            resizeMode="cover"
           />
           <View className="absolute inset-0 bg-black/40" />
-          <View className="flex-1 p-5 justify-between">
+          <View className={`flex-1 p-${responsivePadding} justify-between`}>
             <View className="flex-row justify-between items-start">
               <View className="bg-white/20 rounded-lg px-3 py-2 border border-white/30">
                 <Text className="text-white text-xs font-bold">{banners[currentBanner].tag}</Text>
@@ -436,10 +475,10 @@ const HomeScreen = ({ navigation }) => {
                 {banners[currentBanner].icon}
               </View>
             </View>
-            <View className="mb-4">
-              <Text className="text-2xl font-bold text-white mb-1">{banners[currentBanner].title}</Text>
-              <Text className="text-lg font-semibold text-white mb-1">{banners[currentBanner].subtitle}</Text>
-              <Text className="text-sm text-white/95">{banners[currentBanner].description}</Text>
+            <View className={`mb-${responsivePadding}`}>
+              <Text className={`${responsiveValue('text-xl', 'text-2xl', 'text-2xl')} font-bold text-white mb-1`}>{banners[currentBanner].title}</Text>
+              <Text className={`${responsiveValue('text-lg', 'text-lg', 'text-xl')} font-semibold text-white mb-1`}>{banners[currentBanner].subtitle}</Text>
+              <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-white/95`}>{banners[currentBanner].description}</Text>
             </View>
             <View className="flex-row justify-between items-center">
               <TouchableOpacity
@@ -469,7 +508,7 @@ const HomeScreen = ({ navigation }) => {
         </View>
 
         {/* Quick Actions */}
-        <View className="px-4 mb-6">
+        <View className={`px-${responsivePadding} mb-6`}>
           <FlatList
             data={quickActions}
             renderItem={renderQuickAction}
@@ -481,9 +520,9 @@ const HomeScreen = ({ navigation }) => {
         </View>
 
         {/* Farmers */}
-        <View className="px-4 mb-6">
+        <View className={`px-${responsivePadding} mb-6`}>
           <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-xl font-bold text-gray-800">Popular Farmers</Text>
+            <Text className={`${responsiveValue('text-lg', 'text-xl', 'text-xl')} font-bold text-gray-800`}>Popular Farmers</Text>
             <TouchableOpacity className="flex-row items-center">
               <Text className="text-green-600 font-semibold text-sm mr-1">View All</Text>
               <ChevronRight width={14} height={14} color="#16a34a" />
@@ -495,17 +534,17 @@ const HomeScreen = ({ navigation }) => {
             keyExtractor={(item, index) => index.toString()}
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingRight: 16 }}
+            contentContainerStyle={{ paddingRight: responsivePadding * 4 }}
           />
         </View>
 
         {/* Featured Products */}
         <View
           onLayout={event => setFeaturedProductsY(event.nativeEvent.layout.y)}
-          className="px-4 mb-6"
+          className={`px-${responsivePadding} mb-6`}
         >
           <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-xl font-bold text-gray-800">Featured Products</Text>
+            <Text className={`${responsiveValue('text-lg', 'text-xl', 'text-xl')} font-bold text-gray-800`}>Featured Products</Text>
             <TouchableOpacity className="flex-row items-center">
               <Text className="text-green-600 font-semibold text-sm mr-1">View All</Text>
               <ChevronRight width={14} height={14} color="#16a34a" />

@@ -26,8 +26,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { cartAPI } from '../services/api';
 import { useAppContext } from '../context/AppContext';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
+const isSmallDevice = width < 375;
+const isLargeDevice = width > 414;
 const ITEM_WIDTH = (width - 36) / 2;
+const ITEM_HEIGHT = isSmallDevice ? 160 : isLargeDevice ? 200 : 180;
 
 export default function WishlistScreen() {
   const { wishlistItems, removeFromWishlist, updateCartItems, cartItems, updateWishlistItems } = useAppContext();
@@ -120,7 +123,8 @@ export default function WishlistScreen() {
             <View className="relative">
               <Image
                 source={{ uri: (item.images && item.images[0]?.url) || item.image || 'https://via.placeholder.com/256?text=No+Image' }}
-                className="w-full h-36 rounded-t-2xl"
+                style={{ width: '100%', height: ITEM_HEIGHT }}
+                className="rounded-t-2xl"
                 resizeMode="cover"
               />
               <LinearGradient
@@ -137,8 +141,8 @@ export default function WishlistScreen() {
                   elevation: 2,
                 }}
               >
-                <Heart size={10} color="white" fill="white" />
-                <Text className="text-white text-xs font-medium ml-1">Loved</Text>
+                <Heart size={isSmallDevice ? 10 : 12} color="white" fill="white" />
+                {/* <Text className="text-white text-xs font-medium ml-1">Loved</Text> */}
               </View>
               <TouchableOpacity
                 onPress={() => handleRemoveFromWishlist(item)}
@@ -151,7 +155,7 @@ export default function WishlistScreen() {
                   elevation: 2,
                 }}
               >
-                <Trash2 size={14} color="#ef4444" />
+                <Trash2 size={isSmallDevice ? 14 : 16} color="#ef4444" />
               </TouchableOpacity>
               {item.offerPercentage > 0 && (
                 <View className="absolute bottom-2 right-2 bg-emerald-500 rounded-lg px-2 py-1">
@@ -165,9 +169,9 @@ export default function WishlistScreen() {
             {/* Product Content */}
             <View className="p-3">
               <Text
-                className="text-sm font-bold text-gray-900 mb-1.5"
+                className={`${isSmallDevice ? 'text-xs' : 'text-sm'} font-bold text-gray-900 mb-1.5`}
                 numberOfLines={2}
-                style={{ lineHeight: 18 }}
+                style={{ lineHeight: isSmallDevice ? 16 : 18 }}
               >
                 {item.name}
               </Text>
@@ -178,7 +182,7 @@ export default function WishlistScreen() {
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
-                      size={12}
+                      size={isSmallDevice ? 10 : 12}
                       color={
                         i < Math.round(item.averageRating || 0) ? '#f59e0b' : '#e5e7eb'
                       }
@@ -197,12 +201,12 @@ export default function WishlistScreen() {
                       <Text className="text-gray-400 line-through text-xs mr-1">
                         ₹{item.price}
                       </Text>
-                      <Text className="text-gray-900 font-bold text-base">
+                      <Text className={`text-gray-900 font-bold ${isSmallDevice ? 'text-sm' : 'text-base'}`}>
                         ₹{item.discountedPrice}
                       </Text>
                     </>
                   ) : (
-                    <Text className="text-gray-900 font-bold text-base">
+                    <Text className={`text-gray-900 font-bold ${isSmallDevice ? 'text-sm' : 'text-base'}`}>
                       ₹{item.price}
                     </Text>
                   )}
@@ -232,7 +236,7 @@ export default function WishlistScreen() {
                   colors={['#10b981', '#059669']}
                   className="py-2.5 flex-row items-center justify-center"
                 >
-                  <ShoppingCart size={14} color="white" />
+                  <ShoppingCart size={isSmallDevice ? 12 : 14} color="white" />
                   <Text className="text-white font-semibold text-sm ml-1.5">
                     Add to Cart
                   </Text>
@@ -246,7 +250,7 @@ export default function WishlistScreen() {
   };
 
   const renderEmpty = () => (
-    <View className="flex-1 justify-center items-center py-16">
+    <View className="flex-1 justify-center items-center py-16 px-4">
       <View
         className="bg-gradient-to-b from-gray-50 to-gray-100 rounded-3xl p-12 mb-6"
         style={{
@@ -257,15 +261,15 @@ export default function WishlistScreen() {
           elevation: 3,
         }}
       >
-        <Package size={56} color="#9ca3af" />
+        <Package size={isSmallDevice ? 48 : 56} color="#9ca3af" />
         <View className="absolute top-8 right-8">
-          <Sparkles size={20} color="#d1d5db" />
+          <Sparkles size={isSmallDevice ? 16 : 20} color="#d1d5db" />
         </View>
       </View>
-      <Text className="text-xl font-bold text-gray-800 mb-2">
+      <Text className={`${isSmallDevice ? 'text-lg' : 'text-xl'} font-bold text-gray-800 mb-2 text-center`}>
         Your wishlist is empty
       </Text>
-      <Text className="text-gray-500 text-center px-8 leading-5">
+      <Text className="text-gray-500 text-center px-4 leading-5">
         Discover amazing products and add them to your wishlist by tapping the
         heart icon!
       </Text>
@@ -289,20 +293,28 @@ export default function WishlistScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-gray-50 pt-2">
       <StatusBar barStyle="dark-content" backgroundColor="white" />
 
-      {/* ✅ AppBar with white background and black content */}
+      {/* AppBar */}
       <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-200">
-        <TouchableOpacity onPress={() => navigation.goBack()} className="p-2 mr-2">
-          <ArrowLeft size={22} color="black" />
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()} 
+          className="p-2 mr-2"
+          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+        >
+          <ArrowLeft size={isSmallDevice ? 20 : 22} color="black" />
         </TouchableOpacity>
-        <Text className="text-xl font-bold text-black">My Wishlist</Text>
+        <Text className={`${isSmallDevice ? 'text-lg' : 'text-xl'} font-bold text-black`}>
+          My Wishlist
+        </Text>
       </View>
 
       {/* Page Title */}
       <View className="px-4 mt-2 mb-3">
-        <Text className="text-2xl font-bold text-gray-900">Saved Items</Text>
+        <Text className={`${isSmallDevice ? 'text-xl' : 'text-2xl'} font-bold text-gray-900`}>
+          Saved Items
+        </Text>
         <Text className="text-gray-500 text-sm mt-0.5">
           {wishlistItems.length} {wishlistItems.length === 1 ? 'item' : 'items'} saved
         </Text>
@@ -317,11 +329,23 @@ export default function WishlistScreen() {
           numColumns={2}
           columnWrapperStyle={{ justifyContent: 'space-between' }}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingTop: 16, paddingBottom: 100 }}
+          contentContainerStyle={{ 
+            paddingTop: 16, 
+            paddingBottom: height * 0.15,
+            minHeight: height * 0.6
+          }}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={["#059669"]} />
+            <RefreshControl 
+              refreshing={refreshing} 
+              onRefresh={handleRefresh} 
+              colors={["#059669"]} 
+              progressViewOffset={isSmallDevice ? 10 : 20}
+            />
           }
           ListEmptyComponent={renderEmpty}
+          initialNumToRender={6}
+          maxToRenderPerBatch={6}
+          windowSize={10}
         />
       </View>
     </SafeAreaView>

@@ -878,7 +878,7 @@ const SubcategoriesScreen = ({ navigation, route }) => {
   )
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#f9fafb" }}>
+    <View style={{ flex: 1, backgroundColor: "#f9fafb" }} classname="pt-2">
       {/* Header */}
       <View
         style={{

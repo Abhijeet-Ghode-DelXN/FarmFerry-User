@@ -41,12 +41,12 @@ export default function CartScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
 
   // Get screen dimensions
-  const { width } = Dimensions.get('window');
+  const { width, height } = Dimensions.get('window');
   const isSmallScreen = width < 375;
   const isMediumScreen = width >= 375 && width < 768;
   const isLargeScreen = width >= 768;
 
-  // Responsive sizing
+  // Responsive sizing helper
   const responsiveValue = (small, medium, large) => {
     if (isSmallScreen) return small;
     if (isMediumScreen) return medium;
@@ -159,7 +159,7 @@ export default function CartScreen({ navigation }) {
 
   if (isLoading) {
     return (
-      <View className="flex-1 justify-center items-center">
+      <View className="flex-1 justify-center items-center bg-gray-50">
         <ActivityIndicator size="large" color="#059669" />
       </View>
     );
@@ -180,123 +180,133 @@ export default function CartScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-gray-50 pt-7">
       <StatusBar backgroundColor="white" barStyle="dark-content" />
 
       {/* AppBar with back arrow */}
-      <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-200">
+      <View className={`flex-row items-center px-4 ${responsiveValue('py-2', 'py-3', 'py-3')} bg-white border-b border-gray-200`}>
         <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3">
-          <ArrowLeft size={responsiveValue(20, 24, 24)} color="black" />
+          <ArrowLeft size={responsiveValue(20, 22, 24)} color="black" />
         </TouchableOpacity>
-        <Text className={`${responsiveValue('text-base', 'text-lg', 'text-lg')} text-black font-medium`}>Cart</Text>
+        <Text className={`${responsiveValue('text-lg', 'text-xl', 'text-xl')} font-semibold text-gray-900`}>
+          Cart
+        </Text>
       </View>
 
       {/* Deliver to block */}
-      <View className="bg-white px-4 py-3 border-b border-green-100">
-        <TouchableOpacity className="flex-row items-center" onPress={handleChangeAddress}>
-          <MapPin size={responsiveValue(14, 16, 16)} color="#059669" />
-          <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-black ml-2`}>Deliver to </Text>
-          <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} font-semibold text-black`}>Selected Location</Text>
-          <ChevronRight size={responsiveValue(12, 14, 14)} color="#059669" className="ml-1" />
+      <View className={`bg-white px-4 ${responsiveValue('py-2', 'py-3', 'py-3')} border-b border-gray-100`}>
+        <TouchableOpacity 
+          className="flex-row items-center" 
+          onPress={handleChangeAddress}
+        >
+          <MapPin size={responsiveValue(16, 18, 20)} color="#059669" />
+          <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} text-gray-700 ml-2`}>
+            Deliver to 
+          </Text>
+          <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} font-semibold text-gray-900 ml-1`}>
+            Selected Location
+          </Text>
+          <ChevronRight size={responsiveValue(16, 18, 20)} color="#059669" className="ml-1" />
         </TouchableOpacity>
-        <Text className={`${responsiveValue('text-xs', 'text-xs', 'text-sm')} text-gray-500 mt-1 ml-6`}>Mokarwadi, Pune - 411046</Text>
+        <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-gray-500 mt-1 ml-8`}>
+          Mokarwadi, Pune - 411046
+        </Text>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         className="flex-1"
+        contentContainerStyle={{ paddingBottom: responsiveValue(140, 160, 180) }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={["#059669"]} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={handleRefresh} 
+            colors={["#059669"]} 
+          />
         }
       >
         {(safeCartItems?.length ?? 0) === 0 ? (
           <View className="flex-1 items-center justify-center mt-20">
-            <View className="w-20 h-20 bg-green-100 rounded-full items-center justify-center mb-4">
-              <Text className="text-green-400 text-2xl">🛒</Text>
+            <View className={`${responsiveValue('w-16 h-16', 'w-20 h-20', 'w-24 h-24')} bg-green-100 rounded-full items-center justify-center mb-4`}>
+              <Text className="text-green-500 text-4xl">🛒</Text>
             </View>
-            <Text className="text-green-600 text-lg">Your cart is empty</Text>
-            <Text className="text-green-500 text-sm mt-2">Add some fresh items to get started!</Text>
+            <Text className={`${responsiveValue('text-lg', 'text-xl', 'text-xl')} font-semibold text-gray-800`}>
+              Your cart is empty
+            </Text>
+            <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} text-gray-500 mt-2`}>
+              Add some fresh items to get started!
+            </Text>
           </View>
         ) : (
           <>
             {/* Delivery Summary */}
-            <View className="bg-white mx-4 mt-4 rounded-2xl p-4 border border-green-100">
+            <View className={`bg-white mx-4 mt-4 rounded-xl p-4 border border-green-100 shadow-sm`}>
               <View className="flex-row items-center justify-between">
                 <View>
-                  <Text className={`${responsiveValue('text-base', 'text-lg', 'text-lg')} font-semibold text-grey-800`}>Get it in 10 mins</Text>
-                  <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-green-600`}>
-                    {(safeCartItems?.length ?? 0)} Product{(safeCartItems?.length ?? 0) > 1 ? 's' : ''}
+                  <Text className={`${responsiveValue('text-base', 'text-lg', 'text-lg')} font-semibold text-gray-800`}>
+                    Get it in 10 mins
+                  </Text>
+                  <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-green-600 mt-1`}>
+                    {safeCartItems.length} Product{safeCartItems.length > 1 ? 's' : ''}
                   </Text>
                 </View>
                 <View className="bg-green-100 px-3 py-1 rounded-full">
-                  <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-black-700 font-medium`}>Express</Text>
+                  <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} font-medium text-green-800`}>
+                    Express Delivery
+                  </Text>
                 </View>
               </View>
             </View>
 
             {/* Cart Items */}
-            <View className="px-4 pt-4">
-              {safeCartItems.map((item, idx) => {
+            <View className={`px-4 ${responsiveValue('pt-3', 'pt-4', 'pt-4')}`}>
+              {safeCartItems.map((item) => {
                 if (!item) return null;
                 const discount = item.originalPrice ? (item.originalPrice - item.price) : 0;
                 const gst = item.price * GST_RATE;
                 const finalPrice = item.price + gst;
                 const imageSize = responsiveValue(80, 96, 100);
-                
+
                 return (
                   <View
-                    key={item.id}
-                    className="bg-white rounded-2xl mb-4 p-4 shadow-sm border border-gray-200"
-                    style={{
-                      shadowColor: '#6b7280',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.15,
-                      shadowRadius: 6,
-                      elevation: 4,
-                    }}
+                    key={item._id}
+                    className={`bg-white rounded-xl mb-4 p-4 border border-gray-100 shadow-sm`}
                   >
                     <View className="flex-row items-start">
+                      {/* Product Image */}
                       <View
-                        style={{
-                          width: imageSize,
-                          height: imageSize,
-                          borderWidth: 1,
-                          borderColor: '#bbf7d0',
-                          backgroundColor: '#f0fdf4',
-                          borderRadius: 16,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          marginRight: responsiveValue(8, 12, 12),
-                          alignSelf: 'center',
-                          overflow: 'hidden',
-                          shadowColor: '#6b7280',
-                          shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: 0.15,
-                          shadowRadius: 6,
-                          elevation: 4,
-                        }}
+                        className={`${responsiveValue('w-20 h-20', 'w-24 h-24', 'w-28 h-28')} rounded-lg bg-gray-50 items-center justify-center mr-3 border border-gray-200 overflow-hidden`}
                       >
                         <Image
                           source={{ uri: item.product?.images?.[0]?.url || item.product?.image || item.image || 'https://via.placeholder.com/96x96?text=No+Image' }}
-                          style={{ width: '100%', height: '100%' }}
-                          resizeMode="cover"
+                          className="w-full h-full"
+                          resizeMode="contain"
                         />
                       </View>
+
+                      {/* Product Details */}
                       <View className="flex-1">
                         <View className="flex-row justify-between items-start mb-1">
                           <Text 
-                            className={`${responsiveValue('text-sm', 'text-base', 'text-base')} font-semibold text-black-800 flex-1`}
+                            className={`${responsiveValue('text-sm', 'text-base', 'text-base')} font-semibold text-gray-900 flex-1`}
                             numberOfLines={2}
                           >
                             {item.name}
                           </Text>
-                          <TouchableOpacity onPress={() => removeFromCart(item._id)} className="ml-2">
-                            <Trash2 size={responsiveValue(16, 18, 18)} color="red" />
+                          <TouchableOpacity 
+                            onPress={() => removeFromCart(item._id)}
+                            className="ml-2"
+                          >
+                            <Trash2 size={responsiveValue(18, 20, 20)} color="#ef4444" />
                           </TouchableOpacity>
                         </View>
-                        <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-green-600 mb-1`}>{item.unit || '500 g'}</Text>
+
+                        <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-gray-500 mb-1`}>
+                          {item.unit || '500 g'}
+                        </Text>
+
                         <View className="flex-row items-center mb-1">
-                          <Text className={`${responsiveValue('text-base', 'text-lg', 'text-lg')} font-bold text-green-800`}>
+                          <Text className={`${responsiveValue('text-base', 'text-lg', 'text-lg')} font-bold text-green-700`}>
                             ₹{(item.price * item.quantity).toFixed(2)}
                           </Text>
                           {item.originalPrice && (
@@ -305,133 +315,143 @@ export default function CartScreen({ navigation }) {
                             </Text>
                           )}
                         </View>
+
                         {discount > 0 && (
                           <Text className={`${responsiveValue('text-xs', 'text-xs', 'text-sm')} text-red-500 mb-1`}>
-                            Discount: ₹{(discount * item.quantity).toFixed(2)}
+                            You save: ₹{(discount * item.quantity).toFixed(2)}
                           </Text>
                         )}
-                        <Text className={`${responsiveValue('text-xs', 'text-xs', 'text-sm')} text-blue-500 mb-1`}>
-                          GST (5%): ₹{(gst * item.quantity).toFixed(2)}
-                        </Text>
-                        <Text className={`${responsiveValue('text-xs', 'text-xs', 'text-sm')} text-black-700 mb-2`}>
-                          Final: ₹{(finalPrice * item.quantity).toFixed(2)}
-                        </Text>
-                        <View className="flex-row items-center justify-between">
+
+                        <View className="flex-row items-center justify-between mt-2">
+                          {/* Quantity Selector */}
                           <View className="flex-row items-center bg-green-50 rounded-full px-1 py-1">
                             <TouchableOpacity
                               onPress={() => decreaseQty(item)}
-                              className={`${responsiveValue('w-7 h-7', 'w-8 h-8', 'w-8 h-8')} rounded-full bg-white items-center justify-center shadow-sm border border-green-100`}
+                              className={`${responsiveValue('w-7 h-7', 'w-8 h-8', 'w-8 h-8')} rounded-full bg-white items-center justify-center border border-gray-200`}
                             >
-                              <Minus size={responsiveValue(12, 14, 14)} color="#059669" />
+                              <Minus size={responsiveValue(14, 16, 16)} color="#059669" />
                             </TouchableOpacity>
-                            <Text className={`${responsiveValue('mx-2', 'mx-4', 'mx-4')} font-medium text-green-700`}>
+                            <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} font-medium text-gray-800 mx-3`}>
                               {item.quantity}
                             </Text>
                             <TouchableOpacity
                               onPress={() => increaseQty(item)}
-                              className={`${responsiveValue('w-7 h-7', 'w-8 h-8', 'w-8 h-8')} rounded-full bg-white items-center justify-center shadow-sm border border-green-100`}
+                              className={`${responsiveValue('w-7 h-7', 'w-8 h-8', 'w-8 h-8')} rounded-full bg-white items-center justify-center border border-gray-200`}
                             >
-                              <Plus size={responsiveValue(12, 14, 14)} color="#059669" />
+                              <Plus size={responsiveValue(14, 16, 16)} color="#059669" />
                             </TouchableOpacity>
                           </View>
-                          <View className="flex-row items-center bg-green-100 px-2 py-1 rounded-full">
-                            <Text className={`${responsiveValue('text-xs', 'text-xs', 'text-sm')} text-green-700`}>✓</Text>
-                            <Text className={`${responsiveValue('text-xs', 'text-xs', 'text-sm')} text-grey-700 ml-1`}>Har Din Sasta</Text>
+
+                          {/* Savings Tag */}
+                          <View className="flex-row items-center bg-green-100 px-3 py-1 rounded-full">
+                            <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} font-medium text-green-800`}>
+                              Har Din Sasta
+                            </Text>
                           </View>
                         </View>
+
+                        {/* Move to Wishlist */}
+                        <TouchableOpacity
+                          className="flex-row items-center mt-3 pt-3 border-t border-gray-100"
+                          onPress={() => moveToWishlist(item)}
+                        >
+                          <Heart
+                            size={responsiveValue(16, 18, 18)}
+                            color={isInWishlist(item._id) ? "#ef4444" : "#059669"}
+                            fill={isInWishlist(item._id) ? "#ef4444" : "none"}
+                          />
+                          <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-gray-600 ml-2`}>
+                            {isInWishlist(item._id) ? 'In Wishlist' : 'Move to Wishlist'}
+                          </Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
-                    <TouchableOpacity
-                      className="flex-row items-center mt-3 pt-3 border-t border-green-100"
-                      onPress={() => moveToWishlist(item)}
-                    >
-                      <Heart
-                        size={responsiveValue(14, 16, 16)}
-                        color={isInWishlist(item._id) ? "red" : "#059669"}
-                        fill={isInWishlist(item._id) ? "red" : "none"}
-                      />
-                      <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-grey-600 ml-2`}>
-                        Move to wishlist
-                      </Text>
-                    </TouchableOpacity>
                   </View>
                 );
               })}
             </View>
 
             {/* Promo Code Section */}
-            <View className="bg-white mx-4 mt-6 rounded-2xl p-4 shadow-sm border border-green-100">
+            <View className="bg-white mx-4 mt-4 rounded-xl p-4 border border-gray-100">
               <TouchableOpacity
                 className="flex-row items-center justify-between"
                 onPress={handlePromoCode}
               >
                 <View className="flex-row items-center">
                   <Tag size={responsiveValue(18, 20, 20)} color="#059669" />
-                  <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} text-grey-700 ml-3`}>
-                    Enter your promo code
+                  <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} text-gray-700 ml-3`}>
+                    Apply Promo Code
                   </Text>
                 </View>
                 <ChevronRight size={responsiveValue(18, 20, 20)} color="#059669" />
               </TouchableOpacity>
             </View>
-
-            <View className="h-32" />
           </>
         )}
       </ScrollView>
 
-      {/* Checkout Bar */}
+      {/* Checkout Bar - Only shown when cart has items */}
       {(safeCartItems?.length ?? 0) > 0 && (
-        <View className="bg-white border-t border-green-100">
-          <View className="px-4 py-3 border-b border-green-100">
-            <View className="flex-row justify-between items-center mb-2">
-              <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-green-700`}>Subtotal</Text>
-              <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} font-medium text-green-800`}>
+        <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg">
+          <View className="px-4 py-3">
+            <View className="flex-row justify-between items-center mb-1">
+              <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} text-gray-600`}>
+                Subtotal
+              </Text>
+              <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} font-semibold text-gray-900`}>
                 ₹{getSubtotal().toFixed(2)}
               </Text>
             </View>
-            <View className="flex-row justify-between items-center mb-2">
-              <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-green-700`}>Total Discount</Text>
-              <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} font-medium text-red-500`}>
+            <View className="flex-row justify-between items-center mb-1">
+              <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} text-gray-600`}>
+                Discount
+              </Text>
+              <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} font-semibold text-red-500`}>
                 -₹{getTotalDiscount().toFixed(2)}
               </Text>
             </View>
-            <View className="flex-row justify-between items-center mb-2">
-              <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-green-700`}>Total GST (5%)</Text>
-              <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} font-medium text-blue-500`}>
+            <View className="flex-row justify-between items-center mb-1">
+              <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} text-gray-600`}>
+                GST (5%)
+              </Text>
+              <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} font-semibold text-blue-500`}>
                 ₹{getTotalGST().toFixed(2)}
               </Text>
             </View>
             <View className="flex-row justify-between items-center mb-2">
-              <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-green-700`}>Delivery</Text>
-              <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} font-medium text-green-800`}>
+              <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} text-gray-600`}>
+                Delivery
+              </Text>
+              <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} font-semibold text-gray-900`}>
                 ₹{getShipping().toFixed(2)}
               </Text>
             </View>
-            <View className="flex-row justify-between items-center">
-              <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} font-semibold text-black-800`}>
-                Grand Total: ₹{getGrandTotal().toFixed(2)}
-              </Text>
+            <View className="border-t border-gray-200 pt-2 mt-1">
+              <View className="flex-row justify-between items-center">
+                <Text className={`${responsiveValue('text-base', 'text-lg', 'text-lg')} font-bold text-gray-900`}>
+                  Total
+                </Text>
+                <Text className={`${responsiveValue('text-base', 'text-lg', 'text-lg')} font-bold text-green-700`}>
+                  ₹{getGrandTotal().toFixed(2)}
+                </Text>
+              </View>
             </View>
-          </View>
-          <View className="px-4 py-4">
+
+            {/* Checkout Button */}
             <TouchableOpacity
               onPress={handleProceedToCheckout}
               activeOpacity={0.9}
-              className="rounded-2xl overflow-hidden shadow-sm"
+              className={`mt-4 rounded-xl overflow-hidden shadow-md`}
             >
               <LinearGradient
                 colors={['#10b981', '#059669']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
-                style={{
-                  paddingVertical: responsiveValue(14, 16, 16),
-                  borderRadius: 16,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+                className={`${responsiveValue('py-3', 'py-4', 'py-4')} items-center justify-center`}
               >
-                <Text className="text-white font-semibold text-base">Proceed to Checkout</Text>
+                <Text className={`${responsiveValue('text-base', 'text-lg', 'text-lg')} font-semibold text-white`}>
+                  Proceed to Checkout
+                </Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
