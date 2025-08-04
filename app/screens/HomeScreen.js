@@ -15,14 +15,18 @@ import {
   Platform
 } from 'react-native';
 import { productsAPI, categoriesAPI } from '../services/api';
-import { MapPin, Plus, Heart, Search as SearchIcon, Filter, Star, Bell, User, ChevronRight, ArrowRight, Clock, Truck, Leaf, Percent, ShoppingCart} from 'lucide-react-native';
+import { MapPin, Plus, Heart, Search as SearchIcon, Filter, Star, Bell, User, ChevronRight, ArrowRight, Clock, Truck, Leaf, Percent, ShoppingCart } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { farmers } from '../components/ui/farmers';
 import { useUserLocation } from '../hooks/useUserLocation';
 import { cartAPI } from '../services/api';
+import { useCallback } from 'react';
+import Carousel from 'react-native-reanimated-carousel';
+import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 
 const HomeScreen = ({ navigation }) => {
   const [currentBanner, setCurrentBanner] = useState(0);
+  const [currentOffer, setCurrentOffer] = useState(0);
   const scrollViewRef = useRef(null);
   const [featuredProductsY, setFeaturedProductsY] = useState(0);
   const [categories, setCategories] = useState([]);
@@ -31,6 +35,9 @@ const HomeScreen = ({ navigation }) => {
   const [fetchedProducts, setFetchedProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [buyNowPressedId, setBuyNowPressedId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [isSearchActive, setIsSearchActive] = useState(false);
 
   // Get screen dimensions
   const { width, height } = Dimensions.get('window');
@@ -53,20 +60,20 @@ const HomeScreen = ({ navigation }) => {
     (async () => {
       try {
         const res = await productsAPI.getProducts();
-        setFetchedProducts(
-          (res?.data?.data?.products || []).map(p => ({
-            ...p,
-            id: p._id,
-            image: p.images?.[0]?.url || '',
-            discount: p.offerPercentage,
-            rating: p.averageRating,
-            reviews: p.totalReviews,
-            farmer: p.supplierId?.businessName || '',
-            category: p.categoryId?.name || '',
-            price: p.discountedPrice ?? p.price,
-            originalPrice: p.price,
-          }))
-        );
+        const products = (res?.data?.data?.products || []).map(p => ({
+          ...p,
+          id: p._id,
+          image: p.images?.[0]?.url || '',
+          discount: p.offerPercentage,
+          rating: p.averageRating,
+          reviews: p.totalReviews,
+          farmer: p.supplierId?.businessName || '',
+          category: p.categoryId?.name || '',
+          price: p.discountedPrice ?? p.price,
+          originalPrice: p.price,
+        }));
+        setFetchedProducts(products);
+        setFilteredProducts(products);
       } catch (err) {
         console.error('Failed to fetch products:', err?.response?.data || err.message);
       } finally {
@@ -74,6 +81,22 @@ const HomeScreen = ({ navigation }) => {
       }
     })();
   }, []);
+
+  // Handle search functionality
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredProducts(fetchedProducts);
+      setIsSearchActive(false);
+    } else {
+      const filtered = fetchedProducts.filter(product =>
+        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.farmer.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredProducts(filtered);
+      setIsSearchActive(true);
+    }
+  }, [searchQuery, fetchedProducts]);
 
   // Fetch categories
   useEffect(() => {
@@ -100,21 +123,174 @@ const HomeScreen = ({ navigation }) => {
 
   const { cartItems, wishlistItems, updateCartItems, addToWishlist, removeFromWishlist } = useAppContext();
   const allProducts = fetchedProducts.length ? fetchedProducts : featuredProducts;
-  const filteredProducts = allProducts;
 
   const banners = [
     {
       id: 1,
       title: 'Free Delivery',
-      subtitle: 'Free on order ₹500',
+      subtitle: 'On order ₹500',
       description: 'Limited time offer - Direct from farm to your doorstep',
       icon: <Percent width={24} height={24} color="#fff" />,
       tag: 'Limited Time',
       gradient: 'bg-gradient-to-r from-green-500 to-emerald-700',
       image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQXoXvo9LcdoOtIf2eedVwHvi2i01qVBIMrjQ&s',
     },
-    // ... other banners
+    {
+      id: 2,
+      title: 'Organic Week',
+      subtitle: '15% OFF Organic Products',
+      description: 'Go organic for better health and environment',
+      icon: <Leaf width={24} height={24} color="#fff" />,
+      tag: 'Health First',
+      gradient: ['#84cc16', '#65a30d'],
+      image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1374&q=80',
+      buttonText: 'Explore Organic',
+      buttonColor: '#ffffff',
+      buttonTextColor: '#65a30d'
+    }
   ];
+
+const specialOffers = [
+  // {
+  //   id: 1,
+  //   title: 'Summer Special',
+  //   subtitle: '20% OFF on Fruits',
+  //   description: 'Fresh seasonal fruits with extra discount',
+  //   icon: <Percent size={24} color="#fff" />,
+  //   bgColor: '#fff7ed',  // Light orange background
+  //   borderColor:' #fb923c', // Light orange border
+  //   iconBg: '#f97316', // Orange icon background
+  //   textColor: '#9a3412', // Dark orange text
+  //   highlightText: 'FRUIT20',
+  //   cta: 'Shop Fruits',
+  //   ctaColor: '#fff',
+  //   expiration: 'Offer ends in 2 days'
+  // },
+  {
+    id: 2,
+    title: 'Organic Week',
+    subtitle: '15% OFF on Organic',
+    description: 'Premium quality organic produce',
+    icon: <Leaf size={24} color="#fff" />,
+    bgColor: '#f0fdf4', // Light green background
+    borderColor: '#bbf7d0', // Light green border
+    iconBg: '#16a34a', // Green icon background
+    textColor: '#166534', // Dark green text
+    highlightText: 'ORGANIC15',
+    cta: 'Shop Organic',
+    ctaColor: '#fff',
+    expiration: 'Limited time only'
+  },
+  {
+    id: 3,
+    title: 'New Customer',
+    subtitle: '10% OFF on First Order',
+    description: 'Welcome discount for new customers',
+    icon: <User size={24} color="#fff" />,
+    bgColor: '#eff6ff', // Light blue background
+    borderColor: '#dbeafe', // Light blue border
+    iconBg: '#2563eb', // Blue icon background
+    textColor: '#1e40af', // Dark blue text
+    highlightText: 'WELCOME10',
+    cta: 'Start Shopping',
+    ctaColor: '#fff',
+    expiration: 'First order only'
+  },
+  {
+    id: 4,
+    title: 'Free Delivery',
+    subtitle: 'On orders above ₹500',
+    description: 'No delivery charges for all orders',
+    icon: <Truck size={24} color="#fff" />,
+    bgColor: '#fff7ed',  // Light orange background
+    borderColor:'#fed7aa', // Light orange border
+    iconBg: '#f97316', // Orange icon background
+    textColor: '#9a3412', // Dark orange text
+    highlightText: 'FREESHIP',
+    cta: 'Shop Now',
+    ctaColor: '#fff',
+    expiration: 'Limited period offer'
+  }
+];
+
+
+const renderOfferItem = ({ item }) => {
+  return (
+    <Animated.View
+      entering={SlideInRight.duration(500)}
+      exiting={SlideOutLeft.duration(500)}
+      className="flex-1 mx-2 rounded-2xl overflow-hidden shadow-xl border-2"
+      style={{ 
+        backgroundColor: item.bgColor,
+        borderColor: item.borderColor
+      }}
+    >
+      <View className="h-full p-6 justify-between">
+        <View className="flex-row justify-between items-start">
+          <View className="flex-1">
+            <Text 
+              className="text-sm font-medium mb-1" 
+              style={{ color: item.textColor }}
+            >
+              {item.subtitle}
+            </Text>
+            <Text 
+              className="text-2xl font-bold mb-2" 
+              style={{ color: item.textColor }}
+            >
+              {item.title}
+            </Text>
+            <Text 
+              className="text-xs" 
+              style={{ color: item.textColor, opacity: 0.8 }}
+            >
+              {item.description}
+            </Text>
+            <View className="mt-2">
+              <Text 
+                className="text-xs italic" 
+                style={{ color: item.textColor, opacity: 0.7 }}
+              >
+                {item.expiration}
+              </Text>
+            </View>
+          </View>
+          <View 
+            className="w-12 h-12 rounded-full justify-center items-center shadow-md"
+            style={{ backgroundColor: item.iconBg }}
+          >
+            {item.icon}
+          </View>
+        </View>
+
+        <View className="flex-row justify-between items-center mt-6">
+          <View 
+            className="rounded-lg px-3 py-2"
+            style={{ backgroundColor: `${item.iconBg}20` }} // 20% opacity of icon color
+          >
+            <Text 
+              className="font-bold text-xs" 
+              style={{ color: item.textColor }}
+            >
+              Use code: {item.highlightText}
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            className="rounded-lg px-4 py-2"
+            style={{ backgroundColor: item.iconBg }}
+            onPress={() => navigation.navigate('Products')}
+          >
+            <Text className="text-white font-semibold text-sm">
+              {item.cta}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Animated.View>
+  );
+};
+
 
   const quickActions = [
     {
@@ -127,7 +303,6 @@ const HomeScreen = ({ navigation }) => {
       textColor: 'text-green-800',
       subtitleColor: 'text-green-600'
     },
-    // ... other quick actions
   ];
 
   const featuredProducts = [
@@ -150,14 +325,16 @@ const HomeScreen = ({ navigation }) => {
         businessName: 'Green Valley Farms'
       }
     },
-    // ... other products
   ];
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    const bannerInterval = setInterval(() => {
       setCurrentBanner((prev) => (prev + 1) % banners.length);
     }, 5000);
-    return () => clearInterval(interval);
+
+    return () => {
+      clearInterval(bannerInterval);
+    };
   }, []);
 
   const isInWishlist = (id) => wishlistItems.some((item) => item && item._id === id);
@@ -195,10 +372,10 @@ const HomeScreen = ({ navigation }) => {
   const CategoryItem = ({ item }) => {
     const categoryItemSize = responsiveValue(width * 0.28, width * 0.23, width * 0.18);
     const imageSize = responsiveValue(60, 70, 80);
-    
+
     return (
       <View className={`items-center mb-4`} style={{ width: categoryItemSize }}>
-        <TouchableOpacity 
+        <TouchableOpacity
           activeOpacity={0.9}
           onPress={() => navigation.navigate('Subcategories', { category: item })}
         >
@@ -209,8 +386,8 @@ const HomeScreen = ({ navigation }) => {
                   item.image && typeof item.image === 'object' && item.image.url
                     ? { uri: item.image.url }
                     : item.image && typeof item.image === 'string' && item.image.trim() !== ''
-                    ? { uri: item.image }
-                    : { uri: 'https://via.placeholder.com/100' }
+                      ? { uri: item.image }
+                      : { uri: 'https://via.placeholder.com/100' }
                 }
                 style={{ width: '100%', height: '100%' }}
                 resizeMode="cover"
@@ -228,20 +405,20 @@ const HomeScreen = ({ navigation }) => {
   const renderFarmerItem = ({ item }) => {
     const farmerItemWidth = responsiveValue(140, 160, 180);
     const farmerImageSize = responsiveValue(16, 18, 20);
-    
+
     return (
-      <View className={`bg-white rounded-3xl p-4 items-center shadow-md border border-gray-100 mr-4`} 
+      <View className={`bg-white rounded-3xl p-4 items-center shadow-md border border-gray-100 mr-4`}
         style={{ width: farmerItemWidth }}>
         <View className="relative mb-3">
-          <Image 
-            source={{ uri: item.image }} 
-            style={{ 
-              width: farmerImageSize, 
+          <Image
+            source={{ uri: item.image }}
+            style={{
+              width: farmerImageSize,
               height: farmerImageSize,
               borderRadius: farmerImageSize / 2,
               borderWidth: 2,
               borderColor: '#f3f4f6'
-            }} 
+            }}
           />
           {item.verified && (
             <View className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-green-500 justify-center items-center border-2 border-white">
@@ -267,7 +444,7 @@ const HomeScreen = ({ navigation }) => {
     const productHeight = responsiveValue(120, 140, 160);
     const productPadding = responsiveValue(2, 3, 3);
     const productTextSize = responsiveValue('text-xs', 'text-sm', 'text-sm');
-    
+
     return (
       <TouchableOpacity
         onPress={() => navigation.navigate('ProductDetails', { product: item })}
@@ -276,10 +453,10 @@ const HomeScreen = ({ navigation }) => {
       >
         <View className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
           <View className="relative">
-            <Image 
-              source={{ uri: item.image }} 
-              className="w-full" 
-              style={{ height: productHeight }} 
+            <Image
+              source={{ uri: item.image }}
+              className="w-full"
+              style={{ height: productHeight }}
               resizeMode="cover"
             />
             <View className="absolute inset-0 bg-black/20" />
@@ -366,9 +543,9 @@ const HomeScreen = ({ navigation }) => {
     const Icon = item.icon;
     const quickActionPadding = responsiveValue(2, 3, 3);
     const iconSize = responsiveValue(16, 18, 18);
-    
+
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         className={`flex-1 flex-row items-center rounded-xl p-${quickActionPadding} border-2 m-1 min-w-[48%] shadow-sm ${item.bgColor} ${item.borderColor}`}
       >
         <View className={`w-10 h-10 rounded-lg justify-center items-center mr-3 ${item.iconBg}`}>
@@ -410,13 +587,16 @@ const HomeScreen = ({ navigation }) => {
       <AppBar />
 
       {/* Search Bar */}
-      <View className={`px-${responsivePadding} pt-2 pb-3`}>
+      <View className={`px-${responsivePadding} pt-2 pb-2`}>
         <View className={`flex-row items-center bg-white rounded-xl px-${responsivePadding} py-3 shadow-sm border border-gray-200`}>
           <SearchIcon width={20} height={20} color="#6b7280" />
           <TextInput
             placeholder="Search fresh produce, grains, organic foods..."
             placeholderTextColor="#94a3b8"
             className={`flex-1 ml-3 text-gray-800 ${responsiveValue('text-xs', 'text-sm', 'text-sm')}`}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
           />
           <View className="w-px h-6 bg-gray-200 mx-3" />
           <TouchableOpacity className="p-1">
@@ -431,134 +611,201 @@ const HomeScreen = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         className="flex-1"
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={handleRefresh} 
-            colors={["#059669"]} 
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={["#059669"]}
             progressViewOffset={Platform.OS === 'ios' ? responsiveValue(40, 50, 60) : 0}
           />
         }
       >
-        {/* Categories */}
-        <View className={`px-${responsivePadding} mb-6`}>
-          <View className="flex-row justify-between items-center mb-4">
-            <Text className={`${responsiveValue('text-lg', 'text-xl', 'text-xl')} font-bold text-gray-800`}>Shop by Category</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Categories')}>
-              <Text className="text-green-600 font-semibold text-sm">View All</Text>
-            </TouchableOpacity>
-          </View>
-          {loadingCategories ? (
-            <Text>Loading categories...</Text>
-          ) : (
-            <View className="flex-row flex-wrap justify-between">
-              {categories.slice(0, 6).map((item, index) => (
-                <CategoryItem key={item._id || item.id || index} item={item} />
-              ))}
-            </View>
-          )}
-        </View>
+        {!isSearchActive ? (
+          <>
+            {/* Special Offers Carousel */}
 
-        {/* Banner */}
-        <View className={`h-64 rounded-2xl overflow-hidden mx-${responsivePadding} mb-6 shadow-md`}>
-          <Image
-            source={{ uri: banners[currentBanner].image }}
-            className="w-full h-full absolute"
-            resizeMode="cover"
-          />
-          <View className="absolute inset-0 bg-black/40" />
-          <View className={`flex-1 p-${responsivePadding} justify-between`}>
-            <View className="flex-row justify-between items-start">
-              <View className="bg-white/20 rounded-lg px-3 py-2 border border-white/30">
-                <Text className="text-white text-xs font-bold">{banners[currentBanner].tag}</Text>
-              </View>
-              <View className="w-8 h-8 rounded-full bg-white/20 justify-center items-center">
-                {banners[currentBanner].icon}
-              </View>
+ <View className={`h-16 mb-3`}>
+  <Carousel
+    width={width}
+    height={60}
+    data={specialOffers}
+    scrollAnimationDuration={1000}
+    autoPlay={true}
+    autoPlayInterval={3000}
+    renderItem={({ item }) => (
+      <Animated.View
+        entering={SlideInRight.duration(500)}
+        exiting={SlideOutLeft.duration(500)}
+        className="flex-1 mx-1 rounded-xl overflow-hidden shadow-sm"
+        style={{ backgroundColor: item.bgColor, borderColor: item.borderColor, borderWidth: 1 }}
+      >
+        <View className="h-full px-4 flex-row items-center justify-between">
+          <View className="flex-row items-center">
+            <View 
+              className="w-8 h-8 rounded-full justify-center items-center mr-3"
+              style={{ backgroundColor: item.iconBg }}
+            >
+              {item.icon}
             </View>
-            <View className={`mb-${responsivePadding}`}>
-              <Text className={`${responsiveValue('text-xl', 'text-2xl', 'text-2xl')} font-bold text-white mb-1`}>{banners[currentBanner].title}</Text>
-              <Text className={`${responsiveValue('text-lg', 'text-lg', 'text-xl')} font-semibold text-white mb-1`}>{banners[currentBanner].subtitle}</Text>
-              <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-white/95`}>{banners[currentBanner].description}</Text>
-            </View>
-            <View className="flex-row justify-between items-center">
-              <TouchableOpacity
-                className="flex-row items-center bg-white px-5 py-2 rounded-lg"
-                onPress={scrollToFeaturedProducts}
+            <View>
+              <Text 
+                className="text-lg font-bold" 
+                style={{ color: item.textColor }}
               >
-                <Text className="text-gray-800 font-semibold mr-2">Shop Now</Text>
-                <ArrowRight width={16} height={16} color="#1f2937" />
-              </TouchableOpacity>
-              <View className="flex-row items-center gap-4">
-                <View className="flex-row items-center bg-white/20 rounded-lg px-3 py-1.5 border border-white/30">
-                  <Star width={14} height={14} fill="#facc15" color="#facc15" />
-                  <Text className="text-white text-xs font-medium ml-1">4.8 Rating</Text>
+                {item.title}
+              </Text>
+              <Text 
+                className="text-xs font-medium" 
+                style={{ color: item.textColor, opacity: 0.8 }}
+              >
+                {item.subtitle}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Animated.View>
+    )}
+    mode="parallax"
+    modeConfig={{
+      parallaxScrollingScale: 0.95,
+      parallaxScrollingOffset: 20,
+    }}
+  />
+</View>
+            {/* Categories */}
+            <View className={`px-${responsivePadding} mb-6`}>
+              <View className="flex-row justify-between items-center mb-4">
+                <Text className={`${responsiveValue('text-lg', 'text-xl', 'text-xl')} font-bold text-gray-800`}>Shop by Category</Text>
+                <TouchableOpacity onPress={() => navigation.navigate('Categories')}>
+                  <Text className="text-green-600 font-semibold text-sm">View All</Text>
+                </TouchableOpacity>
+              </View>
+              {loadingCategories ? (
+                <Text>Loading categories...</Text>
+              ) : (
+                <View className="flex-row flex-wrap justify-between">
+                  {categories.slice(0, 6).map((item, index) => (
+                    <CategoryItem key={item._id || item.id || index} item={item} />
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Banner */}
+            <View className={`h-64 rounded-2xl overflow-hidden mx-${responsivePadding} mb-6 shadow-md`}>
+              <Image
+                source={{ uri: banners[currentBanner].image }}
+                className="w-full h-full absolute"
+                resizeMode="cover"
+              />
+              <View className="absolute inset-0 bg-black/40" />
+              <View className={`flex-1 p-${responsivePadding} justify-between`}>
+                <View className="flex-row justify-between items-start">
+                  <View className="bg-white/20 rounded-lg px-3 py-2 border border-white/30">
+                    <Text className="text-white text-xs font-bold">{banners[currentBanner].tag}</Text>
+                  </View>
+                  <View className="w-8 h-8 rounded-full bg-white/20 justify-center items-center">
+                    {banners[currentBanner].icon}
+                  </View>
+                </View>
+                <View className={`mb-${responsivePadding}`}>
+                  <Text className={`${responsiveValue('text-xl', 'text-2xl', 'text-2xl')} font-bold text-white mb-1`}>{banners[currentBanner].title}</Text>
+                  <Text className={`${responsiveValue('text-lg', 'text-lg', 'text-xl')} font-semibold text-white mb-1`}>{banners[currentBanner].subtitle}</Text>
+                  <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-white/95`}>{banners[currentBanner].description}</Text>
+                </View>
+                <View className="flex-row justify-between items-center">
+                  <TouchableOpacity
+                    className="flex-row items-center bg-white px-5 py-2 rounded-lg"
+                    onPress={scrollToFeaturedProducts}
+                  >
+                    <Text className="text-gray-800 font-semibold mr-2">Shop Now</Text>
+                    <ArrowRight width={16} height={16} color="#1f2937" />
+                  </TouchableOpacity>
+                  <View className="flex-row items-center gap-4">
+                    <View className="flex-row items-center bg-white/20 rounded-lg px-3 py-1.5 border border-white/30">
+                      <Star width={14} height={14} fill="#facc15" color="#facc15" />
+                      <Text className="text-white text-xs font-medium ml-1">4.8 Rating</Text>
+                    </View>
+                  </View>
                 </View>
               </View>
+              <View className="flex-row justify-center items-center mt-4 gap-2">
+                {banners.map((_, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    onPress={() => setCurrentBanner(index)}
+                    className={`h-1.5 rounded-full ${index === currentBanner ? 'w-6 bg-green-500' : 'w-2 bg-gray-300'}`}
+                  />
+                ))}
+              </View>
             </View>
-          </View>
-          <View className="flex-row justify-center items-center mt-4 gap-2">
-            {banners.map((_, index) => (
-              <TouchableOpacity
-                key={index}
-                onPress={() => setCurrentBanner(index)}
-                className={`h-1.5 rounded-full ${index === currentBanner ? 'w-6 bg-green-500' : 'w-2 bg-gray-300'}`}
+
+            {/* Quick Actions */}
+            <View className={`px-${responsivePadding} mb-6`}>
+              <FlatList
+                data={quickActions}
+                renderItem={renderQuickAction}
+                keyExtractor={(item, index) => index.toString()}
+                numColumns={2}
+                scrollEnabled={false}
+                contentContainerStyle={{ gap: 8 }}
               />
-            ))}
-          </View>
-        </View>
+            </View>
 
-        {/* Quick Actions */}
-        <View className={`px-${responsivePadding} mb-6`}>
-          <FlatList
-            data={quickActions}
-            renderItem={renderQuickAction}
-            keyExtractor={(item, index) => index.toString()}
-            numColumns={2}
-            scrollEnabled={false}
-            contentContainerStyle={{ gap: 8 }}
-          />
-        </View>
+            {/* Farmers */}
+            <View className={`px-${responsivePadding} mb-6`}>
+              <View className="flex-row justify-between items-center mb-4">
+                <Text className={`${responsiveValue('text-lg', 'text-xl', 'text-xl')} font-bold text-gray-800`}>Popular Farmers</Text>
+                <TouchableOpacity className="flex-row items-center">
+                  <Text className="text-green-600 font-semibold text-sm mr-1">View All</Text>
+                  <ChevronRight width={14} height={14} color="#16a34a" />
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={farmers}
+                renderItem={renderFarmerItem}
+                keyExtractor={(item, index) => index.toString()}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingRight: responsivePadding * 4 }}
+              />
+            </View>
+          </>
+        ) : null}
 
-        {/* Farmers */}
-        <View className={`px-${responsivePadding} mb-6`}>
-          <View className="flex-row justify-between items-center mb-4">
-            <Text className={`${responsiveValue('text-lg', 'text-xl', 'text-xl')} font-bold text-gray-800`}>Popular Farmers</Text>
-            <TouchableOpacity className="flex-row items-center">
-              <Text className="text-green-600 font-semibold text-sm mr-1">View All</Text>
-              <ChevronRight width={14} height={14} color="#16a34a" />
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={farmers}
-            renderItem={renderFarmerItem}
-            keyExtractor={(item, index) => index.toString()}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingRight: responsivePadding * 4 }}
-          />
-        </View>
-
-        {/* Featured Products */}
+        {/* Featured Products - Always visible but shows search results when searching */}
         <View
           onLayout={event => setFeaturedProductsY(event.nativeEvent.layout.y)}
           className={`px-${responsivePadding} mb-6`}
         >
-          <View className="flex-row justify-between items-center mb-4">
-            <Text className={`${responsiveValue('text-lg', 'text-xl', 'text-xl')} font-bold text-gray-800`}>Featured Products</Text>
-            <TouchableOpacity className="flex-row items-center">
-              <Text className="text-green-600 font-semibold text-sm mr-1">View All</Text>
-              <ChevronRight width={14} height={14} color="#16a34a" />
-            </TouchableOpacity>
-          </View>
-          
-          <FlatList
-            data={filteredProducts}
-            renderItem={renderProductItem}
-            keyExtractor={(item) => (item._id || item.id).toString()}
-            numColumns={2}
-            scrollEnabled={false}
-            contentContainerStyle={{ gap: 8 }}
-          />
+          {isSearchActive ? (
+            <View className="flex-row justify-between items-center mb-4">
+              <Text className={`${responsiveValue('text-lg', 'text-xl', 'text-xl')} font-bold text-gray-800`}>Search Results</Text>
+              <Text className="text-gray-500 text-sm">{filteredProducts.length} items found</Text>
+            </View>
+          ) : (
+            <View className="flex-row justify-between items-center mb-4">
+              <Text className={`${responsiveValue('text-lg', 'text-xl', 'text-xl')} font-bold text-gray-800`}>Featured Products</Text>
+              <TouchableOpacity className="flex-row items-center">
+                <Text className="text-green-600 font-semibold text-sm mr-1">View All</Text>
+                <ChevronRight width={14} height={14} color="#16a34a" />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {filteredProducts.length === 0 ? (
+            <View className="items-center justify-center py-10">
+              <Text className="text-gray-500">No products found matching your search</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={filteredProducts}
+              renderItem={renderProductItem}
+              keyExtractor={(item) => (item._id || item.id).toString()}
+              numColumns={2}
+              scrollEnabled={false}
+              contentContainerStyle={{ gap: 8 }}
+            />
+          )}
         </View>
       </ScrollView>
     </View>
