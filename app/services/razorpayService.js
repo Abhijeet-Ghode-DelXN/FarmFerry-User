@@ -1,20 +1,15 @@
 import PAYMENT_CONFIG from '../constants/paymentConfig';
 
-// Try to import RazorpayCheckout, but handle the case where it's not available
+// Import RazorpayCheckout directly
 let RazorpayCheckout = null;
 try {
+  // Try to import the library
   const razorpayModule = require('react-native-razorpay');
   RazorpayCheckout = razorpayModule.default || razorpayModule;
   
-  // Verify that the module is properly loaded
-  if (RazorpayCheckout && typeof RazorpayCheckout.open === 'function') {
-    console.log('Razorpay library loaded successfully');
-  } else {
-    console.warn('Razorpay library loaded but open method not available');
-    RazorpayCheckout = null;
-  }
+  console.log('Razorpay library loaded successfully');
 } catch (error) {
-  console.warn('Razorpay library not available:', error.message);
+  console.error('Failed to load Razorpay library:', error.message);
   RazorpayCheckout = null;
 }
 
@@ -40,14 +35,7 @@ export class RazorpayService {
 
       // Check if Razorpay library is available
       if (!RazorpayCheckout) {
-        console.warn('Razorpay library not available, using mock payment');
-        return await this.processMockPayment(paymentData);
-      }
-
-      // Additional check for RazorpayCheckout.open method
-      if (!RazorpayCheckout.open || typeof RazorpayCheckout.open !== 'function') {
-        console.warn('RazorpayCheckout.open method not available, using mock payment');
-        return await this.processMockPayment(paymentData);
+        throw new Error('Razorpay library is not available. Please ensure react-native-razorpay is properly installed.');
       }
 
       // Prepare Razorpay options
@@ -85,10 +73,10 @@ export class RazorpayService {
         customerName: options.prefill.name
       });
 
-             // Initialize Razorpay checkout
-       const paymentResponse = await RazorpayCheckout.open(options);
+      // Initialize Razorpay checkout - this should open the payment interface
+      const paymentResponse = await RazorpayCheckout.open(options);
 
-       console.log('Razorpay payment response:', paymentResponse);
+      console.log('Razorpay payment response:', paymentResponse);
 
       // Handle successful payment
       if (paymentResponse && paymentResponse.razorpay_payment_id) {
@@ -106,30 +94,20 @@ export class RazorpayService {
         throw new Error('Invalid payment response from Razorpay');
       }
 
-         } catch (error) {
-       console.error('Razorpay payment error:', error);
-       
-       // Check if it's a null reference error (library not properly linked)
-       if (error.message && (
-         error.message.includes('Cannot read property') && error.message.includes('null') ||
-         error.message.includes('open') && error.message.includes('null') ||
-         error.message.includes('RazorpayCheckout') && error.message.includes('null')
-       )) {
-         console.warn('Razorpay library not properly linked, falling back to mock payment');
-         return await this.processMockPayment(paymentData);
-       }
-       
-       // Handle specific Razorpay error codes
-       if (error.code === 'PAYMENT_CANCELLED') {
-         throw new Error('Payment was cancelled by user');
-       } else if (error.code === 'NETWORK_ERROR') {
-         throw new Error('Network error. Please check your connection.');
-       } else if (error.code === 'INVALID_PAYMENT_METHOD') {
-         throw new Error('Invalid payment method selected.');
-       } else {
-         throw new Error(error.message || 'Payment failed. Please try again.');
-       }
-     }
+    } catch (error) {
+      console.error('Razorpay payment error:', error);
+      
+      // Handle specific Razorpay error codes
+      if (error.code === 'PAYMENT_CANCELLED') {
+        throw new Error('Payment was cancelled by user');
+      } else if (error.code === 'NETWORK_ERROR') {
+        throw new Error('Network error. Please check your connection.');
+      } else if (error.code === 'INVALID_PAYMENT_METHOD') {
+        throw new Error('Invalid payment method selected.');
+      } else {
+        throw new Error(error.message || 'Payment failed. Please try again.');
+      }
+    }
   }
 
   // Mock payment fallback when Razorpay is not available
@@ -221,10 +199,10 @@ export class RazorpayService {
     return true;
   }
 
-     // Check if Razorpay is available
-   static isAvailable() {
-     return RazorpayCheckout !== null && RazorpayCheckout.open !== null;
-   }
+  // Check if Razorpay is available
+  static isAvailable() {
+    return RazorpayCheckout !== null && typeof RazorpayCheckout.open === 'function';
+  }
 }
 
 export default RazorpayService; 

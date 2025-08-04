@@ -9,4 +9,11 @@
     <item name="windowSplashScreenAnimatedIcon">@drawable/splashscreen_logo</item>
     <item name="postSplashScreenTheme">@style/AppTheme</item>
   </style>
+  
+  <!-- Razorpay Checkout Theme -->
+  <style name="CheckoutTheme" parent="Theme.AppCompat.Light.NoActionBar">
+    <item name="android:windowBackground">@android:color/white</item>
+    <item name="android:windowIsTranslucent">false</item>
+    <item name="android:windowAnimationStyle">@android:style/Animation.Dialog</item>
+  </style>
 </resources>
