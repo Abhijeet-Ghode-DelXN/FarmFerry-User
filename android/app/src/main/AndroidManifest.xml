@@ -33,8 +33,5 @@
         <data android:scheme="farmferry-user"/>
       </intent-filter>
     </activity>
-    
-    <!-- Razorpay Checkout Activity -->
-    <activity android:name="com.razorpay.CheckoutActivity" android:exported="false" android:theme="@style/CheckoutTheme"/>
   </application>
 </manifest>
