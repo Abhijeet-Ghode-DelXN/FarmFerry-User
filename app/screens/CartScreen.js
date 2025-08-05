@@ -1,31 +1,22 @@
-import React, { useState, useEffect } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft } from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
 import {
-  View,
-  Text,
-  Image,
-  ScrollView,
-  TouchableOpacity,
-  SafeAreaView,
-  StatusBar,
-  Alert,
-  ActivityIndicator,
-  Dimensions,
-  RefreshControl
-} from 'react-native';
-import {
-  Minus,
-  Plus,
-  Heart,
-  ChevronRight,
-  Tag,
-  MapPin,
-  Clock,
-  Star,
-  Trash2,
+  ArrowLeft, ChevronRight, Heart, MapPin, Minus,
+  Plus, Tag, Trash2
 } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
 import { useAppContext } from '../context/AppContext';
 import { cartAPI } from '../services/api';
 
@@ -180,7 +171,7 @@ export default function CartScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50 pt-7">
+    <SafeAreaView className="flex-1 bg-gray-50">
       <StatusBar backgroundColor="white" barStyle="dark-content" />
 
       {/* AppBar with back arrow */}

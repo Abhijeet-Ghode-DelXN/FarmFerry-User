@@ -1,8 +1,8 @@
 
-import React from 'react';
-import { View, Text, TouchableOpacity, Image } from 'react-native';
-import { MapPin, Bell, User, ArrowLeft } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
+import Constants from 'expo-constants';
+import { ArrowLeft, Bell, MapPin } from 'lucide-react-native';
+import { Image, Text, TouchableOpacity, View } from 'react-native';
 import { useAppContext } from '../../context/AppContext';
 import { useUserLocation } from '../../hooks/useUserLocation';
 
@@ -10,13 +10,19 @@ export default function AppBar({ showBack = false, title = "FarmFerry" }) {
   const navigation = useNavigation();
   const { cartItems, unreadNotificationCount } = useAppContext();
   const { address } = useUserLocation(); 
+  
+  // Get status bar height
+  const statusBarHeight = Constants.statusBarHeight;
+  
   return (
     <View
       style={{
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 16,
+        paddingTop: statusBarHeight,
+        paddingHorizontal: 16,
+        // paddingBottom: 16,
         backgroundColor: 'white',
         borderBottomWidth: 1,
         borderBottomColor: '#e5e7eb',
@@ -26,7 +32,6 @@ export default function AppBar({ showBack = false, title = "FarmFerry" }) {
         shadowRadius: 2,
         elevation: 3,
       }}
-      className="mt-0"
     >
       {/* Left: Logo or Back Arrow */}
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
