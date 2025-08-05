@@ -189,9 +189,15 @@ export class PaymentService {
           } catch (error) {
             console.error('❌ Razorpay payment failed with error:', error.message);
             
-            // In development, provide fallback to mock payment for testing
-            if (PAYMENT_CONFIG.TEST.ENABLED) {
-              console.log('🚨 Falling back to mock payment for testing...');
+            // Check if it's a user cancellation - NEVER fallback for cancellations
+            if (error.message && (error.message.includes('cancelled by user') || error.message.includes('Payment was cancelled'))) {
+              console.log('🚫 Payment cancelled by user - not falling back to mock');
+              throw error; // Always throw cancellation errors
+            }
+            
+            // In development, provide fallback to mock payment for testing ONLY for technical errors
+            if (PAYMENT_CONFIG.TEST.ENABLED && !error.message.includes('cancelled')) {
+              console.log('🚨 Falling back to mock payment for testing (technical error only)...');
               paymentResult = await MockPaymentService.processPayment('razorpay_mock', amount, orderId);
             } else {
               throw error;

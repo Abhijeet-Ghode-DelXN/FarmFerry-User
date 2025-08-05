@@ -115,11 +115,6 @@ export class RazorpayService {
         theme: {
           color: PAYMENT_CONFIG.RAZORPAY.THEME_COLOR,
           ...theme
-        },
-        modal: {
-          ondismiss: () => {
-            console.log('🚪 Payment modal dismissed by user');
-          }
         }
       };
 
