@@ -1,26 +1,27 @@
 import { useNavigation } from '@react-navigation/native';
+import { format } from 'date-fns';
 import {
-  Bell, ChevronRight, Clock, CreditCard, Edit3,
+  Bell, ChevronRight,
+  Edit3,
   Headphones, Lock, LogOut,
-  Mail, MapPin, Package,
-  Phone, Plus, Receipt, Search, Settings, ShoppingBag, Star, User, X, Trash2
+  Mail,
+  Phone,
+  Settings,
+  Star, User, X
 } from 'lucide-react-native';
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
+  Dimensions,
   FlatList,
   Modal,
+  RefreshControl,
   ScrollView,
   Text,
   TouchableOpacity,
-  View,
-  ActivityIndicator,
-  RefreshControl,
-  Alert,
-  Dimensions,
+  View
 } from 'react-native';
-import { format } from 'date-fns';
-import { customerAPI, ordersAPI, notificationsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { customerAPI, notificationsAPI } from '../services/api';
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
@@ -117,7 +118,7 @@ const ProfileScreen = () => {
   );
 
   return (
-    <View className="flex-1 bg-gray-50 pt-6"> {/* Added top padding here */}
+    <View className="flex-1 bg-gray-50"> {/* Added top padding here */}
       {/* Header */}
       <View className="flex-row justify-between items-center p-4 bg-white border-b border-gray-200">
         <View className="flex-row items-center">

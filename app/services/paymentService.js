@@ -1,12 +1,7 @@
-import UpiPay from 'react-native-upi-pay';
 import PAYMENT_CONFIG from '../constants/paymentConfig';
 import RazorpayService from './razorpayService';
 import RazorpayWebService from './razorpayWebService';
 
-// Test UpiPay library availability
-console.log('UpiPay library loaded:', !!UpiPay);
-console.log('UpiPay.UPI_APPS:', UpiPay?.UPI_APPS);
-console.log('UpiPay.initializePayment:', !!UpiPay?.initializePayment);
 
 // Mock Payment Service for testing
 export class MockPaymentService {
@@ -38,12 +33,6 @@ export class MockPaymentService {
 export class UPIPaymentService {
   static async processUPIPayment(app, amount, orderId, customUpiId = null) {
     try {
-      // Check if UpiPay library is available and working
-      if (!UpiPay || !UpiPay.initializePayment) {
-        console.warn('UpiPay library not available, falling back to mock payment');
-        return await MockPaymentService.processPayment('upi', amount, orderId);
-      }
-
       const upiId = customUpiId || PAYMENT_CONFIG.UPI.MERCHANT_ID;
       const payeeName = PAYMENT_CONFIG.UPI.MERCHANT_NAME;
       const transactionRef = `FF${orderId}_${Date.now()}`;
@@ -56,38 +45,9 @@ export class UPIPaymentService {
         app
       });
 
-      const response = await UpiPay.initializePayment({
-        vpa: upiId,
-        payeeName,
-        amount: amount.toFixed(2),
-        transactionRef,
-        app: app || 'google_pay',
-      });
-
-      console.log('UPI Payment response:', response);
-
-      if (response && response.Status) {
-        const status = response.Status.toLowerCase();
-        if (status === 'success') {
-          return {
-            success: true,
-            transactionId: response.TxnId || transactionRef,
-            amount: amount,
-            orderId: orderId,
-            paymentMethod: 'upi',
-            timestamp: new Date().toISOString(),
-            upiResponse: response
-          };
-        } else if (status === 'failure') {
-          throw new Error(response.ErrorMessage || PAYMENT_CONFIG.ERRORS.PAYMENT_FAILED);
-        } else if (status === 'cancelled') {
-          throw new Error(PAYMENT_CONFIG.ERRORS.USER_CANCELLED);
-        } else {
-          throw new Error('Payment status unknown');
-        }
-      } else {
-        throw new Error('Invalid payment response');
-      }
+      // Since react-native-upi-pay is removed, use mock payment service
+      console.warn('UPI native payment not available, using mock payment');
+      return await MockPaymentService.processPayment('upi', amount, orderId);
     } catch (error) {
       console.error('UPI Payment error:', error);
       throw error;
@@ -210,23 +170,38 @@ export class PaymentService {
               }
             };
 
+            console.log('💳 Processing Razorpay payment with data:', paymentData);
+
             // Validate payment data
             RazorpayService.validatePaymentData(paymentData);
 
             // Use web service for razorpay_web, native for razorpay
             if (paymentMethod === 'razorpay_web') {
-              console.log('Using Razorpay web integration');
+              console.log('🌐 Using Razorpay web integration');
               paymentResult = await RazorpayWebService.processPayment(paymentData);
             } else if (RazorpayService.isAvailable()) {
-              console.log('Using native Razorpay integration');
+              console.log('📱 Using native Razorpay integration');
               paymentResult = await RazorpayService.processPayment(paymentData);
             } else {
-              console.log('Native Razorpay not available, using web version');
+              console.log('⚙️ Native Razorpay not available, using web version');
               paymentResult = await RazorpayWebService.processPayment(paymentData);
             }
           } catch (error) {
-            console.error('Razorpay payment failed:', error);
-            throw error;
+            console.error('❌ Razorpay payment failed with error:', error.message);
+            
+            // Check if it's a user cancellation - NEVER fallback for cancellations
+            if (error.message && (error.message.includes('cancelled by user') || error.message.includes('Payment was cancelled'))) {
+              console.log('🚫 Payment cancelled by user - not falling back to mock');
+              throw error; // Always throw cancellation errors
+            }
+            
+            // In development, provide fallback to mock payment for testing ONLY for technical errors
+            if (PAYMENT_CONFIG.TEST.ENABLED && !error.message.includes('cancelled')) {
+              console.log('🚨 Falling back to mock payment for testing (technical error only)...');
+              paymentResult = await MockPaymentService.processPayment('razorpay_mock', amount, orderId);
+            } else {
+              throw error;
+            }
           }
           break;
 

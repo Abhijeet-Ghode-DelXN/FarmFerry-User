@@ -1,28 +1,25 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useAppContext } from '../context/AppContext';
-import AppBar from '../components/ui/AppBar';
+import { LinearGradient } from 'expo-linear-gradient';
+import { ArrowRight, ChevronRight, Filter, Heart, Leaf, Percent, Search as SearchIcon, ShoppingCart, Star, Truck, User } from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  Image,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
+  Alert,
   Dimensions,
   FlatList,
-  Alert,
+  Image,
+  Platform,
   RefreshControl,
-  Platform
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import { productsAPI, categoriesAPI } from '../services/api';
-import { MapPin, Plus, Heart, Search as SearchIcon, Filter, Star, Bell, User, ChevronRight, ArrowRight, Clock, Truck, Leaf, Percent, ShoppingCart } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { farmers } from '../components/ui/farmers';
-import { useUserLocation } from '../hooks/useUserLocation';
-import { cartAPI } from '../services/api';
-import { useCallback } from 'react';
+import Animated, { SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 import Carousel from 'react-native-reanimated-carousel';
-import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
+import AppBar from '../components/ui/AppBar';
+import { farmers } from '../components/ui/farmers';
+import { useAppContext } from '../context/AppContext';
+import { cartAPI, categoriesAPI, productsAPI } from '../services/api';
 
 const HomeScreen = ({ navigation }) => {
   const [currentBanner, setCurrentBanner] = useState(0);
@@ -588,7 +585,7 @@ const HomeScreen = ({ navigation }) => {
   };
 
   return (
-    <View className="flex-1 bg-gray-50 pt-2">
+    <View className="flex-1 bg-gray-50">
       {/* Header */}
       <AppBar />
 

@@ -259,21 +259,135 @@ const CheckoutScreen = ({ route }) => {
     setIsPlacingOrder(true);
     setPaymentError(null);
     
-    try {
-      await createOrderWithPayment();
-      updateCartItems([]);
-      setShowSuccess(true);
-      setTimeout(() => {
-        setShowSuccess(false);
-        navigation.navigate('Orders');
-      }, 3000);
+try {
+      if (paymentMethod === 'Online Payment') {
+        // Set default payment method for direct processing
+        if (!selectedPayment) {
+          setSelectedPayment('razorpay');
+        }
+        
+        console.log('Processing online payment...');
+        const paymentResult = await processDirectPayment();
+        
+        // Only create order if payment was actually successful
+        if (paymentResult && paymentResult.success) {
+          console.log('Payment successful, creating order...');
+          await createOrderWithPayment(paymentResult);
+          updateCartItems([]);
+          setShowSuccess(true);
+          setTimeout(() => {
+            setShowSuccess(false);
+            navigation.navigate('Orders');
+          }, 3000);
+        } else {
+          console.log('Payment failed, not creating order');
+          throw new Error('Payment was not successful');
+        }
+      } else {
+        // For COD, create order directly
+        await createOrderWithPayment();
+        updateCartItems([]);
+        setShowSuccess(true);
+        setTimeout(() => {
+          setShowSuccess(false);
+          navigation.navigate('Orders');
+        }, 3000);
+      }
     } catch (error) {
-      Alert.alert(
-        'Order Failed',
-        error.message || error.response?.data?.message || 'An unexpected error occurred. Please try again.'
-      );
+      console.error('Order processing error:', error);
+      
+      // Check if error is due to payment cancellation
+      const errorMessage = error.message || '';
+      if (errorMessage.includes('cancelled by user') || errorMessage.includes('Payment was cancelled')) {
+        Alert.alert(
+          'Payment Cancelled',
+          'You cancelled the payment. Your order has not been placed.'
+        );
+      } else {
+        Alert.alert(
+          'Order Failed',
+          errorMessage || error.response?.data?.message || 'An unexpected error occurred. Please try again.'
+        );
+      }
     } finally {
       setIsPlacingOrder(false);
+    }
+  };
+
+  // Process payment directly without modal
+  const processDirectPayment = async () => {
+    console.log('Starting direct payment processing...');
+    
+    // Default to Razorpay for online payments
+    const paymentMethod = 'razorpay';
+    
+    // Check authentication for Razorpay
+    if (!user) {
+      throw new Error('Please log in to use online payment');
+    }
+
+    const userData = user?.customer || user;
+    if (!userData?.email) {
+      throw new Error('Email is required for online payment. Please update your profile.');
+    }
+
+    try {
+      const orderId = `ORDER_${Date.now()}`;
+      
+      // Build customer name with proper fallback
+      let customerName = 'Customer';
+      if (userData.firstName && userData.lastName) {
+        customerName = `${userData.firstName} ${userData.lastName}`.trim();
+      } else if (userData.firstName) {
+        customerName = userData.firstName;
+      } else if (userData.lastName) {
+        customerName = userData.lastName;
+      } else if (userData.email) {
+        // Use email prefix as name if no name is available
+        customerName = userData.email.split('@')[0];
+      }
+        
+      const options = {
+        customerName: customerName,
+        customerEmail: userData.email,
+        customerPhone: userData.phone || '',
+        description: `Payment for FarmFerry order`,
+        prefill: {
+          name: customerName,
+          email: userData.email,
+          contact: userData.phone || ''
+        },
+        notes: {
+          order_id: orderId,
+          customer_id: userData._id || 'unknown'
+        }
+      };
+
+      console.log('Direct payment processing:', {
+        method: paymentMethod,
+        amount: cart.total,
+        orderId: orderId,
+        options: options
+      });
+
+      const paymentResult = await PaymentService.processPayment(
+        paymentMethod,
+        cart.total,
+        orderId,
+        options
+      );
+
+      console.log('Direct payment result:', paymentResult);
+
+      if (paymentResult && paymentResult.success) {
+        return paymentResult;
+      } else {
+        throw new Error('Payment was not successful');
+      }
+
+    } catch (error) {
+      console.error('Direct payment failed:', error);
+      throw new Error(error.message || 'Payment failed. Please try again.');
     }
   };
 
@@ -366,7 +480,7 @@ const CheckoutScreen = ({ route }) => {
         console.log('Razorpay options prepared:', options);
       }
       
-      console.log('Processing payment:', {
+console.log('Processing payment:', {
         method: selectedPayment,
         amount: cart.total,
         orderId: orderId,
@@ -583,8 +697,8 @@ const CheckoutScreen = ({ route }) => {
             className={`border p-4 rounded-lg flex-row justify-between items-center mt-2 ${paymentMethod === 'Online Payment' ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}
             onPress={() => {
               setPaymentMethod('Online Payment');
-              setShowPaymentOptions(true);
-              setPaymentModalVisible(true);
+              setShowPaymentOptions(false);
+              setSelectedPayment('razorpay');
             }}
             style={{ minHeight: responsiveValue(60, 70) }}
           >
@@ -675,7 +789,7 @@ const CheckoutScreen = ({ route }) => {
         style={{ paddingHorizontal: responsiveValue(16, 24) }}
       >
         <TouchableOpacity
-          onPress={paymentMethod === 'Online Payment' ? () => setPaymentModalVisible(true) : handlePlaceOrder}
+onPress={handlePlaceOrder}
           disabled={isPlacingOrder}
           style={{ borderRadius: 12, overflow: 'hidden' }}
         >

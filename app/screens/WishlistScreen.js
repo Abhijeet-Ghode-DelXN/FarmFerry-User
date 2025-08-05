@@ -1,30 +1,30 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  Image,
-  TouchableOpacity,
-  Dimensions,
-  Animated,
-  StatusBar,
-  Alert,
-  RefreshControl
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
-  Star,
-  Trash2,
-  ShoppingCart,
+  ArrowLeft,
   Heart,
   Package,
+  ShoppingCart,
   Sparkles,
-  ArrowLeft,
+  Star,
+  Trash2,
 } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { cartAPI } from '../services/api';
+import { useState } from 'react';
+import {
+  Alert,
+  Animated,
+  Dimensions,
+  FlatList,
+  Image,
+  RefreshControl,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppContext } from '../context/AppContext';
+import { cartAPI } from '../services/api';
 
 const { width, height } = Dimensions.get('window');
 const isSmallDevice = width < 375;
@@ -293,7 +293,7 @@ export default function WishlistScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50 pt-2">
+    <SafeAreaView className="flex-1 bg-gray-50">
       <StatusBar barStyle="dark-content" backgroundColor="white" />
 
       {/* AppBar */}

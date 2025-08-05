@@ -1,33 +1,32 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { format } from 'date-fns';
+import { LinearGradient } from 'expo-linear-gradient';
+import { FileText, RotateCcw, ShoppingCart, X } from 'lucide-react-native';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  ScrollView,
-  StatusBar,
-  RefreshControl,
-  Dimensions,
-  SafeAreaView,
   ActivityIndicator,
   Alert,
-  StyleSheet,
+  Dimensions,
+  FlatList,
   Image,
   Modal,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
   TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { ShoppingCart, RotateCcw, FileText, X } from 'lucide-react-native';
-import { ordersAPI } from '../services/api';
-import { format } from 'date-fns';
-import { getStatusColor, getStatusText } from '../utils/helpers';
 import Button from '../components/ui/Button';
-import { SCREEN_NAMES } from '../types';
-import { CONFIG } from '../constants/config';
-import InvoiceService from '../services/invoiceService';
 import { useAuth } from '../context/AuthContext';
+import { ordersAPI } from '../services/api';
+import InvoiceService from '../services/invoiceService';
+import { SCREEN_NAMES } from '../types';
+import { getStatusColor, getStatusText } from '../utils/helpers';
 
 const { width, height } = Dimensions.get('window');
 
@@ -563,7 +562,7 @@ export default function OrdersScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50 pt-7">
+    <SafeAreaView className="flex-1 bg-gray-50">
       <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
 
       {/* Header */}

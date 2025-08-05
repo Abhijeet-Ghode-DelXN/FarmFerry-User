@@ -15,6 +15,8 @@ try {
 
 export class RazorpayService {
   static async processPayment(paymentData) {
+    console.log('🔵 RazorpayService.processPayment called with:', JSON.stringify(paymentData, null, 2));
+    
     try {
       const {
         amount,
@@ -28,24 +30,78 @@ export class RazorpayService {
         theme = {}
       } = paymentData;
 
+      console.log('🔍 Extracted payment data:', {
+        amount,
+        orderId,
+        customerName,
+        customerEmail,
+        customerPhone
+      });
+
       // Validate required fields
       if (!amount || !orderId || !customerName || !customerEmail) {
-        throw new Error('Missing required payment data');
+        const missingFields = [];
+        if (!amount) missingFields.push('amount');
+        if (!orderId) missingFields.push('orderId');
+        if (!customerName) missingFields.push('customerName');
+        if (!customerEmail) missingFields.push('customerEmail');
+        
+        console.error('❌ Missing required fields:', missingFields);
+        throw new Error(`Missing required payment data: ${missingFields.join(', ')}`);
       }
 
       // Check if Razorpay library is available
+      console.log('🔍 Checking Razorpay library availability...');
+      console.log('RazorpayCheckout object:', RazorpayCheckout);
+      console.log('RazorpayCheckout type:', typeof RazorpayCheckout);
+      console.log('RazorpayCheckout.open type:', typeof RazorpayCheckout?.open);
+      
       if (!RazorpayCheckout) {
+        console.error('❌ Razorpay library is not available');
         throw new Error('Razorpay library is not available. Please ensure react-native-razorpay is properly installed.');
       }
 
+      // Validate amount range
+      if (amount < PAYMENT_CONFIG.LIMITS.MIN_AMOUNT || amount > PAYMENT_CONFIG.LIMITS.MAX_AMOUNT) {
+        console.error('❌ Amount out of range:', { amount, min: PAYMENT_CONFIG.LIMITS.MIN_AMOUNT, max: PAYMENT_CONFIG.LIMITS.MAX_AMOUNT });
+        throw new Error(`Amount must be between ₹${PAYMENT_CONFIG.LIMITS.MIN_AMOUNT} and ₹${PAYMENT_CONFIG.LIMITS.MAX_AMOUNT}`);
+      }
+
+      // First create a Razorpay order (this should be done on server, but for now we'll create locally)
+      console.log('🏗️ Creating Razorpay order...');
+      let razorpayOrderId;
+      
+      try {
+        // In production, this should be done on your backend
+        // For now, we'll use the orderId as is, but remove the 'order_' prefix if present
+        razorpayOrderId = orderId.startsWith('order_') ? orderId : `order_${orderId}`;
+        console.log('✅ Using order ID:', razorpayOrderId);
+      } catch (orderError) {
+        console.error('❌ Failed to create Razorpay order:', orderError);
+        throw new Error('Failed to create payment order. Please try again.');
+      }
+
       // Prepare Razorpay options
+      const amountInPaise = Math.round(amount * 100);
+      console.log('💰 Amount conversion:', { originalAmount: amount, amountInPaise });
+      
+      // Validate that all required fields are present and valid
+      if (!PAYMENT_CONFIG.RAZORPAY.KEY_ID || PAYMENT_CONFIG.RAZORPAY.KEY_ID.length < 10) {
+        throw new Error('Invalid Razorpay key configuration');
+      }
+      
+      if (amountInPaise < 100) { // Minimum 1 rupee
+        throw new Error('Amount too small for payment processing');
+      }
+      
       const options = {
         key: PAYMENT_CONFIG.RAZORPAY.KEY_ID,
-        amount: Math.round(amount * 100), // Convert to paise
+        amount: amountInPaise,
         currency: PAYMENT_CONFIG.RAZORPAY.CURRENCY,
         name: PAYMENT_CONFIG.RAZORPAY.MERCHANT_NAME,
         description: description,
-        order_id: orderId,
+        // For testing without backend order creation, we'll not include order_id
+        // order_id: razorpayOrderId,
         prefill: {
           name: customerName,
           email: customerEmail,
@@ -59,20 +115,19 @@ export class RazorpayService {
         theme: {
           color: PAYMENT_CONFIG.RAZORPAY.THEME_COLOR,
           ...theme
-        },
-        modal: {
-          ondismiss: () => {
-            console.log('Payment modal dismissed');
-          }
         }
       };
 
-      console.log('Initiating Razorpay payment:', {
-        amount: options.amount,
-        orderId: options.order_id,
-        customerName: options.prefill.name
+      console.log('🔧 Complete Razorpay options:', JSON.stringify(options, null, 2));
+      console.log('🔑 Payment config check:', {
+        keyId: PAYMENT_CONFIG.RAZORPAY.KEY_ID,
+        currency: PAYMENT_CONFIG.RAZORPAY.CURRENCY,
+        merchantName: PAYMENT_CONFIG.RAZORPAY.MERCHANT_NAME,
+        themeColor: PAYMENT_CONFIG.RAZORPAY.THEME_COLOR
       });
 
+      console.log('🚀 Attempting to open Razorpay checkout...');
+      
       // Initialize Razorpay checkout - this should open the payment interface
       const paymentResponse = await RazorpayCheckout.open(options);
 
@@ -95,16 +150,35 @@ export class RazorpayService {
       }
 
     } catch (error) {
-      console.error('Razorpay payment error:', error);
+      console.error('❌ Razorpay payment error details:', {
+        message: error.message,
+        code: error.code,
+        description: error.description,
+        reason: error.reason,
+        step: error.step,
+        source: error.source,
+        stack: error.stack,
+        fullError: error
+      });
       
       // Handle specific Razorpay error codes
-      if (error.code === 'PAYMENT_CANCELLED') {
+      if (error.code === 'PAYMENT_CANCELLED' || error.code === 0) {
+        console.log('🚫 Payment was cancelled by user');
         throw new Error('Payment was cancelled by user');
-      } else if (error.code === 'NETWORK_ERROR') {
+      } else if (error.code === 'NETWORK_ERROR' || error.code === 1) {
+        console.log('📡 Network error occurred');
         throw new Error('Network error. Please check your connection.');
-      } else if (error.code === 'INVALID_PAYMENT_METHOD') {
+      } else if (error.code === 'INVALID_PAYMENT_METHOD' || error.code === 2) {
+        console.log('💳 Invalid payment method');
         throw new Error('Invalid payment method selected.');
+      } else if (error.message && error.message.includes('Invalid key')) {
+        console.log('🔑 Invalid Razorpay key');
+        throw new Error('Payment configuration error. Please contact support.');
+      } else if (error.message && error.message.includes('Invalid amount')) {
+        console.log('💰 Invalid amount');
+        throw new Error('Invalid payment amount. Please try again.');
       } else {
+        console.log('🔴 Generic payment error:', error.message);
         throw new Error(error.message || 'Payment failed. Please try again.');
       }
     }
