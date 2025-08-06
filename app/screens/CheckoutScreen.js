@@ -53,6 +53,7 @@ const CheckoutScreen = ({ route }) => {
   const { updateCartItems } = useAppContext();
   const { user, isAuthenticated, refreshUserData } = useAuth();
 
+
   // Debug user authentication status
   useEffect(() => {
     // Extract user data from nested customer object
@@ -78,7 +79,7 @@ const CheckoutScreen = ({ route }) => {
   const [paymentMethod, setPaymentMethod] = useState('Cash on Delivery');
   const [isLoading, setIsLoading] = useState(true);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const [cart, setCart] = useState({ items: [], subtotal: 0, shipping: 0, gst: 0, total: 0, savings: 0 });
+  const [cart, setCart] = useState({ items: [], subtotal: 0, shipping: 0, gst: 0, total: 0, savings: 0, handlingFee: 0, platformFee: 2 });
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
@@ -120,7 +121,7 @@ const CheckoutScreen = ({ route }) => {
       } else if (item.gst !== undefined) {
         // If GST is directly on the item
         gstPercent = item.gst;
-      } 
+      }
 
       // Calculate GST amount: (price * gst_percentage / 100) * quantity
       const gstAmount = (itemPrice * gstPercent / 100) * itemQuantity;
@@ -143,6 +144,7 @@ const CheckoutScreen = ({ route }) => {
   // Fetch cart and addresses on mount/focus
   const fetchCartAndAddresses = async () => {
     setIsLoading(true);
+
     try {
       let items = [];
 
@@ -156,13 +158,15 @@ const CheckoutScreen = ({ route }) => {
 
       const subtotal = getSubtotal(items);
       const gst = getTotalGST(items);
+      const platformFee = 2;
       const shipping = getShipping();
-      const total = subtotal + gst + shipping;
+      const total = subtotal + gst + shipping+platformFee;
       const savings = getTotalDiscount(items);
       setCart({
         items,
         subtotal,
         gst,
+        platformFee,
         shipping,
         total,
         savings,
@@ -817,6 +821,10 @@ const CheckoutScreen = ({ route }) => {
                 })()}
               </Text>
               <Text style={{ fontSize: responsiveValue(13, 15) }}>₹{cart.gst.toFixed(2)}</Text>
+            </View>
+            <View className="flex-row justify-between items-center mb-1">
+              <Text style={{ fontSize: responsiveValue(13, 15) }}>Platform Fee</Text>
+              <Text style={{ fontSize: responsiveValue(13, 15) }}>₹{cart.platformFee.toFixed(2)}</Text>
             </View>
             <View className="flex-row justify-between items-center mb-1">
               <Text style={{ fontSize: responsiveValue(13, 15) }}>Shipping</Text>
