@@ -1,6 +1,6 @@
 export const CONFIG = {
   // API_BASE_URL: 'https://farmferry-backend-revised.onrender.com/api/v1',
-  API_BASE_URL: 'http://192.168.0.107:9000/api/v1', // For web development
+  API_BASE_URL: 'http://192.168.0.118:9000/api/v1', // For web development
   // API_BASE_URL: 'https://your-production-api.com/api/v1', // For production
   
   // API Endpoints

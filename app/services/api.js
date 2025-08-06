@@ -144,6 +144,7 @@ export const categoriesAPI = {
   getSubcategories: (parentId) => api.get(`${CONFIG.ENDPOINTS.CATEGORIES.LIST}?parent=${parentId}`),
   getCategoryById: (id) => api.get(`${CONFIG.ENDPOINTS.CATEGORIES.LIST}/${id}`),
   getCategoryTree: () => api.get(`${CONFIG.ENDPOINTS.CATEGORIES.LIST}/tree`),
+  getCategoryHandlingFee: (categoryId) => api.get(`${CONFIG.ENDPOINTS.CATEGORIES.LIST}/${categoryId}/handling-fee`),
 };
 
 export const notificationsAPI = {

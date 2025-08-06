@@ -5,7 +5,7 @@ import { ArrowLeft, MapPin, CreditCard, CheckCircle, Trash2, Check } from 'lucid
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
-import { customerAPI, ordersAPI, cartAPI } from '../services/api';
+import { customerAPI, ordersAPI, cartAPI, categoriesAPI } from '../services/api';
 import { SCREEN_NAMES } from '../types';
 import Modal from '../components/ui/Modal';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
@@ -80,6 +80,8 @@ const CheckoutScreen = ({ route }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [cart, setCart] = useState({ items: [], subtotal: 0, shipping: 0, gst: 0, total: 0, savings: 0, handlingFee: 0, platformFee: 2 });
+  const [handlingFees, setHandlingFees] = useState({});
+  const [totalHandlingFee, setTotalHandlingFee] = useState(0);
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
@@ -90,8 +92,14 @@ const CheckoutScreen = ({ route }) => {
   const [paymentError, setPaymentError] = useState(null);
   const [orderId, setOrderId] = useState(null);
 
-  // Get items from route params (for Buy Now functionality)
+  // Get items and calculated values from route params (from CartScreen)
   const routeItems = route?.params?.items;
+  const routeSubtotal = route?.params?.subtotal;
+  const routeGst = route?.params?.gst;
+  const routeShipping = route?.params?.shipping;
+  const routePlatformFee = route?.params?.platformFee;
+  const routeTotal = route?.params?.total;
+  const routeSavings = route?.params?.savings;
 
   // GST rate (5%)
   const GST_RATE = 0.05;
@@ -138,8 +146,52 @@ const CheckoutScreen = ({ route }) => {
     }, 0);
   };
 
-  const getShipping = () => 4.0;
-  const getGrandTotal = (items) => getSubtotal(items) + getTotalGST(items) + getShipping();
+  const getShipping = () => 20.0;
+  const getGrandTotal = (items) => getSubtotal(items) + getTotalGST(items) + getShipping() + (cart.handlingFee || 0);
+
+  // Get handling fee for a specific item
+  const getItemHandlingFee = (item) => {
+    if (item.product && typeof item.product === 'object' && item.product.categoryId) {
+      return handlingFees[item.product.categoryId] || 0;
+    }
+    return 0;
+  };
+
+  // Fetch handling fees for all categories in cart
+  const fetchHandlingFees = async (items) => {
+    try {
+      const categoryIds = [...new Set(items.map(item => {
+        if (item.product && typeof item.product === 'object') {
+          return item.product.categoryId;
+        }
+        return null;
+      }).filter(Boolean))];
+
+      const fees = {};
+      let totalFee = 0;
+
+      for (const categoryId of categoryIds) {
+        try {
+          const response = await categoriesAPI.getCategoryHandlingFee(categoryId);
+          const handlingFee = response?.data?.data?.category?.handlingFee || 0;
+          fees[categoryId] = handlingFee;
+          totalFee += handlingFee;
+        } catch (error) {
+          console.error(`Failed to fetch handling fee for category ${categoryId}:`, error);
+          fees[categoryId] = 0;
+        }
+      }
+
+      setHandlingFees(fees);
+      setTotalHandlingFee(totalFee);
+      return totalFee;
+    } catch (error) {
+      console.error('Failed to fetch handling fees:', error);
+      setHandlingFees({});
+      setTotalHandlingFee(0);
+      return 0;
+    }
+  };
 
   // Fetch cart and addresses on mount/focus
   const fetchCartAndAddresses = async () => {
@@ -156,12 +208,40 @@ const CheckoutScreen = ({ route }) => {
         items = Array.isArray(cartData.items) ? cartData.items : [];
       }
 
-      const subtotal = getSubtotal(items);
-      const gst = getTotalGST(items);
-      const platformFee = 2;
-      const shipping = getShipping();
-      const total = subtotal + gst + shipping+platformFee;
-      const savings = getTotalDiscount(items);
+      // Use route parameters if available (from CartScreen), otherwise calculate
+      const subtotal = routeSubtotal !== undefined ? routeSubtotal : getSubtotal(items);
+      const gst = routeGst !== undefined ? routeGst : getTotalGST(items);
+      const platformFee = routePlatformFee !== undefined ? routePlatformFee : 2;
+      const shipping = routeShipping !== undefined ? routeShipping : getShipping();
+      const savings = routeSavings !== undefined ? routeSavings : getTotalDiscount(items);
+      
+      // Fetch handling fees for the items
+      const handlingFeeTotal = await fetchHandlingFees(items);
+      
+      console.log('CheckoutScreen calculations:', {
+        fromRoute: {
+          routeSubtotal,
+          routeGst,
+          routeShipping,
+          routePlatformFee,
+          routeTotal,
+          routeSavings
+        },
+        calculated: {
+          subtotal,
+          gst,
+          platformFee,
+          shipping,
+          savings,
+          handlingFeeTotal
+        },
+        items: items.length,
+        categoryIds: items.map(item => item.product?.categoryId).filter(Boolean)
+      });
+      
+      // For route parameters, use the total as-is since it already includes all fees
+      // For calculated values, add handling fees to the total
+      const total = routeTotal !== undefined ? routeTotal : (subtotal + gst + shipping + platformFee + handlingFeeTotal);
       setCart({
         items,
         subtotal,
@@ -170,6 +250,7 @@ const CheckoutScreen = ({ route }) => {
         shipping,
         total,
         savings,
+        handlingFee: handlingFeeTotal,
       });
 
       if (!routeItems) {
@@ -192,6 +273,17 @@ const CheckoutScreen = ({ route }) => {
   useEffect(() => {
     fetchCartAndAddresses();
   }, [routeItems]);
+
+  // Recalculate total when handling fees change (only if not using route parameters)
+  useEffect(() => {
+    if (cart.items.length > 0 && routeTotal === undefined) {
+      const newTotal = cart.subtotal + cart.gst + cart.shipping + cart.platformFee + totalHandlingFee;
+      setCart(prev => ({ ...prev, total: newTotal, handlingFee: totalHandlingFee }));
+    } else if (cart.items.length > 0 && routeTotal !== undefined) {
+      // If using route parameters, just update the handling fee without changing the total
+      setCart(prev => ({ ...prev, handlingFee: totalHandlingFee }));
+    }
+  }, [totalHandlingFee, routeTotal]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -826,6 +918,12 @@ const CheckoutScreen = ({ route }) => {
               <Text style={{ fontSize: responsiveValue(13, 15) }}>Platform Fee</Text>
               <Text style={{ fontSize: responsiveValue(13, 15) }}>₹{cart.platformFee.toFixed(2)}</Text>
             </View>
+            {totalHandlingFee > 0 && (
+              <View className="flex-row justify-between items-center mb-1">
+                <Text style={{ fontSize: responsiveValue(13, 15) }}>Handling Fee</Text>
+                <Text style={{ fontSize: responsiveValue(13, 15) }}>₹{totalHandlingFee.toFixed(2)}</Text>
+              </View>
+            )}
             <View className="flex-row justify-between items-center mb-1">
               <Text style={{ fontSize: responsiveValue(13, 15) }}>Shipping</Text>
               <Text style={{ fontSize: responsiveValue(13, 15) }}>₹{cart.shipping.toFixed(2)}</Text>
