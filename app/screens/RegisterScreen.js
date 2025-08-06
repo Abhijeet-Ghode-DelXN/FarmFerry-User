@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, Image } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { SCREEN_NAMES } from '../types';
+import { CONFIG } from '../constants/config';
 
 export default function RegisterScreen({ navigation }) {
   const [name, setName] = useState('');
@@ -12,7 +13,7 @@ export default function RegisterScreen({ navigation }) {
   const [showPhoneVerification, setShowPhoneVerification] = useState(false);
   const [phoneOTP, setPhoneOTP] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
-  const { register } = useAuth();
+  const { register, login } = useAuth();
 
   const handleRegister = async () => {
     if (!name || !email || !phone || !password) {
@@ -23,23 +24,31 @@ export default function RegisterScreen({ navigation }) {
     setIsLoading(true);
     try {
       const response = await register({ name, email, phone, password });
+      console.log('Registration response:', response);
+      console.log('Registration response.data:', response.data);
+      console.log('Registration response.data.data:', response.data?.data);
+      console.log('requiresPhoneVerification:', response.data?.data?.requiresPhoneVerification);
       
+      // Registration always requires phone verification now
       if (response.data?.data?.requiresPhoneVerification === true) {
+        console.log('Setting showPhoneVerification to true');
         setShowPhoneVerification(true);
         Alert.alert(
           'Registration Successful', 
-          'Please verify your phone number with the OTP sent to your mobile.',
+          response.data?.message || 'Please verify your phone number with the OTP sent to your mobile.',
           [{ text: 'OK' }]
         );
       } else {
-        setTimeout(() => {
-          try {
-            navigation.replace(SCREEN_NAMES.LOGIN);
-          } catch (error) {
-            console.error('Navigation error:', error);
-            navigation.replace('Login');
-          }
-        }, 100);
+        console.log('requiresPhoneVerification is not true, fallback triggered');
+        // Fallback - should not happen with new flow but keeping for safety
+        Alert.alert(
+          'Registration Successful',
+          'Please verify your phone number to continue.',
+          [{ text: 'OK', onPress: () => {
+            console.log('Setting showPhoneVerification to true via fallback');
+            setShowPhoneVerification(true);
+          } }]
+        );
       }
     } catch (error) {
       console.error('Registration error:', error);
@@ -60,7 +69,7 @@ export default function RegisterScreen({ navigation }) {
 
     setIsVerifying(true);
     try {
-      const response = await fetch('http://192.168.0.109:9000/api/v1/auth/verify-phone-otp', {
+      const response = await fetch(`${CONFIG.API_BASE_URL}/auth/verify-phone-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -74,16 +83,43 @@ export default function RegisterScreen({ navigation }) {
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert(
-          'Success', 
-          'Phone number verified successfully! You can now log in.',
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.navigate(SCREEN_NAMES.LOGIN)
-            }
-          ]
-        );
+        // Auto-login the user after successful phone verification
+        try {
+          const loginResult = await login(email, password);
+          if (loginResult.success) {
+            Alert.alert(
+              'Success', 
+              'Phone number verified successfully! Welcome to FarmFerry!',
+              [{ text: 'OK' }]
+            );
+            // Navigation will be handled automatically by AuthContext when user is logged in
+          } else {
+            // If auto-login fails, redirect to login page
+            Alert.alert(
+              'Verification Successful', 
+              'Phone number verified! Please log in to continue.',
+              [
+                {
+                  text: 'OK',
+                  onPress: () => navigation.navigate(SCREEN_NAMES.LOGIN)
+                }
+              ]
+            );
+          }
+        } catch (loginError) {
+          console.error('Auto-login error after verification:', loginError);
+          // If auto-login fails, redirect to login page
+          Alert.alert(
+            'Verification Successful', 
+            'Phone number verified! Please log in to continue.',
+            [
+              {
+                text: 'OK',
+                onPress: () => navigation.navigate(SCREEN_NAMES.LOGIN)
+              }
+            ]
+          );
+        }
       } else {
         Alert.alert('Verification Failed', data.message || 'Invalid OTP. Please try again.');
       }
@@ -96,7 +132,7 @@ export default function RegisterScreen({ navigation }) {
 
   const handleResendOTP = async () => {
     try {
-      const response = await fetch('http://192.168.0.109:9000/api/v1/auth/send-phone-verification', {
+      const response = await fetch(`${CONFIG.API_BASE_URL}/auth/send-phone-verification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

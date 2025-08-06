@@ -101,7 +101,19 @@ export const AuthProvider = ({ children }) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       const response = await authAPI.login({ email, password });
-      console.log('LOGIN RESPONSE:', response.data); // <-- Added for debugging
+      console.log('LOGIN RESPONSE:', response.data);
+      
+      // Check if phone verification is required
+      if (response.status === 403 && response.data?.data?.requiresPhoneVerification) {
+        dispatch({ type: 'SET_LOADING', payload: false });
+        return { 
+          success: false, 
+          requiresPhoneVerification: true,
+          customer: response.data.data.customer,
+          message: response.data.message
+        };
+      }
+      
       const { customer, accessToken, refreshToken } = response.data.data;
       const user = customer;
 
@@ -117,6 +129,17 @@ export const AuthProvider = ({ children }) => {
       return { success: true };
     } catch (error) {
       dispatch({ type: 'SET_LOADING', payload: false });
+      
+      // Check if it's a phone verification error (403 status)
+      if (error.response?.status === 403 && error.response?.data?.data?.requiresPhoneVerification) {
+        return { 
+          success: false, 
+          requiresPhoneVerification: true,
+          customer: error.response.data.data.customer,
+          message: error.response.data.message
+        };
+      }
+      
       throw error;
     }
   };
