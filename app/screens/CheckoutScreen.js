@@ -33,7 +33,7 @@ const PaymentOption = ({ icon, title, selected, onPress, disabled, comingSoon })
     <View className="bg-white p-1.5 rounded-lg mr-3">
       {icon}
     </View>
-    <Text 
+    <Text
       className={`flex-1 ${disabled ? 'text-gray-400' : 'text-gray-800'}`}
       style={{ fontSize: responsiveValue(14, 16) }}
     >
@@ -57,7 +57,7 @@ const CheckoutScreen = ({ route }) => {
   useEffect(() => {
     // Extract user data from nested customer object
     const userData = user?.customer || user;
-    
+
     console.log('CheckoutScreen - User Authentication Status:', {
       isAuthenticated,
       user: userData ? {
@@ -88,7 +88,7 @@ const CheckoutScreen = ({ route }) => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [paymentError, setPaymentError] = useState(null);
   const [orderId, setOrderId] = useState(null);
-  
+
   // Get items from route params (for Buy Now functionality)
   const routeItems = route?.params?.items;
 
@@ -103,7 +103,40 @@ const CheckoutScreen = ({ route }) => {
     }
     return sum;
   }, 0);
-  const getTotalGST = (items) => items.reduce((sum, item) => sum + (item.price * GST_RATE) * item.quantity, 0);
+  //const getTotalGST = (items) => items.reduce((sum, item) => sum + (item.price * GST_RATE) * item.quantity, 0);
+  const getTotalGST = (items) => {
+    return items.reduce((sum, item) => {
+      // Get the item price and quantity
+      const itemPrice = item.price;
+      const itemQuantity = item.quantity || 1;
+
+      // Get GST percentage from product data
+      // Check multiple possible locations for GST data
+      let gstPercent = 0;
+
+      if (item.product && typeof item.product === 'object') {
+        // If product is populated object
+        gstPercent = item.product.gst || 0;
+      } else if (item.gst !== undefined) {
+        // If GST is directly on the item
+        gstPercent = item.gst;
+      } 
+
+      // Calculate GST amount: (price * gst_percentage / 100) * quantity
+      const gstAmount = (itemPrice * gstPercent / 100) * itemQuantity;
+
+      // Debug log to help track GST calculations (remove in production)
+      console.log(`GST calculation for ${item.product?.name || item.name}:`, {
+        price: itemPrice,
+        quantity: itemQuantity,
+        gstPercent: gstPercent,
+        gstAmount: gstAmount
+      });
+
+      return sum + gstAmount;
+    }, 0);
+  };
+
   const getShipping = () => 4.0;
   const getGrandTotal = (items) => getSubtotal(items) + getTotalGST(items) + getShipping();
 
@@ -112,7 +145,7 @@ const CheckoutScreen = ({ route }) => {
     setIsLoading(true);
     try {
       let items = [];
-      
+
       if (routeItems && Array.isArray(routeItems)) {
         items = routeItems;
       } else {
@@ -120,7 +153,7 @@ const CheckoutScreen = ({ route }) => {
         const cartData = cartRes?.data?.data?.cart || {};
         items = Array.isArray(cartData.items) ? cartData.items : [];
       }
-      
+
       const subtotal = getSubtotal(items);
       const gst = getTotalGST(items);
       const shipping = getShipping();
@@ -134,11 +167,11 @@ const CheckoutScreen = ({ route }) => {
         total,
         savings,
       });
-      
+
       if (!routeItems) {
         updateCartItems(items);
       }
-      
+
       const response = await customerAPI.getProfile();
       const addresses = response?.data?.data?.customer?.addresses;
       setAddresses(Array.isArray(addresses) ? addresses : []);
@@ -170,7 +203,7 @@ const CheckoutScreen = ({ route }) => {
     if (!cart.items || cart.items.length === 0) {
       throw new Error('Your cart is empty.');
     }
-    
+
     const addressObj = addresses.find(addr => addr._id === selectedAddress);
     if (!addressObj) {
       throw new Error('Selected address not found.');
@@ -206,29 +239,29 @@ const CheckoutScreen = ({ route }) => {
       } else if (item._id) {
         productId = item._id;
       }
-      
+
       if (!productId) {
         console.error('Could not find product ID for item:', item);
         throw new Error(`Product ID not found for item: ${item.name || 'Unknown item'}`);
       }
-      
+
       if (!item.quantity || item.quantity <= 0) {
         console.error('Invalid quantity for item:', item);
         throw new Error(`Invalid quantity for item: ${item.name || 'Unknown item'}`);
       }
-      
+
       const base = {
         product: productId,
         quantity: item.quantity,
       };
-      
+
       if (item.variation && item.variation.name && item.variation.value) {
         base.variation = {
           name: item.variation.name,
           value: item.variation.value,
         };
       }
-      
+
       return base;
     });
 
@@ -251,24 +284,24 @@ const CheckoutScreen = ({ route }) => {
     const response = await ordersAPI.createOrder(orderData);
     const createdOrderId = response?.data?.data?.order?._id || response?.data?.data?._id;
     setOrderId(createdOrderId);
-    
+
     return response;
   };
 
   const handlePlaceOrder = async () => {
     setIsPlacingOrder(true);
     setPaymentError(null);
-    
-try {
+
+    try {
       if (paymentMethod === 'Online Payment') {
         // Set default payment method for direct processing
         if (!selectedPayment) {
           setSelectedPayment('razorpay');
         }
-        
+
         console.log('Processing online payment...');
         const paymentResult = await processDirectPayment();
-        
+
         // Only create order if payment was actually successful
         if (paymentResult && paymentResult.success) {
           console.log('Payment successful, creating order...');
@@ -295,7 +328,7 @@ try {
       }
     } catch (error) {
       console.error('Order processing error:', error);
-      
+
       // Check if error is due to payment cancellation
       const errorMessage = error.message || '';
       if (errorMessage.includes('cancelled by user') || errorMessage.includes('Payment was cancelled')) {
@@ -317,10 +350,10 @@ try {
   // Process payment directly without modal
   const processDirectPayment = async () => {
     console.log('Starting direct payment processing...');
-    
+
     // Default to Razorpay for online payments
     const paymentMethod = 'razorpay';
-    
+
     // Check authentication for Razorpay
     if (!user) {
       throw new Error('Please log in to use online payment');
@@ -333,7 +366,7 @@ try {
 
     try {
       const orderId = `ORDER_${Date.now()}`;
-      
+
       // Build customer name with proper fallback
       let customerName = 'Customer';
       if (userData.firstName && userData.lastName) {
@@ -346,7 +379,7 @@ try {
         // Use email prefix as name if no name is available
         customerName = userData.email.split('@')[0];
       }
-        
+
       const options = {
         customerName: customerName,
         customerEmail: userData.email,
@@ -420,13 +453,13 @@ try {
     try {
       const orderId = `ORDER_${Date.now()}`;
       let options = {};
-      
+
       if (selectedPayment === 'upi_id') {
         options = { upiId: customUpiId.trim() };
       } else if (selectedPayment === 'razorpay' || selectedPayment === 'razorpay_web') {
         // Extract user data from nested customer object
         const userData = user?.customer || user;
-        
+
         // Debug user data
         console.log('User data for Razorpay:', {
           user: user,
@@ -460,7 +493,7 @@ try {
           // Use email prefix as name if no name is available
           customerName = userData.email.split('@')[0];
         }
-          
+
         options = {
           customerName: customerName,
           customerEmail: userData.email,
@@ -479,8 +512,8 @@ try {
 
         console.log('Razorpay options prepared:', options);
       }
-      
-console.log('Processing payment:', {
+
+      console.log('Processing payment:', {
         method: selectedPayment,
         amount: cart.total,
         orderId: orderId,
@@ -500,7 +533,7 @@ console.log('Processing payment:', {
         await createOrderWithPayment(paymentResult);
         updateCartItems([]);
         setPaymentModalVisible(false);
-        
+
         navigation.navigate('PaymentStatus', {
           paymentMethod: selectedPayment,
           amount: cart.total,
@@ -554,7 +587,7 @@ console.log('Processing payment:', {
   };
 
   const RadioButton = ({ selected, color = "#059669" }) => (
-    <View 
+    <View
       className={`w-5 h-5 rounded-full border-2 items-center justify-center ${selected ? 'border-green-600 bg-green-100' : 'border-gray-300'}`}
       style={selected ? { borderColor: color, backgroundColor: `${color}20` } : {}}
     >
@@ -594,7 +627,7 @@ console.log('Processing payment:', {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
-      <ScrollView 
+      <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingHorizontal: responsiveValue(16, 24), paddingTop: responsiveValue(16, 24) }}
       >
@@ -604,8 +637,8 @@ console.log('Processing payment:', {
             Shipping Address
           </Text>
           {(Array.isArray(addresses) ? addresses : []).map((address) => (
-            <View 
-              key={address._id} 
+            <View
+              key={address._id}
               className={`border p-4 rounded-lg mb-2 ${selectedAddress === address._id ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}
               style={{ minHeight: responsiveValue(100, 120) }}
             >
@@ -623,8 +656,8 @@ console.log('Processing payment:', {
                 activeOpacity={0.8}
               >
                 <View className="flex-row justify-between">
-                  <Text 
-                    className="font-semibold" 
+                  <Text
+                    className="font-semibold"
                     style={{ fontSize: responsiveValue(14, 16) }}
                   >
                     {user ? user.name : ''}
@@ -639,7 +672,7 @@ console.log('Processing payment:', {
                 <Text style={{ fontSize: responsiveValue(13, 14) }}>
                   {address.country}
                 </Text>
-                <Text 
+                <Text
                   className="text-xs text-gray-500 mt-1"
                   style={{ fontSize: responsiveValue(11, 12) }}
                 >
@@ -656,7 +689,7 @@ console.log('Processing payment:', {
             onPress={() => navigation.navigate("AddAddress")}
             className="mt-2"
           >
-            <Text 
+            <Text
               className="text-green-600 font-semibold"
               style={{ fontSize: responsiveValue(14, 16) }}
             >
@@ -667,7 +700,7 @@ console.log('Processing payment:', {
 
         {/* Payment Method */}
         <View className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
-          <Text 
+          <Text
             className="text-lg font-semibold mb-2"
             style={{ fontSize: responsiveValue(16, 18) }}
           >
@@ -684,7 +717,7 @@ console.log('Processing payment:', {
           >
             <View className="flex-row items-center">
               <CreditCard size={responsiveValue(20, 24)} color="#6b7280" />
-              <Text 
+              <Text
                 className="ml-4"
                 style={{ fontSize: responsiveValue(14, 16) }}
               >
@@ -704,7 +737,7 @@ console.log('Processing payment:', {
           >
             <View className="flex-row items-center">
               <CreditCard size={responsiveValue(20, 24)} color="#6b7280" />
-              <Text 
+              <Text
                 className="ml-4"
                 style={{ fontSize: responsiveValue(14, 16) }}
               >
@@ -718,7 +751,7 @@ console.log('Processing payment:', {
         {/* Order Summary */}
         <View className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
           <View className="flex-row justify-between items-center mb-2">
-            <Text 
+            <Text
               className="text-lg font-semibold"
               style={{ fontSize: responsiveValue(16, 18) }}
             >
@@ -726,7 +759,7 @@ console.log('Processing payment:', {
             </Text>
             {routeItems && (
               <View className="bg-green-100 px-2 py-1 rounded-full">
-                <Text 
+                <Text
                   className="text-xs font-medium text-green-700"
                   style={{ fontSize: responsiveValue(10, 12) }}
                 >
@@ -736,12 +769,12 @@ console.log('Processing payment:', {
             )}
           </View>
           {cart.items.map((item) => (
-            <View 
-              key={item.product?._id || item.product?.id || item.product} 
+            <View
+              key={item.product?._id || item.product?.id || item.product}
               className="flex-row justify-between items-center mb-2"
               style={{ minHeight: responsiveValue(30, 36) }}
             >
-              <Text 
+              <Text
                 className="flex-1"
                 style={{ fontSize: responsiveValue(13, 15) }}
               >
@@ -758,7 +791,31 @@ console.log('Processing payment:', {
               <Text style={{ fontSize: responsiveValue(13, 15) }}>₹{cart.subtotal.toFixed(2)}</Text>
             </View>
             <View className="flex-row justify-between items-center mb-1">
-              <Text style={{ fontSize: responsiveValue(13, 15) }}>GST (5%)</Text>
+              {/* <Text style={{ fontSize: responsiveValue(13, 15) }}>GST</Text>
+              <Text style={{ fontSize: responsiveValue(13, 15) }}>₹{cart.gst.toFixed(2)}</Text> */}
+              <Text style={{ fontSize: responsiveValue(13, 15) }}>
+                GST
+                {/* Show GST range if multiple rates */}
+                {(() => {
+                  const gstRates = [...new Set(cart.items.map(item => {
+                    if (item.product && typeof item.product === 'object') {
+                      return item.product.gst || 0;
+                    } else if (item.gst !== undefined) {
+                      return item.gst;
+                    }
+                    return 5; // default
+                  }))];
+
+                  if (gstRates.length === 1) {
+                    return `(${gstRates[0]}%)`;
+                  } else if (gstRates.length > 1) {
+                    const minRate = Math.min(...gstRates);
+                    const maxRate = Math.max(...gstRates);
+                    return minRate === maxRate ? `(${minRate}%)` : `(${minRate}%-${maxRate}%)`;
+                  }
+                  return '';
+                })()}
+              </Text>
               <Text style={{ fontSize: responsiveValue(13, 15) }}>₹{cart.gst.toFixed(2)}</Text>
             </View>
             <View className="flex-row justify-between items-center mb-1">
@@ -766,13 +823,13 @@ console.log('Processing payment:', {
               <Text style={{ fontSize: responsiveValue(13, 15) }}>₹{cart.shipping.toFixed(2)}</Text>
             </View>
             <View className="flex-row justify-between items-center font-bold">
-              <Text 
+              <Text
                 className="font-bold"
                 style={{ fontSize: responsiveValue(14, 16) }}
               >
                 Total
               </Text>
-              <Text 
+              <Text
                 className="font-bold"
                 style={{ fontSize: responsiveValue(14, 16) }}
               >
@@ -784,12 +841,12 @@ console.log('Processing payment:', {
       </ScrollView>
 
       {/* Bottom Action Button */}
-      <View 
+      <View
         className="bg-white border-t border-gray-200 p-4"
         style={{ paddingHorizontal: responsiveValue(16, 24) }}
       >
         <TouchableOpacity
-onPress={handlePlaceOrder}
+          onPress={handlePlaceOrder}
           disabled={isPlacingOrder}
           style={{ borderRadius: 12, overflow: 'hidden' }}
         >
@@ -797,12 +854,12 @@ onPress={handlePlaceOrder}
             colors={["#10b981", "#059669"]}
             className="py-4 flex-row items-center justify-center rounded-xl"
           >
-            <CheckCircle 
-              width={responsiveValue(16, 18)} 
-              height={responsiveValue(16, 18)} 
-              color="#fff" 
+            <CheckCircle
+              width={responsiveValue(16, 18)}
+              height={responsiveValue(16, 18)}
+              color="#fff"
             />
-            <Text 
+            <Text
               className="text-white font-semibold text-sm ml-1.5"
               style={{ fontSize: responsiveValue(14, 16) }}
             >
@@ -832,7 +889,7 @@ onPress={handlePlaceOrder}
             <Text className="text-red-700 text-sm text-center mb-2">
               🔐 Please log in to use payment options
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               className="bg-red-600 py-2 px-4 rounded-lg"
               onPress={() => {
                 setPaymentModalVisible(false);
@@ -845,9 +902,9 @@ onPress={handlePlaceOrder}
             </TouchableOpacity>
           </View>
         )}
-        <ScrollView 
-          className="flex-1" 
-          contentContainerStyle={{ 
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{
             paddingHorizontal: responsiveValue(16, 24),
             paddingBottom: responsiveValue(100, 120)
           }}
@@ -907,13 +964,13 @@ onPress={handlePlaceOrder}
           {/* Amount Summary */}
           <View className="bg-white rounded-xl p-4 mb-4 border border-gray-200">
             <View className="flex-row justify-between items-center mb-2">
-              <Text 
+              <Text
                 className="text-gray-600"
                 style={{ fontSize: responsiveValue(13, 15) }}
               >
                 Total Amount
               </Text>
-              <Text 
+              <Text
                 className="text-gray-400 line-through"
                 style={{ fontSize: responsiveValue(13, 15) }}
               >
@@ -921,14 +978,14 @@ onPress={handlePlaceOrder}
               </Text>
             </View>
             <View className="flex-row justify-between items-center">
-              <Text 
+              <Text
                 className="text-2xl font-bold text-green-700"
                 style={{ fontSize: responsiveValue(20, 24) }}
               >
                 ₹{cart.total.toFixed(0)}
               </Text>
               <View className="bg-green-100 px-2 py-1 rounded-full">
-                <Text 
+                <Text
                   className="text-green-700 text-xs font-medium"
                   style={{ fontSize: responsiveValue(10, 12) }}
                 >
@@ -941,7 +998,7 @@ onPress={handlePlaceOrder}
           {/* Payment Error Display */}
           {paymentError && (
             <View className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-              <Text 
+              <Text
                 className="text-red-700 text-sm"
                 style={{ fontSize: responsiveValue(12, 14) }}
               >
@@ -951,20 +1008,20 @@ onPress={handlePlaceOrder}
           )}
 
           {/* Offers Banner */}
-          <TouchableOpacity 
+          <TouchableOpacity
             className="bg-amber-50 rounded-lg p-3 mb-4 border border-amber-200 flex-row justify-between items-center"
-            onPress={() => {}}
+            onPress={() => { }}
           >
-            <Text 
+            <Text
               className="text-amber-800 font-medium"
               style={{ fontSize: responsiveValue(13, 15) }}
             >
               Bank offers available
             </Text>
-            <Ionicons 
-              name="chevron-forward" 
-              size={responsiveValue(16, 18)} 
-              color="#d97706" 
+            <Ionicons
+              name="chevron-forward"
+              size={responsiveValue(16, 18)}
+              color="#d97706"
             />
           </TouchableOpacity>
 
@@ -972,47 +1029,47 @@ onPress={handlePlaceOrder}
           <View className="space-y-3">
             {/* UPI */}
             <View className="bg-white rounded-xl p-3 border border-gray-200">
-              <TouchableOpacity 
+              <TouchableOpacity
                 className="flex-row justify-between items-center"
                 onPress={() => setExpandedSection(expandedSection === 'upi' ? '' : 'upi')}
               >
                 <View className="flex-row items-center">
                   <View className="bg-green-100 p-2 rounded-full mr-3">
-                    <MaterialCommunityIcons 
-                      name="bank" 
-                      size={responsiveValue(16, 18)} 
-                      color="#059669" 
+                    <MaterialCommunityIcons
+                      name="bank"
+                      size={responsiveValue(16, 18)}
+                      color="#059669"
                     />
                   </View>
-                  <Text 
+                  <Text
                     className="font-medium"
                     style={{ fontSize: responsiveValue(14, 16) }}
                   >
                     UPI Payment
                   </Text>
                 </View>
-                <Ionicons 
-                  name={expandedSection === 'upi' ? 'chevron-up' : 'chevron-down'} 
-                  size={responsiveValue(16, 18)} 
-                  color="#6b7280" 
+                <Ionicons
+                  name={expandedSection === 'upi' ? 'chevron-up' : 'chevron-down'}
+                  size={responsiveValue(16, 18)}
+                  color="#6b7280"
                 />
               </TouchableOpacity>
 
               {expandedSection === 'upi' && (
                 <View className="mt-3 space-y-2">
-                  <PaymentOption 
+                  <PaymentOption
                     icon={<FontAwesome5 name="google-pay" size={responsiveValue(18, 20)} color="#34A853" />}
                     title="Google Pay"
                     selected={selectedPayment === 'gpay'}
                     onPress={() => setSelectedPayment('gpay')}
                   />
-                  <PaymentOption 
+                  <PaymentOption
                     icon={<MaterialCommunityIcons name="phone" size={responsiveValue(18, 20)} color="#5F259F" />}
                     title="PhonePe"
                     selected={selectedPayment === 'phonepe'}
                     onPress={() => setSelectedPayment('phonepe')}
                   />
-                  <PaymentOption 
+                  <PaymentOption
                     icon={<MaterialCommunityIcons name="account-plus-outline" size={responsiveValue(18, 20)} color="#059669" />}
                     title="Enter UPI ID"
                     selected={selectedPayment === 'upi_id'}
@@ -1037,29 +1094,29 @@ onPress={handlePlaceOrder}
 
             {/* Razorpay */}
             <View className="bg-white rounded-xl p-3 border border-gray-200">
-              <TouchableOpacity 
+              <TouchableOpacity
                 className="flex-row justify-between items-center"
                 onPress={() => setExpandedSection(expandedSection === 'razorpay' ? '' : 'razorpay')}
               >
                 <View className="flex-row items-center">
                   <View className="bg-blue-100 p-2 rounded-full mr-3">
-                    <MaterialCommunityIcons 
-                      name="credit-card" 
-                      size={responsiveValue(16, 18)} 
-                      color="#3399CC" 
+                    <MaterialCommunityIcons
+                      name="credit-card"
+                      size={responsiveValue(16, 18)}
+                      color="#3399CC"
                     />
                   </View>
-                  <Text 
+                  <Text
                     className="font-medium"
                     style={{ fontSize: responsiveValue(14, 16) }}
                   >
                     Razorpay
                   </Text>
                 </View>
-                <Ionicons 
-                  name={expandedSection === 'razorpay' ? 'chevron-up' : 'chevron-down'} 
-                  size={responsiveValue(16, 18)} 
-                  color="#6b7280" 
+                <Ionicons
+                  name={expandedSection === 'razorpay' ? 'chevron-up' : 'chevron-down'}
+                  size={responsiveValue(16, 18)}
+                  color="#6b7280"
                 />
               </TouchableOpacity>
 
@@ -1092,16 +1149,16 @@ onPress={handlePlaceOrder}
                       {RazorpayService.isAvailable() ? '✅ Razorpay Available' : '⚠️ Using Mock Payment'}
                     </Text>
                   </View> */}
-                  
-                  <PaymentOption 
+
+                  <PaymentOption
                     icon={<MaterialCommunityIcons name="credit-card" size={responsiveValue(18, 20)} color="#3399CC" />}
                     title="Credit/Debit Cards, UPI, Net Banking"
                     selected={selectedPayment === 'razorpay'}
                     onPress={() => setSelectedPayment('razorpay')}
                     disabled={!user || !(user?.customer?.email || user?.email)}
                   />
-                  
-                  <PaymentOption 
+
+                  <PaymentOption
                     icon={<MaterialCommunityIcons name="web" size={responsiveValue(18, 20)} color="#059669" />}
                     title="🌐 Razorpay Web (Expo Go Compatible)"
                     subtitle="Opens in browser - Works with Expo Go"
@@ -1109,7 +1166,7 @@ onPress={handlePlaceOrder}
                     onPress={() => setSelectedPayment('razorpay_web')}
                     disabled={!user || !(user?.customer?.email || user?.email)}
                   />
-                  
+
                   {/* User Info for Payment */}
                   {(user?.customer?.email || user?.email) && (
                     <View className="mt-2 bg-blue-50 rounded-lg p-2">
@@ -1117,8 +1174,8 @@ onPress={handlePlaceOrder}
                       <Text className="text-xs text-blue-700">
                         Name: {(() => {
                           const customer = user?.customer || user;
-                          return (customer?.firstName && customer?.lastName) ? 
-                            `${customer.firstName} ${customer.lastName}` : 
+                          return (customer?.firstName && customer?.lastName) ?
+                            `${customer.firstName} ${customer.lastName}` :
                             customer?.firstName || customer?.lastName || customer?.email?.split('@')[0];
                         })()}
                       </Text>
@@ -1150,35 +1207,35 @@ onPress={handlePlaceOrder}
 
             {/* Wallet */}
             <View className="bg-white rounded-xl p-3 border border-gray-200">
-              <TouchableOpacity 
+              <TouchableOpacity
                 className="flex-row justify-between items-center"
                 onPress={() => setExpandedSection(expandedSection === 'wallet' ? '' : 'wallet')}
               >
                 <View className="flex-row items-center">
                   <View className="bg-purple-100 p-2 rounded-full mr-3">
-                    <MaterialCommunityIcons 
-                      name="wallet" 
-                      size={responsiveValue(16, 18)} 
-                      color="#7e22ce" 
+                    <MaterialCommunityIcons
+                      name="wallet"
+                      size={responsiveValue(16, 18)}
+                      color="#7e22ce"
                     />
                   </View>
-                  <Text 
+                  <Text
                     className="font-medium"
                     style={{ fontSize: responsiveValue(14, 16) }}
                   >
                     Wallet
                   </Text>
                 </View>
-                <Ionicons 
-                  name={expandedSection === 'wallet' ? 'chevron-up' : 'chevron-down'} 
-                  size={responsiveValue(16, 18)} 
-                  color="#6b7280" 
+                <Ionicons
+                  name={expandedSection === 'wallet' ? 'chevron-up' : 'chevron-down'}
+                  size={responsiveValue(16, 18)}
+                  color="#6b7280"
                 />
               </TouchableOpacity>
 
               {expandedSection === 'wallet' && (
                 <View className="mt-3">
-                  <PaymentOption 
+                  <PaymentOption
                     icon={<MaterialCommunityIcons name="wallet-outline" size={responsiveValue(18, 20)} color="#7e22ce" />}
                     title="Wallet Balance"
                     selected={false}
@@ -1191,35 +1248,35 @@ onPress={handlePlaceOrder}
 
             {/* Cards */}
             <View className="bg-white rounded-xl p-3 border border-gray-200">
-              <TouchableOpacity 
+              <TouchableOpacity
                 className="flex-row justify-between items-center"
                 onPress={() => setExpandedSection(expandedSection === 'card' ? '' : 'card')}
               >
                 <View className="flex-row items-center">
                   <View className="bg-blue-100 p-2 rounded-full mr-3">
-                    <MaterialCommunityIcons 
-                      name="credit-card-outline" 
-                      size={responsiveValue(16, 18)} 
-                      color="#1d4ed8" 
+                    <MaterialCommunityIcons
+                      name="credit-card-outline"
+                      size={responsiveValue(16, 18)}
+                      color="#1d4ed8"
                     />
                   </View>
-                  <Text 
+                  <Text
                     className="font-medium"
                     style={{ fontSize: responsiveValue(14, 16) }}
                   >
                     Credit/Debit Card
                   </Text>
                 </View>
-                <Ionicons 
-                  name={expandedSection === 'card' ? 'chevron-up' : 'chevron-down'} 
-                  size={responsiveValue(16, 18)} 
-                  color="#6b7280" 
+                <Ionicons
+                  name={expandedSection === 'card' ? 'chevron-up' : 'chevron-down'}
+                  size={responsiveValue(16, 18)}
+                  color="#6b7280"
                 />
               </TouchableOpacity>
 
               {expandedSection === 'card' && (
                 <View className="mt-3">
-                  <PaymentOption 
+                  <PaymentOption
                     icon={<MaterialCommunityIcons name="credit-card" size={responsiveValue(18, 20)} color="#1d4ed8" />}
                     title="Add Card"
                     selected={false}
@@ -1233,12 +1290,12 @@ onPress={handlePlaceOrder}
 
           {/* Security Note */}
           <View className="mt-4 flex-row items-center">
-            <Ionicons 
-              name="shield-checkmark" 
-              size={responsiveValue(14, 16)} 
-              color="#059669" 
+            <Ionicons
+              name="shield-checkmark"
+              size={responsiveValue(14, 16)}
+              color="#059669"
             />
-            <Text 
+            <Text
               className="text-gray-500 text-xs ml-1"
               style={{ fontSize: responsiveValue(11, 13) }}
             >
@@ -1248,7 +1305,7 @@ onPress={handlePlaceOrder}
         </ScrollView>
 
         {/* Payment Button */}
-        <View 
+        <View
           className="bg-white p-4 border-t border-gray-200"
           style={{ paddingHorizontal: responsiveValue(16, 24) }}
         >
@@ -1260,7 +1317,7 @@ onPress={handlePlaceOrder}
             {isPaying ? (
               <ActivityIndicator color="#ffffff" size={responsiveValue('small', 'large')} />
             ) : (
-              <Text 
+              <Text
                 className="text-white font-bold"
                 style={{ fontSize: responsiveValue(14, 16) }}
               >
@@ -1273,9 +1330,9 @@ onPress={handlePlaceOrder}
 
       {/* Success Modal */}
       <Modal visible={showSuccess} transparent animationType="fade">
-        <View 
+        <View
           className="bg-white rounded-3xl p-8 items-center shadow-lg"
-          style={{ 
+          style={{
             width: responsiveValue(280, 320),
             maxWidth: responsiveValue(300, 360)
           }}
@@ -1284,33 +1341,33 @@ onPress={handlePlaceOrder}
             source={require('../../assets/Payment-Success.json')}
             autoPlay
             loop={false}
-            style={{ 
+            style={{
               width: responsiveValue(120, 150),
               height: responsiveValue(120, 150)
             }}
             resizeMode="cover"
           />
-          <Text 
+          <Text
             className="text-2xl font-bold text-green-600 mt-2 text-center"
             style={{ fontSize: responsiveValue(20, 24) }}
           >
             Order Placed!
           </Text>
-          <Text 
+          <Text
             className="text-gray-700 mt-2 text-base text-center font-medium"
             style={{ fontSize: responsiveValue(14, 16) }}
           >
             Your order has been confirmed
           </Text>
           <View className="mt-4 w-full items-center">
-            <Text 
+            <Text
               className="text-gray-500 text-sm text-center"
               style={{ fontSize: responsiveValue(12, 14) }}
             >
               Thank you for shopping with FarmFerry!
             </Text>
             {orderId && (
-              <Text 
+              <Text
                 className="text-gray-400 text-xs mt-2"
                 style={{ fontSize: responsiveValue(10, 12) }}
               >
