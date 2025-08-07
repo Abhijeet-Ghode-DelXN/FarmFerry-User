@@ -34,10 +34,19 @@ api.interceptors.request.use(
       console.log('🔐 API Request - URL:', config.url);
       console.log('🔐 API Request - Token:', token ? `Present (${token.substring(0, 20)}...)` : 'Missing');
       console.log('🔐 API Request - Method:', config.method?.toUpperCase());
+      if (config.url.includes('/notifications')) {
+        console.log('🔔 /notifications request - token:', token);
+      }
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+        if (config.url.includes('/notifications')) {
+          console.log('🔔 /notifications request - Authorization header set:', config.headers.Authorization);
+        }
         console.log('✅ API Request - Authorization header set');
       } else {
+        if (config.url.includes('/notifications')) {
+          console.log('🔔 /notifications request - No token found');
+        }
         console.log('❌ API Request - No token found');
       }
     } catch (error) {

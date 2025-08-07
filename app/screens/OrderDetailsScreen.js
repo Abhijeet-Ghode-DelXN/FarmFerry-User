@@ -12,6 +12,46 @@ import { CONFIG } from '../constants/config';
 import InvoiceService from '../services/invoiceService';
 import { useAuth } from '../context/AuthContext';
 
+// Price calculation functions from CheckoutScreen for consistency
+const getSubtotal = (items) => items.reduce((sum, item) => {
+  // Use discounted price if available, otherwise use regular price
+  const price = item.discountedPrice || item.price;
+  return sum + price * item.quantity;
+}, 0);
+
+const getShipping = () => 20.0;
+const PLATFORM_FEE = 2.0;
+
+// Helper function to calculate total amount using backend GST
+const calculateTotalAmount = (order) => {
+  if (!order.items || order.items.length === 0) {
+    return order.totalAmount || 0;
+  }
+
+  // Calculate subtotal using discounted prices
+  const subtotal = getSubtotal(order.items);
+  
+  // Use GST from backend order data (already calculated and stored)
+  const gst = order.gst || 0;
+  const shipping = getShipping();
+  const platformFee = PLATFORM_FEE;
+  
+  // Total calculation: subtotal(discounted) + gst(from backend) + shipping + platformFee
+  const calculatedTotal = subtotal + gst + shipping + platformFee;
+  
+  // Debug log to verify calculation (remove in production)
+  console.log('OrderDetailsScreen Total Calculation (Using Backend GST):', {
+    orderId: order.orderId || order._id,
+    subtotal,
+    gst,
+    shipping,
+    platformFee,
+    calculatedTotal
+  });
+  
+  return calculatedTotal;
+};
+
 export default function OrderDetailsScreen() {
   const route = useRoute();
   const { orderId } = route.params || {};
@@ -372,13 +412,22 @@ export default function OrderDetailsScreen() {
                   <Text>🛒</Text>
                 </View>
               )}
-              <View className="flex-1">
-                <Text className="font-medium text-gray-800 text-sm mb-1" numberOfLines={1}>
-                  {item.product?.name || 'Product'}
-                </Text>
-                <Text className="text-xs text-gray-500 mb-1">Qty: {item.quantity || item.qty}</Text>
-                <Text className="text-sm text-gray-700 font-medium">₹{item.price}</Text>
-              </View>
+                             <View className="flex-1">
+                 <Text className="font-medium text-gray-800 text-sm mb-1" numberOfLines={1}>
+                   {item.product?.name || 'Product'}
+                 </Text>
+                 <Text className="text-xs text-gray-500 mb-1">Qty: {item.quantity || item.qty}</Text>
+                 <View className="flex-row items-center">
+                   {item.discountedPrice && item.discountedPrice < item.price ? (
+                     <>
+                       <Text className="text-sm text-green-600 font-medium">₹{item.discountedPrice}</Text>
+                       <Text className="text-xs text-gray-400 line-through ml-2">₹{item.price}</Text>
+                     </>
+                   ) : (
+                     <Text className="text-sm text-gray-700 font-medium">₹{item.price}</Text>
+                   )}
+                 </View>
+               </View>
             </View>
           ))}
         </View>
@@ -386,10 +435,72 @@ export default function OrderDetailsScreen() {
         <Text className="text-gray-500 px-4">No items in this order.</Text>
       )}
 
-      {/* Total Section */}
-      <View className="mx-4 my-4 bg-green-50 rounded-xl p-4 flex-row items-center justify-between border border-green-100">
-        <Text className="text-base font-bold text-green-700">Total</Text>
-        <Text className="text-xl font-bold text-green-700">₹{order.totalAmount || order.total}</Text>
+      {/* Order Summary - Same format as CheckoutScreen */}
+      <View className="bg-white mx-4 my-4 rounded-2xl p-4 shadow-sm border border-gray-100">
+        <View className="flex-row justify-between items-center mb-2">
+          <Text className="text-lg font-semibold text-gray-800">
+            Order Summary
+          </Text>
+        </View>
+        
+        {/* Order Items */}
+        {order.items?.map((item, index) => (
+          <View
+            key={index}
+            className="flex-row justify-between items-center mb-2"
+          >
+            <Text className="flex-1 text-gray-700">
+              {item.product?.name || 'Product'} x{item.quantity || item.qty}
+            </Text>
+            <Text className="text-gray-700">
+              ₹{((item.discountedPrice || item.price) * (item.quantity || item.qty)).toFixed(2)}
+            </Text>
+          </View>
+        ))}
+        
+        {/* Price Breakdown */}
+        <View className="border-t border-gray-200 mt-2 pt-2">
+          <View className="flex-row justify-between items-center mb-1">
+            <Text className="text-gray-600">Subtotal</Text>
+            <Text className="text-gray-700">₹{getSubtotal(order.items).toFixed(2)}</Text>
+          </View>
+          
+                     <View className="flex-row justify-between items-center mb-1">
+             <Text className="text-gray-600">
+               GST
+               {/* Show GST percentage from backend */}
+               {(() => {
+                 // Calculate GST percentage from backend GST amount and subtotal
+                 const subtotal = getSubtotal(order.items);
+                 if (subtotal > 0 && order.gst > 0) {
+                   const gstPercentage = ((order.gst / subtotal) * 100).toFixed(1);
+                   return ` (${gstPercentage}%)`;
+                 }
+                 return '';
+               })()}
+             </Text>
+             <Text className="text-gray-700">₹{(order.gst || 0).toFixed(2)}</Text>
+           </View>
+          
+          <View className="flex-row justify-between items-center mb-1">
+            <Text className="text-gray-600">Platform Fee</Text>
+            <Text className="text-gray-700">₹{PLATFORM_FEE.toFixed(2)}</Text>
+          </View>
+          
+          <View className="flex-row justify-between items-center mb-1">
+            <Text className="text-gray-600">Shipping</Text>
+            <Text className="text-gray-700">₹{getShipping().toFixed(2)}</Text>
+          </View>
+          
+          <View className="flex-row justify-between items-center font-bold">
+            <Text className="font-bold text-gray-800">
+              Total
+            </Text>
+            <Text className="font-bold text-gray-800">
+              ₹{calculateTotalAmount(order).toFixed(2)}
+            </Text>
+          </View>
+        </View>
       </View>
 
       {/* Success Messages */}
