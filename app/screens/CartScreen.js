@@ -30,6 +30,9 @@ export default function CartScreen({ navigation }) {
   } = useAppContext();
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // Add GST and GST percent from backend
+  const [cartGST, setCartGST] = useState(0);
+  const [cartGSTPercent, setCartGSTPercent] = useState(0);
 
   // Get screen dimensions
   const { width, height } = Dimensions.get('window');
@@ -49,7 +52,32 @@ export default function CartScreen({ navigation }) {
   const fetchCart = async () => {
     try {
       const response = await cartAPI.getCart();
-      updateCartItems(response.data.data.cart.items);
+      const cartData = response.data.data.cart;
+      const items = cartData.items;
+      // Set GST and GST percent from backend if present
+      setCartGST(cartData.gst || 0);
+      setCartGSTPercent(cartData.gstPercent || 0);
+      
+      // Detailed logging for GST debugging
+      console.log('=== CART DATA DEBUG ===');
+      console.log('Full cart response:', JSON.stringify(response.data.data.cart, null, 2));
+      
+      items.forEach((item, index) => {
+        console.log(`Item ${index + 1}:`, {
+          name: item.product?.name || item.name,
+          productId: item.product?._id,
+          gst: item.product?.gst,
+          gstType: typeof item.product?.gst,
+          price: item.price,
+          quantity: item.quantity,
+          totalPrice: item.totalPrice,
+          fullProductData: item.product
+        });
+      });
+      
+      console.log('🔄 Updating cart items in context...');
+      updateCartItems(items);
+      console.log('✅ Cart items updated in context');
     } catch (error) {
       console.error('Failed to fetch cart:', error);
     } finally {
@@ -132,21 +160,40 @@ export default function CartScreen({ navigation }) {
 
   // GST rate (5%)
   const GST_RATE = 0.05;
+  // Platform fee constant
+  const PLATFORM_FEE = 2.0;
 
-  // Calculation helpers
-  const getSubtotal = () =>
-    safeCartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const getTotalDiscount = () =>
-    safeCartItems.reduce((sum, item) => {
-      if (item.originalPrice) {
-        return sum + (item.originalPrice - item.price) * item.quantity;
-      }
-      return sum;
+  // GST and cart logic from CheckoutScreen
+  const getSubtotal = (items) => items.reduce((sum, item) => {
+    const price = item.discountedPrice !== undefined && item.discountedPrice !== null ? item.discountedPrice : item.price;
+    return sum + price * item.quantity;
+  }, 0);
+  const getTotalDiscount = (items) => {
+    const totalOriginalPrice = items.reduce((sum, item) => {
+      const orig = item.originalPrice !== undefined && item.originalPrice !== null ? item.originalPrice : item.price;
+      return sum + orig * item.quantity;
     }, 0);
-  const getTotalGST = () =>
-    safeCartItems.reduce((sum, item) => sum + (item.price * GST_RATE) * item.quantity, 0);
-  const getShipping = () => 4.0;
-  const getGrandTotal = () => getSubtotal() + getTotalGST() + getShipping();
+    const subtotal = getSubtotal(items);
+    return Math.max(0, totalOriginalPrice - subtotal);
+  };
+  const getTotalGST = (items) => {
+    // Sum GST for each item
+    return items.reduce((sum, item) => {
+      const itemPrice = item.discountedPrice !== undefined && item.discountedPrice !== null ? item.discountedPrice : item.price;
+      const itemQuantity = item.quantity || 1;
+      let gstPercent = 0;
+      if (item.product && typeof item.product === 'object') {
+        gstPercent = item.product.gst || 0;
+      } else if (item.gst !== undefined) {
+        gstPercent = item.gst;
+      }
+      const gstAmount = (itemPrice * gstPercent / 100) * itemQuantity;
+      return sum + gstAmount;
+    }, 0);
+  };
+  const getShipping = () => 20.0;
+  const getPlatformFee = () => PLATFORM_FEE;
+  const getGrandTotal = (items) => getSubtotal(items) + getTotalGST(items) + getShipping() + getPlatformFee();
 
   if (isLoading) {
     return (
@@ -161,11 +208,31 @@ export default function CartScreen({ navigation }) {
       Alert.alert('Cart is empty');
       return;
     }
+    
+    const subtotal = getSubtotal(safeCartItems);
+    const gst = getTotalGST(safeCartItems);
+    const shipping = getShipping();
+    const platformFee = getPlatformFee();
+    const total = getGrandTotal(safeCartItems);
+    const savings = getTotalDiscount(safeCartItems);
+    
+    console.log('CartScreen - Passing to Checkout:', {
+      subtotal,
+      gst,
+      shipping,
+      platformFee,
+      total,
+      savings,
+      itemsCount: safeCartItems.length
+    });
+    
     navigation.navigate('Checkout', {
-      subtotal: getSubtotal(),
-      shipping: getShipping(),
-      total: getGrandTotal(),
-      savings: getTotalDiscount(),
+      subtotal,
+      gst,
+      shipping,
+      platformFee,
+      total,
+      savings,
       items: safeCartItems
     });
   };
@@ -253,9 +320,13 @@ export default function CartScreen({ navigation }) {
             <View className={`px-4 ${responsiveValue('pt-3', 'pt-4', 'pt-4')}`}>
               {safeCartItems.map((item) => {
                 if (!item) return null;
-                const discount = item.originalPrice ? (item.originalPrice - item.price) : 0;
-                const gst = item.price * GST_RATE;
-                const finalPrice = item.price + gst;
+                                 // Calculate discount for individual item: Original Price - Current Price
+                 const originalTotal = item.originalPrice ? item.originalPrice * item.quantity : item.price * item.quantity;
+                 const currentTotal = item.totalPrice || item.price * item.quantity;
+                 const discount = Math.max(0, originalTotal - currentTotal);
+                 
+                 // GST is now calculated on subtotal, not per item
+                 const itemTotal = item.totalPrice || item.price * item.quantity;
                 const imageSize = responsiveValue(80, 96, 100);
 
                 return (
@@ -282,7 +353,7 @@ export default function CartScreen({ navigation }) {
                             className={`${responsiveValue('text-sm', 'text-base', 'text-base')} font-semibold text-gray-900 flex-1`}
                             numberOfLines={2}
                           >
-                            {item.name}
+                            {item.product?.name || item.name}
                           </Text>
                           <TouchableOpacity 
                             onPress={() => removeFromCart(item._id)}
@@ -291,6 +362,28 @@ export default function CartScreen({ navigation }) {
                             <Trash2 size={responsiveValue(18, 20, 20)} color="#ef4444" />
                           </TouchableOpacity>
                         </View>
+                        {/* Per-item GST display */}
+                        <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-blue-500 mb-1`}>
+                          GST: ₹{(() => {
+                            const itemPrice = item.discountedPrice !== undefined && item.discountedPrice !== null ? item.discountedPrice : item.price;
+                            const itemQuantity = item.quantity || 1;
+                            let gstPercent = 0;
+                            if (item.product && typeof item.product === 'object') {
+                              gstPercent = item.product.gst || 0;
+                            } else if (item.gst !== undefined) {
+                              gstPercent = item.gst;
+                            }
+                            return ((itemPrice * gstPercent / 100) * itemQuantity).toFixed(2);
+                          })()} ({(() => {
+                            let gstPercent = 0;
+                            if (item.product && typeof item.product === 'object') {
+                              gstPercent = item.product.gst || 0;
+                            } else if (item.gst !== undefined) {
+                              gstPercent = item.gst;
+                            }
+                            return gstPercent;
+                          })()}%)
+                        </Text>
 
                         <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-gray-500 mb-1`}>
                           {item.unit || '500 g'}
@@ -298,7 +391,7 @@ export default function CartScreen({ navigation }) {
 
                         <View className="flex-row items-center mb-1">
                           <Text className={`${responsiveValue('text-base', 'text-lg', 'text-lg')} font-bold text-green-700`}>
-                            ₹{(item.price * item.quantity).toFixed(2)}
+                            ₹{(item.totalPrice || item.price * item.quantity).toFixed(2)}
                           </Text>
                           {item.originalPrice && (
                             <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-gray-400 line-through ml-2`}>
@@ -309,7 +402,7 @@ export default function CartScreen({ navigation }) {
 
                         {discount > 0 && (
                           <Text className={`${responsiveValue('text-xs', 'text-xs', 'text-sm')} text-red-500 mb-1`}>
-                            You save: ₹{(discount * item.quantity).toFixed(2)}
+                            You save: ₹{discount.toFixed(2)}
                           </Text>
                         )}
 
@@ -390,7 +483,7 @@ export default function CartScreen({ navigation }) {
                 Subtotal
               </Text>
               <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} font-semibold text-gray-900`}>
-                ₹{getSubtotal().toFixed(2)}
+                ₹{getSubtotal(safeCartItems).toFixed(2)}
               </Text>
             </View>
             <View className="flex-row justify-between items-center mb-1">
@@ -398,20 +491,47 @@ export default function CartScreen({ navigation }) {
                 Discount
               </Text>
               <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} font-semibold text-red-500`}>
-                -₹{getTotalDiscount().toFixed(2)}
+                -₹{getTotalDiscount(safeCartItems).toFixed(2)}
               </Text>
             </View>
             <View className="flex-row justify-between items-center mb-1">
               <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} text-gray-600`}>
-                GST (5%)
+                GST
+                {/* Show GST range if multiple rates, as in CheckoutScreen */}
+                {(() => {
+                  const gstRates = [...new Set(safeCartItems.map(item => {
+                    if (item.product && typeof item.product === 'object') {
+                      return item.product.gst || 0;
+                    } else if (item.gst !== undefined) {
+                      return item.gst;
+                    }
+                    return 5; // default
+                  }))];
+                  if (gstRates.length === 1) {
+                    return ` (${gstRates[0]}%)`;
+                  } else if (gstRates.length > 1) {
+                    const minRate = Math.min(...gstRates);
+                    const maxRate = Math.max(...gstRates);
+                    return minRate === maxRate ? ` (${minRate}%)` : ` (${minRate}%-${maxRate}%)`;
+                  }
+                  return '';
+                })()}
               </Text>
               <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} font-semibold text-blue-500`}>
-                ₹{getTotalGST().toFixed(2)}
+                ₹{getTotalGST(safeCartItems).toFixed(2)}
+              </Text>
+            </View>
+            <View className="flex-row justify-between items-center mb-1">
+              <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} text-gray-600`}>
+                Platform Fee
+              </Text>
+              <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} font-semibold text-gray-900`}>
+                ₹{getPlatformFee().toFixed(2)}
               </Text>
             </View>
             <View className="flex-row justify-between items-center mb-2">
               <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} text-gray-600`}>
-                Delivery
+                Shipping
               </Text>
               <Text className={`${responsiveValue('text-sm', 'text-base', 'text-base')} font-semibold text-gray-900`}>
                 ₹{getShipping().toFixed(2)}
@@ -423,7 +543,7 @@ export default function CartScreen({ navigation }) {
                   Total
                 </Text>
                 <Text className={`${responsiveValue('text-base', 'text-lg', 'text-lg')} font-bold text-green-700`}>
-                  ₹{getGrandTotal().toFixed(2)}
+                  ₹{getGrandTotal(safeCartItems).toFixed(2)}
                 </Text>
               </View>
             </View>

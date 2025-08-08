@@ -60,6 +60,77 @@ export default function OrdersScreen() {
     return large;
   };
 
+  // Price calculation functions from CheckoutScreen for consistency
+  const getSubtotal = (items) => items.reduce((sum, item) => {
+    // Use discounted price if available, otherwise use regular price
+    const price = item.discountedPrice || item.price;
+    return sum + price * item.quantity;
+  }, 0);
+  
+  const getTotalDiscount = (items) => items.reduce((sum, item) => {
+    if (item.originalPrice) {
+      return sum + (item.originalPrice - item.price) * item.quantity;
+    }
+    return sum;
+  }, 0);
+  
+  const getTotalGST = (items) => {
+    return items.reduce((sum, item) => {
+      // Use discounted price for GST calculation if available
+      const itemPrice = item.discountedPrice || item.price;
+      const itemQuantity = item.quantity || 1;
+
+      // Get GST percentage from product data
+      let gstPercent = 0;
+
+      if (item.product && typeof item.product === 'object') {
+        // If product is populated object
+        gstPercent = item.product.gst || 0;
+      } else if (item.gst !== undefined) {
+        // If GST is directly on the item
+        gstPercent = item.gst;
+      }
+
+      // Calculate GST amount on discounted price: (discounted_price * gst_percentage / 100) * quantity
+      const gstAmount = (itemPrice * gstPercent / 100) * itemQuantity;
+
+      return sum + gstAmount;
+    }, 0);
+  };
+
+  const getShipping = () => 20.0;
+  const PLATFORM_FEE = 2.0;
+
+     // Helper function to calculate total amount using backend GST
+   const calculateTotalAmount = (order) => {
+     if (!order.items || order.items.length === 0) {
+       return order.totalAmount || 0;
+     }
+
+     // Calculate subtotal using discounted prices
+     const subtotal = getSubtotal(order.items);
+     
+     // Use GST from backend order data (already calculated and stored)
+     const gst = order.gst || 0;
+     const shipping = getShipping();
+     const platformFee = PLATFORM_FEE;
+     
+     // Total calculation: subtotal(discounted) + gst(from backend) + shipping + platformFee
+     const calculatedTotal = subtotal + gst + shipping + platformFee;
+     
+     // Debug log to verify calculation (remove in production)
+     console.log('OrdersScreen Total Calculation (Using Backend GST):', {
+       orderId: order.orderId || order._id,
+       subtotal,
+       gst,
+       shipping,
+       platformFee,
+       calculatedTotal
+     });
+     
+     return calculatedTotal;
+   };
+
   const fetchOrders = async () => {
     setIsLoading(true);
     try {
@@ -409,7 +480,7 @@ export default function OrdersScreen() {
             <View className="flex-row items-center">
               <Ionicons name="pricetag-outline" size={responsiveValue(12, 14, 14)} color="#6b7280" />
               <Text className={`${responsiveValue('text-xs', 'text-xs', 'text-sm')} text-gray-600 ml-2`}>
-                ₹{item.totalAmount?.toFixed(2) ?? '0.00'}
+                ₹{calculateTotalAmount(item).toFixed(2)}
               </Text>
             </View>
           </View>
@@ -431,13 +502,15 @@ export default function OrdersScreen() {
           )}
         </View>
 
-        {/* Total Amount */}
+        {/* Total Amount - Using backend GST: subtotal(discounted) + gst(from backend) + shipping + platformFee */}
         <View className="flex-row justify-between items-center mb-3">
           <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} text-gray-600`}>Total Amount:</Text>
           <Text className={`${responsiveValue('text-base', 'text-lg', 'text-lg')} font-bold text-gray-800`}>
-            ₹{item.totalAmount?.toFixed(2) ?? '0.00'}
+            ₹{calculateTotalAmount(item).toFixed(2)}
           </Text>
         </View>
+
+
 
         {/* Action Buttons */}
         <View className="flex-row justify-between items-center mt-3">
@@ -638,9 +711,9 @@ export default function OrdersScreen() {
                 <Text className="text-sm font-medium text-gray-800 mb-1">
                   Order #{returningOrder.orderId || returningOrder._id}
                 </Text>
-                <Text className="text-xs text-gray-600">
-                  {returningOrder.items?.length || 0} item{(returningOrder.items?.length || 0) > 1 ? 's' : ''} • ₹{returningOrder.totalAmount?.toFixed(2) || '0.00'}
-                </Text>
+                                  <Text className="text-xs text-gray-600">
+                    {returningOrder.items?.length || 0} item{(returningOrder.items?.length || 0) > 1 ? 's' : ''} • ₹{calculateTotalAmount(returningOrder).toFixed(2)}
+                  </Text>
               </View>
             )}
             

@@ -486,6 +486,9 @@ export default function RegisterScreen({ navigation }) {
 
     setIsLoading(true);
     try {
+      console.log('🚀 Starting registration process...');
+      console.log('📝 Registration data:', { name, email, phone });
+
       const response = await register({ name, email, phone, password });
       console.log('Registration response:', response);
 
@@ -500,7 +503,7 @@ export default function RegisterScreen({ navigation }) {
         ]
       );
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('❌ Registration error:', error);
       Alert.alert(
         'Registration Failed',
         error.response?.data?.message || 'An unexpected error occurred. Please try again.'
@@ -529,6 +532,7 @@ export default function RegisterScreen({ navigation }) {
           />
         </View>
 
+
         <View>
           <Text className="text-gray-700 mb-1">Email</Text>
           <TextInput
@@ -540,6 +544,7 @@ export default function RegisterScreen({ navigation }) {
           />
         </View>
 
+
         <View>
           <Text className="text-gray-700 mb-1">Phone Number</Text>
           <TextInput
@@ -550,6 +555,7 @@ export default function RegisterScreen({ navigation }) {
             className="bg-white border-2 border-gray-200 rounded-xl p-4 text-lg shadow-sm"
           />
         </View>
+
 
         <View>
           <Text className="text-gray-700 mb-1">Password</Text>
@@ -574,6 +580,21 @@ export default function RegisterScreen({ navigation }) {
         </Text>
       </TouchableOpacity>
 
+      {/* Debug button - remove in production */}
+      <TouchableOpacity
+        onPress={() => {
+          console.log('🔧 Debug: Manually setting showPhoneVerification to true');
+          setShowPhoneVerification(true);
+          verificationStateRef.current = true;
+        }}
+        className="bg-red-500 py-2 rounded-xl items-center mt-4"
+        activeOpacity={0.8}
+      >
+        <Text className="text-white text-sm font-bold">
+          🔧 Debug: Show Phone Verification
+        </Text>
+      </TouchableOpacity>
+
       <View className="flex-row justify-center mt-4">
         <Text className="text-gray-500">Already have an account? </Text>
         <TouchableOpacity onPress={() => navigation.navigate(SCREEN_NAMES.LOGIN)}>
@@ -583,3 +604,4 @@ export default function RegisterScreen({ navigation }) {
     </KeyboardAvoidingView>
   );
 }
+
