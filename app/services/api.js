@@ -105,7 +105,10 @@ export const authAPI = {
   forgotPassword: (email, role = 'customer') => api.post(CONFIG.ENDPOINTS.AUTH.FORGOT_PASSWORD, { email, role }),
   resetPassword: (token, password) => api.post(`${CONFIG.ENDPOINTS.AUTH.RESET_PASSWORD}/${token}`, { password }),
   resetPasswordWithOTP: (email, otp, password) => api.post('/auth/reset-password-otp', { email, otp, password }),
+  
   changePassword: (currentPassword, newPassword) => api.post('/auth/change-password', { currentPassword, newPassword }),
+  // sendPhoneVerification: (data) => api.post('/auth/send-phone-verification', data),
+  // verifyOtp: (data) => api.post('/auth/verify-phone-otp', data),
 };
 
 export const customerAPI = {

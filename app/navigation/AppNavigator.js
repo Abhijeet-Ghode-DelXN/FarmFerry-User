@@ -55,11 +55,11 @@ const AuthStack = () => (
       component={RegisterScreen}
       options={{ headerShown: true, title: 'Register' }}
     />
-    <Stack.Screen
+    {/* <Stack.Screen
       name={SCREEN_NAMES.PHONE_VERIFICATION}
       component={PhoneVerificationScreen}
       options={{ headerShown: true, title: 'Verify Phone' }}
-    />
+    /> */}
     <Stack.Screen
       name={SCREEN_NAMES.FORGOT_PASSWORD}
       component={ForgotPasswordScreen}
