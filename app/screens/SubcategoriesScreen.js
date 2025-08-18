@@ -893,6 +893,7 @@ const SubcategoriesScreen = ({ navigation, route }) => {
           shadowOpacity: 0.05,
           shadowRadius: 2,
           elevation: 2,
+          marginTop:4
         }}
       >
         <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>

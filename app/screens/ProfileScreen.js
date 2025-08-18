@@ -120,7 +120,7 @@ const ProfileScreen = () => {
   return (
     <View className="flex-1 bg-gray-50"> {/* Added top padding here */}
       {/* Header */}
-      <View className="flex-row justify-between items-center p-4 bg-white border-b border-gray-200">
+      <View className="flex-row justify-between items-center p-4 bg-white border-b border-gray-200 mt-6">
         <View className="flex-row items-center">
           <View className={`${isSmallScreen ? 'w-7 h-7' : 'w-8 h-8'} rounded-full bg-green-500 items-center justify-center mr-2`}>
             <User size={isSmallScreen ? 16 : 18} color="#ffffff" />
