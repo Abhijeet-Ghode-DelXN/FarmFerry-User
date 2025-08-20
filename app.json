@@ -3,16 +3,14 @@
     "name": "FarmFerry User",
     "slug": "farmferry-user",
     "version": "1.0.0",
+    "runtimeVersion": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/OutlookLogo2.png",
     "scheme": "farmferry-user",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
     "updates": {
-      "url": "https://u.expo.dev/your-project-id"
+      "url": "https://u.expo.dev/54c01b7e-6c33-4679-b0b3-7e7c2057fa7c"
     },
     "ios": {
       "supportsTablet": true,
@@ -26,6 +24,10 @@
       "edgeToEdgeEnabled": true,
       "package": "com.farmferry.user",
       "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
         "INTERNET",
         "ACCESS_NETWORK_STATE",
         "READ_EXTERNAL_STORAGE",
@@ -52,7 +54,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "e41fc391-bd39-482c-b3db-54e9a4ddcca9"
+        "projectId": "61496d83-388a-4cd8-9c69-5dd719c6bff2"
       }
     }
   }
