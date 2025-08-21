@@ -73,7 +73,7 @@ const SubcategoriesScreen = ({ navigation, route }) => {
     }
 
     if (inStockOnly) {
-      filtered = filtered.filter((product) => product.stock > 0)
+      filtered = filtered.filter((product) => (product.inStock || (product.stockQuantity || 0) > 0))
     }
 
     filtered.sort((a, b) => {
@@ -203,7 +203,8 @@ const SubcategoriesScreen = ({ navigation, route }) => {
         category: p.categoryId?.name || "",
         price: p.discountedPrice ?? p.price,
         originalPrice: p.price,
-        stock: p.stock || 0,
+        stockQuantity: typeof p.stockQuantity === 'number' ? p.stockQuantity : 0,
+        inStock: (typeof p.stockQuantity === 'number' ? p.stockQuantity : 0) > 0,
       }))
 
       console.log("✅ Fetched", fetchedProducts.length, "products for", subcategory.name)
@@ -629,6 +630,8 @@ const SubcategoriesScreen = ({ navigation, route }) => {
     const productId = item._id || item.id
     const inWishlist = isInWishlist(productId)
     const inCart = isInCart(productId)
+    const isOutOfStock = !item.inStock && !(item.stockQuantity > 0)
+    const isLowStock = !isOutOfStock && (typeof item.stockQuantity === 'number' ? item.stockQuantity : 0) > 0 && (typeof item.stockQuantity === 'number' ? item.stockQuantity : 0) < 5
     const isUpdatingRating = updatingRatings.has(productId)
 
     return (
@@ -664,7 +667,28 @@ const SubcategoriesScreen = ({ navigation, route }) => {
             <View
               style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.1)" }}
             />
-            {item.discount && (
+            {isOutOfStock ? (
+              <View
+                style={{
+                  position: "absolute",
+                  top: 8,
+                  left: 8,
+                  backgroundColor: "#dc2626",
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 8,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 2,
+                  elevation: 2,
+                }}
+              >
+                <Text style={{ color: "white", fontSize: 10, fontWeight: "bold" }}>
+                  Out of stock
+                </Text>
+              </View>
+            ) : item.discount && (
               <View
                 style={{
                   position: "absolute",
@@ -683,6 +707,28 @@ const SubcategoriesScreen = ({ navigation, route }) => {
               >
                 <Text style={{ color: "white", fontSize: 10, fontWeight: "bold" }}>
                   {Number(item.discount).toFixed(0)}% OFF
+                </Text>
+              </View>
+            )}
+            {isLowStock && (
+              <View
+                style={{
+                  position: "absolute",
+                  bottom: 8,
+                  left: 8,
+                  backgroundColor: "#f59e0b",
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 8,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 2,
+                  elevation: 2,
+                }}
+              >
+                <Text style={{ color: "white", fontSize: 10, fontWeight: "bold" }}>
+                  Only {item.stockQuantity} left
                 </Text>
               </View>
             )}
@@ -765,7 +811,7 @@ const SubcategoriesScreen = ({ navigation, route }) => {
                 e.stopPropagation()
                 handleAddToCart(item)
               }}
-              disabled={inCart}
+              disabled={inCart || isOutOfStock}
             >
               {inCart ? (
                 <View
@@ -779,6 +825,19 @@ const SubcategoriesScreen = ({ navigation, route }) => {
                   }}
                 >
                   <Text style={{ color: "#6b7280", fontWeight: "600", fontSize: 11 }}>Added to Cart</Text>
+                </View>
+              ) : isOutOfStock ? (
+                <View
+                  style={{
+                    paddingVertical: 6,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#e5e7eb",
+                    borderRadius: 8,
+                  }}
+                >
+                  <Text style={{ color: "#6b7280", fontWeight: "600", fontSize: 11 }}>Out of stock</Text>
                 </View>
               ) : (
                 <LinearGradient
@@ -800,7 +859,7 @@ const SubcategoriesScreen = ({ navigation, route }) => {
               <TouchableOpacity
                 style={{
                   flex: 1,
-                  backgroundColor: buyNowPressedId === productId ? "#10b981" : "#f3f4f6",
+                  backgroundColor: isOutOfStock ? "#e5e7eb" : (buyNowPressedId === productId ? "#10b981" : "#f3f4f6"),
                   paddingVertical: 6,
                   flexDirection: "row",
                   alignItems: "center",
@@ -817,20 +876,22 @@ const SubcategoriesScreen = ({ navigation, route }) => {
                   setBuyNowPressedId(productId)
                   setTimeout(() => {
                     setBuyNowPressedId(null)
+                    if (isOutOfStock) return
                     navigation.navigate("Checkout", {
                       items: [{ ...item, quantity: 1 }],
                     })
                   }, 150)
                 }}
+                disabled={isOutOfStock}
               >
                 <Text
                   style={{
-                    color: buyNowPressedId === productId ? "white" : "#1f2937",
+                    color: isOutOfStock ? "#6b7280" : (buyNowPressedId === productId ? "white" : "#1f2937"),
                     fontWeight: "600",
                     fontSize: 11,
                   }}
                 >
-                  Buy Now
+                  {isOutOfStock ? 'Out of stock' : 'Buy Now'}
                 </Text>
               </TouchableOpacity>
 

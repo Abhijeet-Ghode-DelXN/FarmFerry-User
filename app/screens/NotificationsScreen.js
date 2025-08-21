@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { notificationsAPI } from '../services/api';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, RefreshControl, Text, View } from 'react-native';
 import { useAppContext } from '../context/AppContext';
+import { notificationsAPI } from '../services/api';
 
 export default function NotificationsScreen() {
   const [notifications, setNotifications] = useState([]);
@@ -45,7 +45,7 @@ export default function NotificationsScreen() {
 
   return (
     <View className="flex-1 bg-gray-50 pt-6 px-4">
-      <Text className="text-2xl font-bold text-gray-800 mb-4">Notifications</Text>
+      {/* <Text className="text-2xl font-bold text-gray-800 mb-4">Notifications</Text> */}
       {loading ? (
         <ActivityIndicator size="large" color="#10B981" style={{ marginTop: 40 }} />
       ) : (

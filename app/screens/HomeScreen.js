@@ -1,8 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowRight, ChevronRight, Filter, Heart, Leaf, Percent, Search as SearchIcon, ShoppingCart, Star, Truck, User } from 'lucide-react-native';
+import { ArrowRight, ChevronRight, Filter, Heart, Leaf, Percent, Search as SearchIcon, ShoppingCart, Star, Truck, User, X } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Dimensions,
   FlatList,
   Image,
@@ -14,7 +13,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import Animated, { SlideInRight, SlideOutLeft } from 'react-native-reanimated';
+import Animated, { SlideInDown, SlideInRight, SlideOutLeft, SlideOutUp } from 'react-native-reanimated';
 import Carousel from 'react-native-reanimated-carousel';
 import AppBar from '../components/ui/AppBar';
 import { farmers } from '../components/ui/farmers';
@@ -35,6 +34,8 @@ const HomeScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [isSearchActive, setIsSearchActive] = useState(false);
+  const [showCartNotification, setShowCartNotification] = useState(false);
+  const [cartNotificationProduct, setCartNotificationProduct] = useState(null);
 
   // Get screen dimensions
   const { width, height } = Dimensions.get('window');
@@ -66,9 +67,10 @@ const HomeScreen = ({ navigation }) => {
           reviews: p.totalReviews,
           farmer: p.supplierId?.businessName || '',
           category: p.categoryId?.name || '',
-          //price: p.discountedPrice ?? p.price,
           price: (p.discountedPrice > 0) ? p.discountedPrice : p.price,
           originalPrice: p.price,
+          stockQuantity: typeof p.stockQuantity === 'number' ? p.stockQuantity : 0,
+          inStock: (typeof p.stockQuantity === 'number' ? p.stockQuantity : 0) > 0,
         }));
         setFetchedProducts(products);
         setFilteredProducts(products);
@@ -149,22 +151,6 @@ const HomeScreen = ({ navigation }) => {
   ];
 
   const specialOffers = [
-    // {
-    //   id: 1,
-    //   title: 'Summer Special',
-    //   subtitle: '20% OFF on Fruits',
-    //   description: 'Fresh seasonal fruits with extra discount',
-    //   icon: <Percent size={24} color="#fff" />,
-    //   bgColor: '#fff7ed',  // Light orange background
-    //   borderColor:' #fb923c', // Light orange border
-    //   iconBg: '#f97316', // Orange icon background
-    //   textColor: '#9a3412', // Dark orange text
-    //   highlightText: 'FRUIT20',
-    //   cta: 'Shop Fruits',
-    //   ctaColor: '#fff',
-    //   expiration: 'Offer ends in 2 days'
-    // },
-
     {
       id: 2,
       title: 'Organic Week',
@@ -211,7 +197,6 @@ const HomeScreen = ({ navigation }) => {
       expiration: 'Limited period offer'
     }
   ];
-
 
   const renderOfferItem = ({ item }) => {
     return (
@@ -290,20 +275,6 @@ const HomeScreen = ({ navigation }) => {
     );
   };
 
-
-  // const quickActions = [
-  //   {
-  //     title: 'Quick Order',
-  //     subtitle: '30 min delivery',
-  //     icon: Truck,
-  //     bgColor: 'bg-green-50',
-  //     borderColor: 'border-green-100',
-  //     iconBg: 'bg-green-500',
-  //     textColor: 'text-green-800',
-  //     subtitleColor: 'text-green-600'
-  //   },
-  // ];
-
   const featuredProducts = [
     {
       id: '1',
@@ -350,14 +321,44 @@ const HomeScreen = ({ navigation }) => {
 
   const handleAddToCart = async (product) => {
     const productId = product._id || product.id;
+    if (!product.inStock && !(product.stockQuantity > 0)) {
+      // Show error notification
+      setCartNotificationProduct({ 
+        name: 'Out of stock', 
+        error: true, 
+        message: 'This product is currently out of stock' 
+      });
+      setShowCartNotification(true);
+      setTimeout(() => setShowCartNotification(false), 3000);
+      return;
+    }
     if (!isInCart(productId)) {
       try {
         const response = await cartAPI.addToCart({ productId, quantity: 1 });
         updateCartItems(response.data.data.cart.items);
-        Alert.alert('Added to Cart', `${product.name} has been added to your cart`);
+        
+        // Show custom notification instead of Alert
+        setCartNotificationProduct(product);
+        setShowCartNotification(true);
+        
+        // Auto hide after 3 seconds
+        setTimeout(() => {
+          setShowCartNotification(false);
+        }, 3000);
       } catch (error) {
         console.error('Failed to add to cart:', error);
-        Alert.alert('Error', 'Could not add item to cart. Please try again.');
+        
+        // Show error notification
+        setCartNotificationProduct({ 
+          name: 'Error', 
+          error: true, 
+          message: 'Could not add item to cart' 
+        });
+        setShowCartNotification(true);
+        
+        setTimeout(() => {
+          setShowCartNotification(false);
+        }, 3000);
       }
     }
   };
@@ -440,6 +441,8 @@ const HomeScreen = ({ navigation }) => {
     const productId = item._id || item.id;
     const inWishlist = isInWishlist(productId);
     const inCart = isInCart(productId);
+    const isOutOfStock = !item.inStock && !(item.stockQuantity > 0);
+    const isLowStock = !isOutOfStock && (typeof item.stockQuantity === 'number' ? item.stockQuantity : 0) > 0 && (typeof item.stockQuantity === 'number' ? item.stockQuantity : 0) < 5;
     const productHeight = responsiveValue(120, 140, 160);
     const productPadding = responsiveValue(2, 3, 3);
     const productTextSize = responsiveValue('text-xs', 'text-sm', 'text-sm');
@@ -459,9 +462,18 @@ const HomeScreen = ({ navigation }) => {
               resizeMode="cover"
             />
             <View className="absolute inset-0 bg-black/20" />
-            {item.discount && (
+            {isOutOfStock ? (
+              <View className="absolute top-2 left-2 bg-red-600 px-2 py-1 rounded-lg shadow-md">
+                <Text className="text-white text-xs font-bold">Out of stock</Text>
+              </View>
+            ) : item.discount && (
               <View className="absolute top-2 left-2 bg-red-500 px-2 py-1 rounded-lg shadow-md">
                 <Text className="text-white text-xs font-bold">{Number(item.discount).toFixed(2)}% OFF</Text>
+              </View>
+            )}
+            {isLowStock && (
+              <View className="absolute bottom-2 left-2 bg-amber-500 px-2 py-1 rounded-lg shadow-md">
+                <Text className="text-white text-xs font-bold">Only {item.stockQuantity} left</Text>
               </View>
             )}
             <TouchableOpacity
@@ -500,11 +512,15 @@ const HomeScreen = ({ navigation }) => {
                 e.stopPropagation();
                 handleAddToCart(item);
               }}
-              disabled={inCart}
+              disabled={inCart || isOutOfStock}
             >
               {inCart ? (
                 <View className="py-2 flex-row items-center justify-center bg-gray-100 rounded-lg">
                   <Text className="text-gray-500 font-semibold text-xs">Added</Text>
+                </View>
+              ) : isOutOfStock ? (
+                <View className="py-2 flex-row items-center justify-center bg-gray-200 rounded-lg">
+                  <Text className="text-gray-500 font-semibold text-xs">Out of stock</Text>
                 </View>
               ) : (
                 <LinearGradient
@@ -523,40 +539,24 @@ const HomeScreen = ({ navigation }) => {
                 setBuyNowPressedId(productId);
                 setTimeout(() => {
                   setBuyNowPressedId(null);
+                  if (isOutOfStock) return;
                   navigation.navigate('Checkout', {
                     items: [{ ...item, quantity: 1 }]
                   });
                 }, 150);
               }}
               style={{
-                backgroundColor: buyNowPressedId === productId ? '#10b981' : '#f3f4f6',
+                backgroundColor: isOutOfStock
+                  ? '#e5e7eb'
+                  : (buyNowPressedId === productId ? '#10b981' : '#f3f4f6'),
               }}
+              disabled={isOutOfStock}
             >
-              <Text className={`font-semibold ${responsiveValue('text-xs', 'text-sm', 'text-sm')} ${buyNowPressedId === productId ? 'text-white' : 'text-gray-800'}`}>
-                Buy Now
+              <Text className={`font-semibold ${responsiveValue('text-xs', 'text-sm', 'text-sm')} ${isOutOfStock ? 'text-gray-500' : (buyNowPressedId === productId ? 'text-white' : 'text-gray-800')}`}>
+                {isOutOfStock ? 'Out of stock' : 'Buy Now'}
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  const renderQuickAction = ({ item }) => {
-    const Icon = item.icon;
-    const quickActionPadding = responsiveValue(2, 3, 3);
-    const iconSize = responsiveValue(16, 18, 18);
-
-    return (
-      <TouchableOpacity
-        className={`flex-1 flex-row items-center rounded-xl p-${quickActionPadding} border-2 m-1 min-w-[48%] shadow-sm ${item.bgColor} ${item.borderColor}`}
-      >
-        <View className={`w-10 h-10 rounded-lg justify-center items-center mr-3 ${item.iconBg}`}>
-          <Icon width={iconSize} height={iconSize} color="#fff" />
-        </View>
-        <View className="flex-1">
-          <Text className={`${responsiveValue('text-xs', 'text-sm', 'text-sm')} font-semibold ${item.textColor}`} numberOfLines={1}>{item.title}</Text>
-          <Text className={`text-xs ${item.subtitleColor}`} numberOfLines={1}>{item.subtitle}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -586,6 +586,46 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <View className="flex-1 bg-gray-50">
+      {/* Cart Notification */}
+      {showCartNotification && (
+        <Animated.View 
+          entering={SlideInDown.duration(300)}
+          exiting={SlideOutUp.duration(300)}
+          className="absolute top-16 left-4 right-4 z-50 rounded-xl overflow-hidden shadow-xl"
+        >
+          <LinearGradient
+            colors={cartNotificationProduct?.error ? ['#ef4444', '#dc2626'] : ['#10b981', '#059669']}
+            className="p-4 flex-row items-center justify-between"
+          >
+            <View className="flex-row items-center flex-1">
+              {!cartNotificationProduct?.error && (
+                <View className="w-10 h-10 rounded-lg bg-white/20 justify-center items-center mr-3">
+                  <ShoppingCart width={20} height={20} color="#fff" />
+                </View>
+              )}
+              <View className="flex-1">
+                <Text className="text-white font-bold text-sm">
+                  {cartNotificationProduct?.error 
+                    ? cartNotificationProduct.message 
+                    : 'Added to Cart'}
+                </Text>
+                {!cartNotificationProduct?.error && (
+                  <Text className="text-white/90 text-xs mt-1">
+                    {cartNotificationProduct.name} has been added to your cart
+                  </Text>
+                )}
+              </View>
+            </View>
+            <TouchableOpacity 
+              onPress={() => setShowCartNotification(false)}
+              className="p-1"
+            >
+              <X width={18} height={18} color="#fff" />
+            </TouchableOpacity>
+          </LinearGradient>
+        </Animated.View>
+      )}
+
       {/* Header */}
       <AppBar />
 
@@ -653,12 +693,14 @@ const HomeScreen = ({ navigation }) => {
                           <Text
                             className="text-lg font-bold"
                             style={{ color: item.textColor }}
+                            numberOfLines={1}
                           >
                             {item.title}
                           </Text>
                           <Text
                             className="text-xs font-medium"
                             style={{ color: item.textColor, opacity: 0.8 }}
+                            numberOfLines={1}
                           >
                             {item.subtitle}
                           </Text>
@@ -741,18 +783,6 @@ const HomeScreen = ({ navigation }) => {
                 ))}
               </View>
             </View>
-
-            {/* Quick Actions */}
-            {/* <View className={`px-${responsivePadding} mb-6`}>
-              <FlatList
-                data={quickActions}
-                renderItem={renderQuickAction}
-                keyExtractor={(item, index) => index.toString()}
-                numColumns={2}
-                scrollEnabled={false}
-                contentContainerStyle={{ gap: 8 }}
-              />
-            </View> */}
 
             {/* Farmers */}
             <View className={`px-${responsivePadding} mb-6`}>

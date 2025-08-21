@@ -648,7 +648,7 @@ export default function OrdersScreen() {
           >
             <Ionicons name="arrow-back" size={responsiveValue(18, 20, 20)} color="#10B981" />
           </TouchableOpacity>
-          <Text className={`${responsiveValue('text-lg', 'text-xl', 'text-xl')} font-bold text-gray-800`}>
+          <Text className={`${responsiveValue('text-lg', 'text-xl', 'text-xl')} font-bold text-gray-800 pt-4`}>
             My Orders
           </Text>
         </View>
