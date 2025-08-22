@@ -12,33 +12,32 @@ import PhoneVerificationScreen from '../screens/PhoneVerificationScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 
 // Main App Screens
+import CategoriesScreen from '../screens/CategoriesScreen';
+import ProductListScreen from '../screens/ProductListScreen';
+import SubcategoriesScreen from '../screens/SubcategoriesScreen';
 import MainTabNavigator from './MainTabNavigator';
 import ProductStackNavigator from './ProductsStackNavigator';
-import SubcategoriesScreen from '../screens/SubcategoriesScreen';
-import ProductListScreen from '../screens/ProductListScreen';
-import CategoriesScreen from '../screens/CategoriesScreen';
 
 // Extra Feature Screens (Add/Edit/Profile)
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
-import EditProfileScreen from '../screens/EditProfileScreen';
 import DeleteAddressScreen from '../screens/DeleteAddressScreen';
-import SettingScreen from '../screens/SettingScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
+import LogoScreen from '../screens/LogoScreen';
+import MyReviewsScreen from '../screens/MyReviewsScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
 import PaymentMethodsScreen from '../screens/PaymentMethodsScreen';
 import RateReviewScreen from '../screens/RateReviewScreen';
-import MyReviewsScreen from '../screens/MyReviewsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SupportScreen from '../screens/SupportScreen';
-import NotificationsScreen from '../screens/NotificationsScreen';
-import LogoScreen from '../screens/LogoScreen';
 
 // Loading Screen
-import LoadingScreen from '../screens/LoadingScreen';
-import ProductDetailsScreen from '../screens/ProductDetailsScreen';
-import CheckoutScreen from '../screens/CheckoutScreen';
-import PaymentStatusScreen from '../screens/PaymentStatusScreen';
-import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import AddAddressScreen from '../screens/AddAddressScreen';
+import CheckoutScreen from '../screens/CheckoutScreen';
+import LoadingScreen from '../screens/LoadingScreen';
+import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import OrdersScreen from '../screens/OrdersScreen';
+import PaymentStatusScreen from '../screens/PaymentStatusScreen';
+import ProductDetailsScreen from '../screens/ProductDetailsScreen';
 import RazorpayTestScreen from '../screens/RazorpayTestScreen';
 
 const Stack = createStackNavigator();
@@ -55,11 +54,11 @@ const AuthStack = () => (
       component={RegisterScreen}
       options={{ headerShown: true, title: 'Register' }}
     />
-    {/* <Stack.Screen
+    <Stack.Screen
       name={SCREEN_NAMES.PHONE_VERIFICATION}
       component={PhoneVerificationScreen}
       options={{ headerShown: true, title: 'Verify Phone' }}
-    /> */}
+    />
     <Stack.Screen
       name={SCREEN_NAMES.FORGOT_PASSWORD}
       component={ForgotPasswordScreen}

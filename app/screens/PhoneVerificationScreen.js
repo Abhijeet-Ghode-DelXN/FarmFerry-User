@@ -1,48 +1,67 @@
-// import React, { useState } from 'react';
-// import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import React from 'react';
+import { Image, SafeAreaView, ScrollView, View } from 'react-native';
+import OTPVerificationForm from '../components/forms/OTPVerificationForm';
+import { SCREEN_NAMES } from '../types';
 
-// export default function PhoneVerificationScreen({ navigation }) {
-//   const [otp, setOtp] = useState('');
-//   const [isVerifying, setIsVerifying] = useState(false);
+export default function PhoneVerificationScreen() {
+  const navigation = useNavigation();
+  const route = useRoute();
+  
+  // Get phone number from route params or use default
+  const phone = route.params?.phone || '';
 
-//   const handleVerify = () => {
-//     if (otp.length !== 6) {
-//       Alert.alert('Invalid OTP', 'Please enter the 6-digit OTP sent to your phone.');
-//       return;
-//     }
+  const handleVerificationSuccess = (data, verificationData) => {
+    // Navigate to appropriate screen based on context
+    if (route.params?.fromRegistration) {
+      // If coming from registration, go to login
+      navigation.navigate(SCREEN_NAMES.LOGIN);
+    } else {
+      // If standalone verification, go back or to home
+      navigation.goBack();
+    }
+  };
 
-//     setIsVerifying(true);
-//     setTimeout(() => {
-//       setIsVerifying(false);
-//       Alert.alert('Verified', 'Your phone number has been verified.');
-//       navigation.navigate('Home');
-//     }, 1000);
-//   };
+  const handleVerificationFailure = (errorMessage) => {
+    // Error is already handled by the OTPVerificationForm component
+    console.log('Verification failed:', errorMessage);
+  };
 
-//   return (
-//     <View className="flex-1 bg-gray-50 justify-center px-5">
-//       <Text className="text-2xl font-bold text-gray-800 mb-6">Phone Verification</Text>
-//       <Text className="text-gray-600 mb-4">Enter the 6-digit code sent to your phone</Text>
+  const handleBack = () => {
+    navigation.goBack();
+  };
 
-//       <TextInput
-//         value={otp}
-//         onChangeText={setOtp}
-//         keyboardType="number-pad"
-//         maxLength={6}
-//         placeholder="Enter OTP"
-//         className="bg-white border border-gray-200 rounded-xl p-4 text-base mb-6 text-center tracking-widest"
-//       />
+  return (
+    <SafeAreaView className="flex-1 bg-white">
+      <ScrollView 
+        className="flex-1"
+        contentContainerStyle={{ flexGrow: 1 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View className="flex-1 justify-center px-6 py-8">
+          {/* Logo and Branding */}
+          <View className="items-center mb-8">
+            <Image 
+              source={require('../../assets/images/Icon2.jpeg')} 
+              className="w-38 h-38"
+              resizeMode="contain"
+            />
+          </View>
 
-//       <TouchableOpacity
-//         className="bg-green-500 py-4 rounded-2xl items-center"
-//         onPress={handleVerify}
-//         disabled={isVerifying}
-//       >
-//         <Text className="text-white font-semibold text-base">
-//           {isVerifying ? 'Verifying...' : 'Verify'}
-//         </Text>
-//       </TouchableOpacity>
-//     </View>
-//   );
-// }
+          <OTPVerificationForm
+            phone={phone}
+            onVerificationSuccess={handleVerificationSuccess}
+            onVerificationFailure={handleVerificationFailure}
+            onBack={handleBack}
+            title="Phone Verification"
+            subtitle="We've sent a verification code to"
+            buttonText="Verify Phone Number"
+            showBackButton={true}
+            autoSendOTP={true}
+          />
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
 

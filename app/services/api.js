@@ -1,5 +1,5 @@
-import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 import { CONFIG } from '../constants/config';
 
 // Create axios instance
@@ -21,6 +21,10 @@ api.interceptors.request.use(
       CONFIG.ENDPOINTS.AUTH.REFRESH_TOKEN,
       CONFIG.ENDPOINTS.AUTH.FORGOT_PASSWORD,
       '/auth/reset-password-otp', // OTP reset endpoint
+      '/auth/register/validate', // New registration validation endpoint
+      '/auth/register/complete', // New registration completion endpoint
+      '/auth/send-phone-verification', // Phone verification endpoint
+      '/auth/verify-phone-otp', // OTP verification endpoint
     ];
     
     // Check if the URL contains any of the auth endpoints (not just ends with)
@@ -116,8 +120,12 @@ export const authAPI = {
   resetPasswordWithOTP: (email, otp, password) => api.post('/auth/reset-password-otp', { email, otp, password }),
   
   changePassword: (currentPassword, newPassword) => api.post('/auth/change-password', { currentPassword, newPassword }),
-  // sendPhoneVerification: (data) => api.post('/auth/send-phone-verification', data),
-  // verifyOtp: (data) => api.post('/auth/verify-phone-otp', data),
+  sendPhoneVerification: (data) => api.post('/auth/send-phone-verification', data),
+  verifyOtp: (data) => api.post('/auth/verify-phone-otp', data),
+  
+  // New two-phase registration endpoints
+  registerValidate: (userData) => api.post('/auth/register/validate', userData),
+  registerComplete: (userData) => api.post('/auth/register/complete', userData),
 };
 
 export const customerAPI = {
