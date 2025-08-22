@@ -19,7 +19,10 @@ const getSubtotal = (items) => items.reduce((sum, item) => {
   return sum + price * item.quantity;
 }, 0);
 
-const getShipping = () => 20.0;
+const getShipping = (subtotal = 0) => {
+  // Waive delivery charges for orders above ₹500
+  return subtotal >= 500 ? 0 : 20.0;
+};
 const PLATFORM_FEE = 2.0;
 
 // Helper function to calculate total amount using backend GST
@@ -33,7 +36,7 @@ const calculateTotalAmount = (order) => {
   
   // Use GST from backend order data (already calculated and stored)
   const gst = order.gst || 0;
-  const shipping = getShipping();
+  const shipping = getShipping(subtotal);
   const platformFee = PLATFORM_FEE;
   
   // Total calculation: subtotal(discounted) + gst(from backend) + shipping + platformFee

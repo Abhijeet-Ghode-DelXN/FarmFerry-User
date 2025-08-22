@@ -99,7 +99,10 @@ export default function OrdersScreen() {
     }, 0);
   };
 
-  const getShipping = () => 20.0;
+  const getShipping = (subtotal = 0) => {
+    // Waive delivery charges for orders above ₹500
+    return subtotal >= 500 ? 0 : 20.0;
+  };
   const PLATFORM_FEE = 2.0;
 
      // Helper function to calculate total amount using backend GST
@@ -113,7 +116,7 @@ export default function OrdersScreen() {
      
      // Use GST from backend order data (already calculated and stored)
      const gst = order.gst || 0;
-     const shipping = getShipping();
+     const shipping = getShipping(subtotal);
      const platformFee = PLATFORM_FEE;
      
      // Total calculation: subtotal(discounted) + gst(from backend) + shipping + platformFee
@@ -390,8 +393,8 @@ export default function OrdersScreen() {
       
       if (deliveryDate) {
         const daysSinceDelivery = (new Date() - new Date(deliveryDate)) / (1000 * 60 * 60 * 24);
-        daysLeft = Math.max(0, 7 - Math.floor(daysSinceDelivery));
-        returnAvailable = daysSinceDelivery <= 7;
+      daysLeft = Math.max(0, 7 - Math.floor(daysSinceDelivery));
+      returnAvailable = daysSinceDelivery <= 7;
         
         // Debug log to check the calculation
         console.log('Return Status Debug:', {
@@ -459,31 +462,31 @@ export default function OrdersScreen() {
         </View>
 
         {/* Status Badges - FIXED LOGIC */}
-        <View className="flex-row flex-wrap gap-2 mb-3">
+          <View className="flex-row flex-wrap gap-2 mb-3">
           {item.status === 'delivered' && item.status !== 'returned' && (
-            <View className={`px-2 py-1 rounded-md ${returnAvailable ? 'bg-green-100' : 'bg-gray-100'}`}>
-              <Text className={`text-xs font-medium ${returnAvailable ? 'text-green-800' : 'text-gray-500'}`}>
-                {returnAvailable
-                  ? `🔄 Return Available (${daysLeft} day${daysLeft !== 1 ? 's' : ''} left)`
+              <View className={`px-2 py-1 rounded-md ${returnAvailable ? 'bg-green-100' : 'bg-gray-100'}`}>
+                <Text className={`text-xs font-medium ${returnAvailable ? 'text-green-800' : 'text-gray-500'}`}>
+                  {returnAvailable
+                    ? `🔄 Return Available (${daysLeft} day${daysLeft !== 1 ? 's' : ''} left)`
                   : '❌ Return Not Available'}
-              </Text>
-            </View>
-          )}
-          {item.status === 'returned' && (
-            <View className="px-2 py-1 rounded-md bg-red-100">
-              <Text className="text-xs font-medium text-red-800">
-                Returned{item.returnReason ? `: ${item.returnReason}` : ''}
-              </Text>
-            </View>
-          )}
-          {item.replacementStatus && (
-            <View className="px-2 py-1 rounded-md bg-amber-100">
-              <Text className="text-xs font-medium text-amber-800">
-                Replacement: {item.replacementStatus.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-              </Text>
-            </View>
-          )}
-        </View>
+                </Text>
+              </View>
+            )}
+            {item.status === 'returned' && (
+              <View className="px-2 py-1 rounded-md bg-red-100">
+                <Text className="text-xs font-medium text-red-800">
+                  Returned{item.returnReason ? `: ${item.returnReason}` : ''}
+                </Text>
+              </View>
+            )}
+            {item.replacementStatus && (
+              <View className="px-2 py-1 rounded-md bg-amber-100">
+                <Text className="text-xs font-medium text-amber-800">
+                  Replacement: {item.replacementStatus.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                </Text>
+              </View>
+            )}
+          </View>
 
         {/* Order Details */}
         <View className="bg-gray-50 p-3 rounded-xl mb-3">
@@ -585,20 +588,20 @@ export default function OrdersScreen() {
             </TouchableOpacity>
           )}
 
-          {/* Return Button - Only for delivered orders that are eligible for return */}
-          {item.status === 'delivered' && returnAvailable && (
-            <TouchableOpacity
-              onPress={() => handleOpenReturnModal(item)}
-              disabled={returningOrderId === item._id}
-              className={`w-8 h-8 rounded-full bg-blue-100 items-center justify-center mx-1`}
-            >
-              {returningOrderId === item._id ? (
-                <ActivityIndicator size="small" color="#3b82f6" />
-              ) : (
-                <RotateCcw size={16} color="#3b82f6" />
-              )}
-            </TouchableOpacity>
-          )}
+            {/* Return Button - Only for delivered orders that are eligible for return */}
+            {item.status === 'delivered' && returnAvailable && (
+              <TouchableOpacity
+                onPress={() => handleOpenReturnModal(item)}
+                disabled={returningOrderId === item._id}
+                className={`w-8 h-8 rounded-full bg-blue-100 items-center justify-center mx-1`}
+              >
+                {returningOrderId === item._id ? (
+                  <ActivityIndicator size="small" color="#3b82f6" />
+                ) : (
+                  <RotateCcw size={16} color="#3b82f6" />
+                )}
+              </TouchableOpacity>
+            )}
 
           {/* Invoice Button - Only for delivered */}
           {item.status === 'delivered' && (
@@ -655,14 +658,14 @@ export default function OrdersScreen() {
         showBack={true}
         title="My Orders"
         children={
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            className="py-1"
-            contentContainerStyle={{ paddingRight: 16 }}
-          >
-            {filterOptions.map(renderFilterTab)}
-          </ScrollView>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          className="py-1"
+          contentContainerStyle={{ paddingRight: 16 }}
+        >
+          {filterOptions.map(renderFilterTab)}
+        </ScrollView>
         }
       />
 
@@ -713,9 +716,9 @@ export default function OrdersScreen() {
                 <Text className="text-sm font-medium text-gray-800 mb-1">
                   Order #{returningOrder.orderId || returningOrder._id}
                 </Text>
-                <Text className="text-xs text-gray-600">
-                  {returningOrder.items?.length || 0} item{(returningOrder.items?.length || 0) > 1 ? 's' : ''} • ₹{calculateTotalAmount(returningOrder).toFixed(2)}
-                </Text>
+                                  <Text className="text-xs text-gray-600">
+                    {returningOrder.items?.length || 0} item{(returningOrder.items?.length || 0) > 1 ? 's' : ''} • ₹{calculateTotalAmount(returningOrder).toFixed(2)}
+                  </Text>
               </View>
             )}
             

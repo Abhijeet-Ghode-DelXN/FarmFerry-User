@@ -146,8 +146,14 @@ const CheckoutScreen = ({ route }) => {
     }, 0);
   };
 
-  const getShipping = () => 20.0;
-  const getGrandTotal = (items) => getSubtotal(items) + getTotalGST(items) + getShipping() + (cart.handlingFee || 0);
+  const getShipping = (subtotal = 0) => {
+    // Waive delivery charges for orders above ₹500
+    return subtotal >= 500 ? 0 : 20.0;
+  };
+  const getGrandTotal = (items) => {
+    const subtotal = getSubtotal(items);
+    return subtotal + getTotalGST(items) + getShipping(subtotal) + (cart.handlingFee || 0);
+  };
 
   // Get handling fee for a specific item
   const getItemHandlingFee = (item) => {
@@ -212,7 +218,7 @@ const CheckoutScreen = ({ route }) => {
       const subtotal = routeSubtotal !== undefined ? routeSubtotal : getSubtotal(items);
       const gst = routeGst !== undefined ? routeGst : getTotalGST(items);
       const platformFee = routePlatformFee !== undefined ? routePlatformFee : 2;
-      const shipping = routeShipping !== undefined ? routeShipping : getShipping();
+      const shipping = routeShipping !== undefined ? routeShipping : getShipping(subtotal);
       const savings = routeSavings !== undefined ? routeSavings : getTotalDiscount(items);
       
       // Fetch handling fees for the items

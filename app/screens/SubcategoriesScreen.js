@@ -5,18 +5,19 @@ import { LinearGradient } from "expo-linear-gradient"
 import { ArrowLeft, Filter, Heart, MessageCircle, Search as SearchIcon, ShoppingCart, Star } from "lucide-react-native"
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    FlatList,
-    Image,
-    RefreshControl,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  FlatList,
+  Image,
+  RefreshControl,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native"
+import Header, { HeaderVariants } from "../components/ui/Header"
 import { useAppContext } from "../context/AppContext"
 import { cartAPI, categoriesAPI, productsAPI } from "../services/api"
 
@@ -327,10 +328,10 @@ const SubcategoriesScreen = ({ navigation, route }) => {
         const updatedProducts = prevProducts.map((product) =>
           product._id === productId || product.id === productId
             ? {
-                ...product,
-                rating: updatedProduct.averageRating,
-                reviews: updatedProduct.totalReviews,
-              }
+              ...product,
+              rating: updatedProduct.averageRating,
+              reviews: updatedProduct.totalReviews,
+            }
             : product,
         )
 
@@ -938,77 +939,21 @@ const SubcategoriesScreen = ({ navigation, route }) => {
   )
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#f9fafb" }} classname="pt-2">
+    <View style={{ flex: 1, backgroundColor: "#f9fafb" }} className="pt-2">
       {/* Header */}
-      <View
-        style={{
-          backgroundColor: "white",
-          paddingTop: 25,
-          paddingBottom: 16,
-          paddingHorizontal: 16,
-          borderBottomWidth: 1,
-          borderBottomColor: "#e5e7eb",
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.05,
-          shadowRadius: 2,
-          elevation: 2,
-          marginTop:4
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: "#f3f4f6",
-              justifyContent: "center",
-              alignItems: "center",
-              marginRight: 12,
-            }}
-          >
-            <ArrowLeft width={20} height={20} color="#374151" />
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 18, fontWeight: "bold", color: "#1f2937" }}>{category.name}</Text>
-            <Text style={{ fontSize: 12, color: "#6b7280" }}>
-              {filteredProducts.length} of {products.length} products
-            </Text>
-          </View>
-        </View>
+      <HeaderVariants.BackWithSearchAndFilter
+        title={category.name}
+        subtitle={`${filteredProducts.length} of ${products.length} products`}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search products..."
+        onFilterPress={() => setShowFilters(true)}
+      />
 
-        {/* Search Bar */}
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            backgroundColor: "#f9fafb",
-            borderRadius: 12,
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            borderWidth: 1,
-            borderColor: "#e5e7eb",
-          }}
-        >
-          <SearchIcon width={20} height={20} color="#6b7280" />
-          <TextInput
-            placeholder="Search products..."
-            placeholderTextColor="#94a3b8"
-            style={{ flex: 1, marginLeft: 12, color: "#1f2937", fontSize: 14 }}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          <View style={{ width: 1, height: 20, backgroundColor: "#e5e7eb", marginHorizontal: 12 }} />
-          <TouchableOpacity style={{ padding: 4 }} onPress={() => setShowFilters(true)}>
-            <Filter width={18} height={18} color="#94a3b8" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Active Filters Display */}
-        {(searchQuery || selectedRating > 0 || inStockOnly || sortBy !== "name") && (
-          <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 8, gap: 8 }}>
+      {/* Active Filters Display */}
+      {(searchQuery || selectedRating > 0 || inStockOnly || sortBy !== "name") && (
+        <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
             {searchQuery && (
               <View
                 style={{
@@ -1061,8 +1006,8 @@ const SubcategoriesScreen = ({ navigation, route }) => {
               </View>
             )}
           </View>
-        )}
-      </View>
+        </View>
+      )}
 
       {/* Main Content */}
       <View style={{ flex: 1, flexDirection: "row" }}>
@@ -1171,7 +1116,7 @@ const SubcategoriesScreen = ({ navigation, route }) => {
       {/* Filter Modal */}
       {renderFilterModal()}
     </View>
-  )
+  );
 }
 
-export default SubcategoriesScreen  
+export default SubcategoriesScreen;

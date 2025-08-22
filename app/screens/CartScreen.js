@@ -192,9 +192,15 @@ export default function CartScreen({ navigation }) {
       return sum + gstAmount;
     }, 0);
   };
-  const getShipping = () => 20.0;
+  const getShipping = (subtotal = 0) => {
+    // Waive delivery charges for orders above ₹500
+    return subtotal >= 500 ? 0 : 20.0;
+  };
   const getPlatformFee = () => PLATFORM_FEE;
-  const getGrandTotal = (items) => getSubtotal(items) + getTotalGST(items) + getShipping() + getPlatformFee();
+  const getGrandTotal = (items) => {
+    const subtotal = getSubtotal(items);
+    return subtotal + getTotalGST(items) + getShipping(subtotal) + getPlatformFee();
+  };
 
   if (isLoading) {
     return (
@@ -212,7 +218,7 @@ export default function CartScreen({ navigation }) {
     
     const subtotal = getSubtotal(safeCartItems);
     const gst = getTotalGST(safeCartItems);
-    const shipping = getShipping();
+    const shipping = getShipping(subtotal);
     const platformFee = getPlatformFee();
     const total = getGrandTotal(safeCartItems);
     const savings = getTotalDiscount(safeCartItems);
