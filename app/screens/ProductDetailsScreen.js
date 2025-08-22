@@ -2,6 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Heart, Plus, Star } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { Alert, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import Header, { HeaderVariants } from '../components/ui/Header';
 import ReviewComponent from '../components/ReviewComponent';
 import { useAppContext } from '../context/AppContext';
 import { cartAPI } from '../services/api';

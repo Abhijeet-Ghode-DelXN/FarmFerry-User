@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import Animated, { SlideInDown, SlideInRight, SlideOutLeft, SlideOutUp } from 'react-native-reanimated';
 import Carousel from 'react-native-reanimated-carousel';
-import AppBar from '../components/ui/AppBar';
+import Header, { HeaderVariants } from '../components/ui/Header';
 import { farmers } from '../components/ui/farmers';
 import { useAppContext } from '../context/AppContext';
 import { cartAPI, categoriesAPI, productsAPI } from '../services/api';
@@ -627,7 +627,7 @@ const HomeScreen = ({ navigation }) => {
       )}
 
       {/* Header */}
-      <AppBar />
+      <HeaderVariants.Main />
 
       {/* Search Bar */}
       <View className={`px-${responsivePadding} pt-2 pb-2`}>

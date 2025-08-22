@@ -22,6 +22,7 @@ import {
   View,
 } from 'react-native';
 import Button from '../components/ui/Button';
+import Header, { HeaderVariants } from '../components/ui/Header';
 import { useAuth } from '../context/AuthContext';
 import { ordersAPI } from '../services/api';
 import InvoiceService from '../services/invoiceService';
@@ -650,33 +651,20 @@ export default function OrdersScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
-      <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
-
-      {/* Header */}
-      <View className={`bg-white px-4 ${responsiveValue('pt-4 pb-3', 'pt-5 pb-4', 'pt-6 pb-5')} shadow-sm`}>
-        <View className="flex-row items-center mb-4">
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            className={`mr-3 p-1.5 rounded-full bg-gray-100`}
-            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+      <Header
+        showBack={true}
+        title="My Orders"
+        children={
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            className="py-1"
+            contentContainerStyle={{ paddingRight: 16 }}
           >
-            <Ionicons name="arrow-back" size={responsiveValue(18, 20, 20)} color="#10B981" />
-          </TouchableOpacity>
-          <Text className={`${responsiveValue('text-xl', 'text-2xl', 'text-2xl')} font-bold text-gray-800`}>
-            My Orders
-          </Text>
-        </View>
-
-        {/* Filter Tabs */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          className="py-1"
-          contentContainerStyle={{ paddingRight: 16 }}
-        >
-          {filterOptions.map(renderFilterTab)}
-        </ScrollView>
-      </View>
+            {filterOptions.map(renderFilterTab)}
+          </ScrollView>
+        }
+      />
 
       {/* Orders List */}
       <View className="flex-1">

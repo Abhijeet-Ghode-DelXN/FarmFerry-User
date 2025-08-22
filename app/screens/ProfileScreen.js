@@ -20,6 +20,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import Header, { HeaderVariants } from '../components/ui/Header';
 import { useAuth } from '../context/AuthContext';
 import { customerAPI, notificationsAPI } from '../services/api';
 
@@ -118,34 +119,20 @@ const ProfileScreen = () => {
   );
 
   return (
-    <View className="flex-1 bg-gray-50"> {/* Added top padding here */}
-      {/* Header */}
-      <View className="flex-row justify-between items-center p-4 bg-white border-b border-gray-200 mt-4">
-        <View className="flex-row items-center">
-          <View className={`${isSmallScreen ? 'w-7 h-7' : 'w-8 h-8'} rounded-full bg-green-500 items-center justify-center mr-2`}>
-            <User size={isSmallScreen ? 16 : 18} color="#ffffff" />
-          </View>
-          <View>
-            <Text className={`${isSmallScreen ? 'text-sm' : 'text-base'} font-semibold text-gray-800`}>Profile</Text>
+    <View className="flex-1 bg-gray-50">
+      <Header
+        title="Profile"
+        showNotifications={true}
+        onNotificationPress={() => setShowNotifications(!showNotifications)}
+        children={
+          <View className="flex-row items-center mt-2">
+            <View className={`${isSmallScreen ? 'w-7 h-7' : 'w-8 h-8'} rounded-full bg-green-500 items-center justify-center mr-2`}>
+              <User size={isSmallScreen ? 16 : 18} color="#ffffff" />
+            </View>
             <Text className={`${isSmallScreen ? 'text-[10px]' : 'text-xs'} text-gray-500`}>Manage your account</Text>
           </View>
-        </View>
-        <View className="flex-row items-center gap-3">
-          <TouchableOpacity
-            className="relative p-1.5"
-            onPress={() => setShowNotifications(!showNotifications)}
-          >
-            <Bell size={isSmallScreen ? 18 : 20} color="#4b5563" />
-            {notifications?.filter(n => n.unread).length > 0 && (
-              <View className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 items-center justify-center">
-                <Text className="text-white text-[10px] font-bold">
-                  {Math.min(notifications.filter(n => n.unread).length, 9)}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
+        }
+      />
 
       {/* Profile Header */}
       {profileUser && (

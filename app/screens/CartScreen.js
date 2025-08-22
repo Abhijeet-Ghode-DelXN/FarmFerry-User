@@ -17,6 +17,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import Header, { HeaderVariants } from '../components/ui/Header';
 import { useAppContext } from '../context/AppContext';
 import { cartAPI } from '../services/api';
 
@@ -239,17 +240,7 @@ export default function CartScreen({ navigation }) {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
-      <StatusBar backgroundColor="white" barStyle="dark-content" />
-
-      {/* AppBar with back arrow */}
-      <View className={`flex-row items-center px-4 ${responsiveValue('py-2', 'py-3', 'py-3')} bg-white border-b border-gray-200`}>
-        <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3">
-          <ArrowLeft size={responsiveValue(20, 22, 24)} color="black" />
-        </TouchableOpacity>
-        <Text className={`${responsiveValue('text-lg', 'text-xl', 'text-xl')} font-semibold text-gray-900`}>
-          Cart
-        </Text>
-      </View>
+      <HeaderVariants.Back title="Cart" />
 
       {/* Deliver to block */}
       <View className={`bg-white px-4 ${responsiveValue('py-2', 'py-3', 'py-3')} border-b border-gray-100`}>
