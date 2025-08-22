@@ -181,11 +181,11 @@ export default function RegisterScreen({ navigation }) {
             <View className="flex-1 justify-center px-6 py-8">
               {/* Logo and Branding */}
               <View className="items-center mb-8">
-                <Image 
+                {/* <Image 
                   source={require('../../assets/images/Icon2.jpeg')} 
                   className="w-38 h-38"
                   resizeMode="contain"
-                />
+                /> */}
               </View>
 
               <OTPVerificationForm
@@ -285,11 +285,11 @@ export default function RegisterScreen({ navigation }) {
           <View className="flex-1 justify-center px-6 py-8">
             {/* Logo and Branding */}
             <View className="items-center mb-8">
-              <Image 
+              {/* <Image 
                 source={require('../../assets/images/Icon2.jpeg')} 
                 className="w-38 h-38"
                 resizeMode="contain"
-              />
+              /> */}
             </View>
 
             <Text className="text-3xl font-bold text-gray-800 mb-1 text-center">
