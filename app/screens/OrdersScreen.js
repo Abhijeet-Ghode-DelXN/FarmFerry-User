@@ -381,11 +381,27 @@ export default function OrdersScreen() {
   const renderOrderItem = ({ item }) => {
     let returnAvailable = false;
     let daysLeft = 0;
+    
     // Only allow returns for delivered orders that are not already returned
-    if (item.status === 'delivered' && item.status !== 'returned' && item.deliveredAt) {
-      const daysSinceDelivery = (new Date() - new Date(item.deliveredAt)) / (1000 * 60 * 60 * 24);
-      daysLeft = Math.max(0, 7 - Math.floor(daysSinceDelivery));
-      returnAvailable = daysSinceDelivery <= 7;
+    if (item.status === 'delivered' && item.status !== 'returned') {
+      // Check if deliveredAt exists, if not use createdAt or current date for testing
+      const deliveryDate = item.deliveredAt || item.updatedAt || item.createdAt;
+      
+      if (deliveryDate) {
+        const daysSinceDelivery = (new Date() - new Date(deliveryDate)) / (1000 * 60 * 60 * 24);
+        daysLeft = Math.max(0, 7 - Math.floor(daysSinceDelivery));
+        returnAvailable = daysSinceDelivery <= 7;
+        
+        // Debug log to check the calculation
+        console.log('Return Status Debug:', {
+          orderId: item._id,
+          status: item.status,
+          deliveryDate: deliveryDate,
+          daysSinceDelivery: daysSinceDelivery,
+          daysLeft: daysLeft,
+          returnAvailable: returnAvailable
+        });
+      }
     }
 
     return (
@@ -441,32 +457,32 @@ export default function OrdersScreen() {
           </View>
         </View>
 
-          {/* Status Badges */}
-          <View className="flex-row flex-wrap gap-2 mb-3">
-            {item.status === 'delivered' && (
-              <View className={`px-2 py-1 rounded-md ${returnAvailable ? 'bg-green-100' : 'bg-gray-100'}`}>
-                <Text className={`text-xs font-medium ${returnAvailable ? 'text-green-800' : 'text-gray-500'}`}>
-                  {returnAvailable
-                    ? `🔄 Return Available (${daysLeft} day${daysLeft !== 1 ? 's' : ''} left)`
-                    : '❌ Return Window Expired'}
-                </Text>
-              </View>
-            )}
-            {item.status === 'returned' && (
-              <View className="px-2 py-1 rounded-md bg-red-100">
-                <Text className="text-xs font-medium text-red-800">
-                  Returned{item.returnReason ? `: ${item.returnReason}` : ''}
-                </Text>
-              </View>
-            )}
-            {item.replacementStatus && (
-              <View className="px-2 py-1 rounded-md bg-amber-100">
-                <Text className="text-xs font-medium text-amber-800">
-                  Replacement: {item.replacementStatus.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                </Text>
-              </View>
-            )}
-          </View>
+        {/* Status Badges - FIXED LOGIC */}
+        <View className="flex-row flex-wrap gap-2 mb-3">
+          {item.status === 'delivered' && item.status !== 'returned' && (
+            <View className={`px-2 py-1 rounded-md ${returnAvailable ? 'bg-green-100' : 'bg-gray-100'}`}>
+              <Text className={`text-xs font-medium ${returnAvailable ? 'text-green-800' : 'text-gray-500'}`}>
+                {returnAvailable
+                  ? `🔄 Return Available (${daysLeft} day${daysLeft !== 1 ? 's' : ''} left)`
+                  : '❌ Return Not Available'}
+              </Text>
+            </View>
+          )}
+          {item.status === 'returned' && (
+            <View className="px-2 py-1 rounded-md bg-red-100">
+              <Text className="text-xs font-medium text-red-800">
+                Returned{item.returnReason ? `: ${item.returnReason}` : ''}
+              </Text>
+            </View>
+          )}
+          {item.replacementStatus && (
+            <View className="px-2 py-1 rounded-md bg-amber-100">
+              <Text className="text-xs font-medium text-amber-800">
+                Replacement: {item.replacementStatus.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+              </Text>
+            </View>
+          )}
+        </View>
 
         {/* Order Details */}
         <View className="bg-gray-50 p-3 rounded-xl mb-3">
@@ -509,8 +525,6 @@ export default function OrdersScreen() {
             ₹{calculateTotalAmount(item).toFixed(2)}
           </Text>
         </View>
-
-
 
         {/* Action Buttons */}
         <View className="flex-row justify-between items-center mt-3">
@@ -570,20 +584,20 @@ export default function OrdersScreen() {
             </TouchableOpacity>
           )}
 
-            {/* Return Button - Only for delivered orders that are eligible for return */}
-            {item.status === 'delivered' && returnAvailable && (
-              <TouchableOpacity
-                onPress={() => handleOpenReturnModal(item)}
-                disabled={returningOrderId === item._id}
-                className={`w-8 h-8 rounded-full bg-blue-100 items-center justify-center mx-1`}
-              >
-                {returningOrderId === item._id ? (
-                  <ActivityIndicator size="small" color="#3b82f6" />
-                ) : (
-                  <RotateCcw size={16} color="#3b82f6" />
-                )}
-              </TouchableOpacity>
-            )}
+          {/* Return Button - Only for delivered orders that are eligible for return */}
+          {item.status === 'delivered' && returnAvailable && (
+            <TouchableOpacity
+              onPress={() => handleOpenReturnModal(item)}
+              disabled={returningOrderId === item._id}
+              className={`w-8 h-8 rounded-full bg-blue-100 items-center justify-center mx-1`}
+            >
+              {returningOrderId === item._id ? (
+                <ActivityIndicator size="small" color="#3b82f6" />
+              ) : (
+                <RotateCcw size={16} color="#3b82f6" />
+              )}
+            </TouchableOpacity>
+          )}
 
           {/* Invoice Button - Only for delivered */}
           {item.status === 'delivered' && (
@@ -640,18 +654,18 @@ export default function OrdersScreen() {
 
       {/* Header */}
       <View className={`bg-white px-4 ${responsiveValue('pt-4 pb-3', 'pt-5 pb-4', 'pt-6 pb-5')} shadow-sm`}>
-      <View className="flex-row items-center mb-4">
-    <TouchableOpacity
-      onPress={() => navigation.goBack()}
-      className={`mr-3 p-1.5 rounded-full bg-gray-100`}
-      hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-    >
-      <Ionicons name="arrow-back" size={responsiveValue(18, 20, 20)} color="#10B981" />
-    </TouchableOpacity>
-    <Text className={`${responsiveValue('text-xl', 'text-2xl', 'text-2xl')} font-bold text-gray-800`}>
-      My Orders
-    </Text>
-  </View>
+        <View className="flex-row items-center mb-4">
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            className={`mr-3 p-1.5 rounded-full bg-gray-100`}
+            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+          >
+            <Ionicons name="arrow-back" size={responsiveValue(18, 20, 20)} color="#10B981" />
+          </TouchableOpacity>
+          <Text className={`${responsiveValue('text-xl', 'text-2xl', 'text-2xl')} font-bold text-gray-800`}>
+            My Orders
+          </Text>
+        </View>
 
         {/* Filter Tabs */}
         <ScrollView
@@ -711,9 +725,9 @@ export default function OrdersScreen() {
                 <Text className="text-sm font-medium text-gray-800 mb-1">
                   Order #{returningOrder.orderId || returningOrder._id}
                 </Text>
-                                  <Text className="text-xs text-gray-600">
-                    {returningOrder.items?.length || 0} item{(returningOrder.items?.length || 0) > 1 ? 's' : ''} • ₹{calculateTotalAmount(returningOrder).toFixed(2)}
-                  </Text>
+                <Text className="text-xs text-gray-600">
+                  {returningOrder.items?.length || 0} item{(returningOrder.items?.length || 0) > 1 ? 's' : ''} • ₹{calculateTotalAmount(returningOrder).toFixed(2)}
+                </Text>
               </View>
             )}
             
