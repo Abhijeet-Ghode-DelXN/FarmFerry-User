@@ -639,19 +639,19 @@ export default function OrdersScreen() {
       <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
 
       {/* Header */}
-      <View className={`bg-white px-4 ${responsiveValue('pt-3 pb-2', 'pt-4 pb-3', 'pt-5 pb-3')} shadow-sm`}>
-        <View className="flex-row items-center mb-3">
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            className={`mr-3 p-1.5 rounded-full bg-gray-100`}
-            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-          >
-            <Ionicons name="arrow-back" size={responsiveValue(18, 20, 20)} color="#10B981" />
-          </TouchableOpacity>
-          <Text className={`${responsiveValue('text-lg', 'text-xl', 'text-xl')} font-bold text-gray-800 pt-4`}>
-            My Orders
-          </Text>
-        </View>
+      <View className={`bg-white px-4 ${responsiveValue('pt-4 pb-3', 'pt-5 pb-4', 'pt-6 pb-5')} shadow-sm`}>
+      <View className="flex-row items-center mb-4">
+    <TouchableOpacity
+      onPress={() => navigation.goBack()}
+      className={`mr-3 p-1.5 rounded-full bg-gray-100`}
+      hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+    >
+      <Ionicons name="arrow-back" size={responsiveValue(18, 20, 20)} color="#10B981" />
+    </TouchableOpacity>
+    <Text className={`${responsiveValue('text-xl', 'text-2xl', 'text-2xl')} font-bold text-gray-800`}>
+      My Orders
+    </Text>
+  </View>
 
         {/* Filter Tabs */}
         <ScrollView
