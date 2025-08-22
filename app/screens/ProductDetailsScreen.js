@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
-import { ArrowLeft, Plus, Minus, Heart, Star, Share2, ChevronRight } from 'lucide-react-native';
-import { useAppContext } from '../context/AppContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { cartAPI } from '../services/api';
+import { Heart, Plus, Star } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import ReviewComponent from '../components/ReviewComponent';
+import { useAppContext } from '../context/AppContext';
+import { cartAPI } from '../services/api';
 
 // Helper to safely get entries from an object
 function safeObjectEntries(obj) {
@@ -181,7 +181,7 @@ const ProductDetailsScreen = ({ route, navigation }) => {
 
           <View className="items-start mb-4 flex flex-col">
             <Text className="text-sm text-gray-500 ml-1 mb-2">Available: {typeof product.stockQuantity === 'number' ? product.stockQuantity : 0} {product.unit}</Text>
-            {((typeof product.stockQuantity === 'number' ? product.stockQuantity : 0) > 0 && (typeof product.stockQuantity === 'number' ? product.stockQuantity : 0) < 5) && (
+            {((typeof product.stockQuantity === 'number' ? product.stockQuantity : 0) > 0 && (typeof product.stockQuantity === 'number' ? product.stockQuantity : 0) <= 5) && (
               <View className="bg-amber-100 border border-amber-300 px-3 py-1 rounded-lg mb-2">
                 <Text className="text-amber-800 text-sm font-medium">Hurry! Only {product.stockQuantity} left in stock</Text>
               </View>

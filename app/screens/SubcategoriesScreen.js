@@ -1,25 +1,24 @@
 "use client"
 
-import React, { useState, useEffect, useMemo, useRef } from "react"
-import { useAppContext } from "../context/AppContext"
 import { useFocusEffect } from "@react-navigation/native"
-import {
-  View,
-  Text,
-  Image,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Dimensions,
-  FlatList,
-  Alert,
-  RefreshControl,
-  ActivityIndicator,
-} from "react-native"
-import { productsAPI, categoriesAPI } from "../services/api"
-import { Heart, Search as SearchIcon, Filter, Star, ShoppingCart, ArrowLeft, MessageCircle } from "lucide-react-native"
 import { LinearGradient } from "expo-linear-gradient"
-import { cartAPI } from "../services/api"
+import { ArrowLeft, Filter, Heart, MessageCircle, Search as SearchIcon, ShoppingCart, Star } from "lucide-react-native"
+import React, { useEffect, useMemo, useRef, useState } from "react"
+import {
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    FlatList,
+    Image,
+    RefreshControl,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from "react-native"
+import { useAppContext } from "../context/AppContext"
+import { cartAPI, categoriesAPI, productsAPI } from "../services/api"
 
 const { width, height } = Dimensions.get("window")
 
@@ -631,7 +630,7 @@ const SubcategoriesScreen = ({ navigation, route }) => {
     const inWishlist = isInWishlist(productId)
     const inCart = isInCart(productId)
     const isOutOfStock = !item.inStock && !(item.stockQuantity > 0)
-    const isLowStock = !isOutOfStock && (typeof item.stockQuantity === 'number' ? item.stockQuantity : 0) > 0 && (typeof item.stockQuantity === 'number' ? item.stockQuantity : 0) < 5
+    const isLowStock = !isOutOfStock && (typeof item.stockQuantity === 'number' ? item.stockQuantity : 0) > 0 && (typeof item.stockQuantity === 'number' ? item.stockQuantity : 0) <= 5
     const isUpdatingRating = updatingRatings.has(productId)
 
     return (
