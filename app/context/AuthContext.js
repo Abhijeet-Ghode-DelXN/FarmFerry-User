@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useContext, useEffect, useReducer } from 'react';
 import { CONFIG } from '../constants/config';
 import { authAPI, customerAPI } from '../services/api'; // Ensure authAPI has verifyOtp and sendPhoneVerification methods
 
@@ -163,10 +163,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const verifyPhoneOtp = async (customerId, otp) => {
+  const verifyPhoneOtp = async (phone, otp, customerId = null) => {
     try {
-      // Assuming authAPI has a method like verifyOtp
-      const response = await authAPI.verifyOtp({ customerId, otp });
+      const response = await authAPI.verifyOtp({ phone, otp, customerId });
       if (response.data?.success) {
         // Update user's phone verification status in context
         dispatch({ type: 'UPDATE_USER', payload: { isPhoneVerified: true } });
@@ -180,12 +179,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const sendPhoneVerification = async (phone) => {
+  const sendPhoneVerification = async (phone, email = null) => {
     try {
-      // Assuming authAPI has a method like sendPhoneVerification
-      const response = await authAPI.sendPhoneVerification({ phone });
+      const response = await authAPI.sendPhoneVerification({ phone, email });
       if (response.data?.success) {
-        return { success: true, message: response.data.message };
+        return { success: true, message: response.data.message, data: response.data.data };
       } else {
         return { success: false, message: response.data?.message || 'Failed to send OTP.' };
       }

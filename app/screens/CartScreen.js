@@ -17,6 +17,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import Header, { HeaderVariants } from '../components/ui/Header';
 import { useAppContext } from '../context/AppContext';
 import { cartAPI } from '../services/api';
 
@@ -191,9 +192,15 @@ export default function CartScreen({ navigation }) {
       return sum + gstAmount;
     }, 0);
   };
-  const getShipping = () => 20.0;
+  const getShipping = (subtotal = 0) => {
+    // Waive delivery charges for orders above ₹500
+    return subtotal >= 500 ? 0 : 20.0;
+  };
   const getPlatformFee = () => PLATFORM_FEE;
-  const getGrandTotal = (items) => getSubtotal(items) + getTotalGST(items) + getShipping() + getPlatformFee();
+  const getGrandTotal = (items) => {
+    const subtotal = getSubtotal(items);
+    return subtotal + getTotalGST(items) + getShipping(subtotal) + getPlatformFee();
+  };
 
   if (isLoading) {
     return (
@@ -211,7 +218,7 @@ export default function CartScreen({ navigation }) {
     
     const subtotal = getSubtotal(safeCartItems);
     const gst = getTotalGST(safeCartItems);
-    const shipping = getShipping();
+    const shipping = getShipping(subtotal);
     const platformFee = getPlatformFee();
     const total = getGrandTotal(safeCartItems);
     const savings = getTotalDiscount(safeCartItems);
@@ -239,17 +246,7 @@ export default function CartScreen({ navigation }) {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
-      <StatusBar backgroundColor="white" barStyle="dark-content" />
-
-      {/* AppBar with back arrow */}
-      <View className={`flex-row items-center px-4 ${responsiveValue('py-2', 'py-3', 'py-3')} bg-white border-b border-gray-200`}>
-        <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3">
-          <ArrowLeft size={responsiveValue(20, 22, 24)} color="black" />
-        </TouchableOpacity>
-        <Text className={`${responsiveValue('text-lg', 'text-xl', 'text-xl')} font-semibold text-gray-900`}>
-          Cart
-        </Text>
-      </View>
+      <HeaderVariants.Back title="Cart" />
 
       {/* Deliver to block */}
       <View className={`bg-white px-4 ${responsiveValue('py-2', 'py-3', 'py-3')} border-b border-gray-100`}>

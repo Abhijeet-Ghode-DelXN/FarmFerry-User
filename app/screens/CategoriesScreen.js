@@ -9,6 +9,7 @@ import {
   RefreshControl,
   ActivityIndicator
 } from 'react-native';
+import Header, { HeaderVariants } from '../components/ui/Header';
 import { categoriesAPI } from '../services/api';
 import { ArrowLeft } from 'lucide-react-native';
 
@@ -122,32 +123,7 @@ const CategoriesScreen = ({ navigation }) => {
 
   return (
     <View className="flex-1 bg-gray-50">
-    {/* Header - Adjusted to be slightly higher */}
-    <View 
-      className="bg-white px-4 border-b border-gray-200"
-      style={{
-        paddingTop: responsiveValue(40, 50, 60),  // Reduced paddingTop values
-        paddingBottom: responsiveValue(12, 16, 16)
-      }}
-    >
-      <View className="flex-row items-center">
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          className="mr-3 p-1"
-        >
-          <ArrowLeft 
-            size={responsiveValue(20, 24, 24)} 
-            color="#374151" 
-          />
-        </TouchableOpacity>
-        <Text 
-          className="font-bold text-gray-800"
-          style={{ fontSize: responsiveValue(18, 20, 22) }}
-        >
-          All Categories
-        </Text>
-      </View>
-    </View>
+      <HeaderVariants.Back title="All Categories" />
   
     {/* Categories Grid */}
     <ScrollView

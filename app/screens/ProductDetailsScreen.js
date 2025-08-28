@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
-import { ArrowLeft, Plus, Minus, Heart, Star, Share2, ChevronRight } from 'lucide-react-native';
-import { useAppContext } from '../context/AppContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { cartAPI } from '../services/api';
+import { Heart, Plus, Star } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, Image, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import Header, { HeaderVariants } from '../components/ui/Header';
 import ReviewComponent from '../components/ReviewComponent';
+import { useAppContext } from '../context/AppContext';
+import { cartAPI } from '../services/api';
 
 // Helper to safely get entries from an object
 function safeObjectEntries(obj) {
@@ -51,6 +52,23 @@ const ProductDetailsScreen = ({ route, navigation }) => {
   const isInWishlist = wishlistItems.some(item => item._id === product._id);
   const isInCart = cartItems.some(item => (item.product?._id || item._id) === product._id);
 
+  // Compute discount percentage with two decimals
+  const basePrice = Number(
+    product.originalPrice ?? product.price ?? 0
+  );
+  const discounted = Number(
+    product.discountedPrice ?? 0
+  );
+  let discountPercent = 0;
+  if (typeof product.offerPercentage === 'number' && isFinite(product.offerPercentage) && product.offerPercentage > 0) {
+    discountPercent = product.offerPercentage;
+  } else if (typeof product.discount === 'number' && isFinite(product.discount) && product.discount > 0) {
+    discountPercent = product.discount;
+  } else if (basePrice > 0 && discounted > 0 && discounted < basePrice) {
+    discountPercent = ((basePrice - discounted) / basePrice) * 100;
+  }
+  const discountPercentText = discountPercent > 0 ? `${discountPercent.toFixed(2)}% OFF` : null;
+
   const toggleWishlist = async () => {
     if (isInWishlist) {
       await removeFromWishlist(product._id);
@@ -60,6 +78,12 @@ const ProductDetailsScreen = ({ route, navigation }) => {
   };
 
   const handleAddToCart = async () => {
+    const stockQty = typeof product.stockQuantity === 'number' ? product.stockQuantity : 0;
+    const inStock = stockQty > 0 || product.inStock;
+    if (!inStock) {
+      Alert.alert('Out of stock', 'This product is currently out of stock.');
+      return;
+    }
     if (!isInCart) {
       try {
         const response = await cartAPI.addToCart({ productId: product._id || product.id, quantity: 1 });
@@ -73,6 +97,12 @@ const ProductDetailsScreen = ({ route, navigation }) => {
   };
 
   const handleBuyNow = async () => {
+    const stockQty = typeof product.stockQuantity === 'number' ? product.stockQuantity : 0;
+    const inStock = stockQty > 0 || product.inStock;
+    if (!inStock) {
+      Alert.alert('Out of stock', 'This product is currently out of stock.');
+      return;
+    }
     if (!isInCart) {
       updateCartItems([...cartItems, { ...product, quantity: 1 }]);
       navigation.navigate('Checkout', {
@@ -133,9 +163,9 @@ const ProductDetailsScreen = ({ route, navigation }) => {
           <View className="flex-row justify-between items-start mb-2">
             <Text className="text-2xl font-bold text-gray-900">{product.name}</Text>
             <View className="flex-row">
-              {product.discount > 0 && (
+              {discountPercentText && (
                 <View className="bg-red-500 px-3 py-1 rounded-full ml-2">
-                  <Text className="text-white text-sm font-medium">{product.discount}% OFF</Text>
+                  <Text className="text-white text-sm font-medium">{discountPercentText}</Text>
                 </View>
               )}
               <TouchableOpacity onPress={toggleWishlist} className="ml-2">
@@ -151,7 +181,12 @@ const ProductDetailsScreen = ({ route, navigation }) => {
           <Text className="text-sm text-green-600 mb-4">by {product.farmer || product.supplierId?.businessName || 'FarmFerry'}</Text>
 
           <View className="items-start mb-4 flex flex-col">
-            <Text className="text-sm text-gray-500 ml-1 mb-2">Available: {product.stockQuantity} {product.unit}</Text>
+            <Text className="text-sm text-gray-500 ml-1 mb-2">Available: {typeof product.stockQuantity === 'number' ? product.stockQuantity : 0} {product.unit}</Text>
+            {((typeof product.stockQuantity === 'number' ? product.stockQuantity : 0) > 0 && (typeof product.stockQuantity === 'number' ? product.stockQuantity : 0) <= 5) && (
+              <View className="bg-amber-100 border border-amber-300 px-3 py-1 rounded-lg mb-2">
+                <Text className="text-amber-800 text-sm font-medium">Hurry! Only {product.stockQuantity} left in stock</Text>
+              </View>
+            )}
             <View className="flex-row items-center bg-amber-50 rounded-lg px-3 py-1 border border-amber-200 mr-4">
               <Star width={14} height={14} fill="#facc15" color="#facc15" />
               <Text className="text-sm text-amber-800">
@@ -238,11 +273,15 @@ const ProductDetailsScreen = ({ route, navigation }) => {
         <TouchableOpacity
           className={`flex-1 justify-center items-center rounded-xl ml-0 shadow-sm ${isInCart ? '' : ''}`}
           onPress={handleAddToCart}
-          disabled={isInCart}
+          disabled={isInCart || !((typeof product.stockQuantity === 'number' ? product.stockQuantity : 0) > 0 || product.inStock)}
           style={{ overflow: 'hidden', height: 44 }}
         >
           {isInCart ? (
             <Text className="text-gray-600 text-lg font-semibold">Added to Cart</Text>
+          ) : !((typeof product.stockQuantity === 'number' ? product.stockQuantity : 0) > 0 || product.inStock) ? (
+            <View style={{ flex: 1, width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', borderRadius: 12 }}>
+              <Text className="text-gray-500 text-lg font-semibold">Out of stock</Text>
+            </View>
           ) : (
             <LinearGradient
               colors={["#10b981", "#059669"]}
@@ -266,7 +305,8 @@ const ProductDetailsScreen = ({ route, navigation }) => {
         <TouchableOpacity
           className="flex-1 justify-center items-center rounded-xl ml-4 shadow-sm"
           onPress={handleBuyNow}
-          style={{ overflow: 'hidden', height: 44 }}
+          disabled={!((typeof product.stockQuantity === 'number' ? product.stockQuantity : 0) > 0 || product.inStock)}
+          style={{ overflow: 'hidden', height: 44, opacity: !((typeof product.stockQuantity === 'number' ? product.stockQuantity : 0) > 0 || product.inStock) ? 0.6 : 1 }}
         >
           <LinearGradient
             colors={["#10b981", "#059669"]}

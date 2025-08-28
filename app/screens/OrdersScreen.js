@@ -22,6 +22,7 @@ import {
   View,
 } from 'react-native';
 import Button from '../components/ui/Button';
+import Header, { HeaderVariants } from '../components/ui/Header';
 import { useAuth } from '../context/AuthContext';
 import { ordersAPI } from '../services/api';
 import InvoiceService from '../services/invoiceService';
@@ -98,7 +99,10 @@ export default function OrdersScreen() {
     }, 0);
   };
 
-  const getShipping = () => 20.0;
+  const getShipping = (subtotal = 0) => {
+    // Waive delivery charges for orders above ₹500
+    return subtotal >= 500 ? 0 : 20.0;
+  };
   const PLATFORM_FEE = 2.0;
 
      // Helper function to calculate total amount using backend GST
@@ -112,7 +116,7 @@ export default function OrdersScreen() {
      
      // Use GST from backend order data (already calculated and stored)
      const gst = order.gst || 0;
-     const shipping = getShipping();
+     const shipping = getShipping(subtotal);
      const platformFee = PLATFORM_FEE;
      
      // Total calculation: subtotal(discounted) + gst(from backend) + shipping + platformFee
@@ -381,11 +385,27 @@ export default function OrdersScreen() {
   const renderOrderItem = ({ item }) => {
     let returnAvailable = false;
     let daysLeft = 0;
+    
     // Only allow returns for delivered orders that are not already returned
-    if (item.status === 'delivered' && item.status !== 'returned' && item.deliveredAt) {
-      const daysSinceDelivery = (new Date() - new Date(item.deliveredAt)) / (1000 * 60 * 60 * 24);
+    if (item.status === 'delivered' && item.status !== 'returned') {
+      // Check if deliveredAt exists, if not use createdAt or current date for testing
+      const deliveryDate = item.deliveredAt || item.updatedAt || item.createdAt;
+      
+      if (deliveryDate) {
+        const daysSinceDelivery = (new Date() - new Date(deliveryDate)) / (1000 * 60 * 60 * 24);
       daysLeft = Math.max(0, 7 - Math.floor(daysSinceDelivery));
       returnAvailable = daysSinceDelivery <= 7;
+        
+        // Debug log to check the calculation
+        console.log('Return Status Debug:', {
+          orderId: item._id,
+          status: item.status,
+          deliveryDate: deliveryDate,
+          daysSinceDelivery: daysSinceDelivery,
+          daysLeft: daysLeft,
+          returnAvailable: returnAvailable
+        });
+      }
     }
 
     return (
@@ -441,14 +461,14 @@ export default function OrdersScreen() {
           </View>
         </View>
 
-          {/* Status Badges */}
+        {/* Status Badges - FIXED LOGIC */}
           <View className="flex-row flex-wrap gap-2 mb-3">
-            {item.status === 'delivered' && (
+          {item.status === 'delivered' && item.status !== 'returned' && (
               <View className={`px-2 py-1 rounded-md ${returnAvailable ? 'bg-green-100' : 'bg-gray-100'}`}>
                 <Text className={`text-xs font-medium ${returnAvailable ? 'text-green-800' : 'text-gray-500'}`}>
                   {returnAvailable
                     ? `🔄 Return Available (${daysLeft} day${daysLeft !== 1 ? 's' : ''} left)`
-                    : '❌ Return Window Expired'}
+                  : '❌ Return Not Available'}
                 </Text>
               </View>
             )}
@@ -509,8 +529,6 @@ export default function OrdersScreen() {
             ₹{calculateTotalAmount(item).toFixed(2)}
           </Text>
         </View>
-
-
 
         {/* Action Buttons */}
         <View className="flex-row justify-between items-center mt-3">
@@ -636,24 +654,10 @@ export default function OrdersScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
-      <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
-
-      {/* Header */}
-      <View className={`bg-white px-4 ${responsiveValue('pt-3 pb-2', 'pt-4 pb-3', 'pt-5 pb-3')} shadow-sm`}>
-        <View className="flex-row items-center mb-3">
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            className={`mr-3 p-1.5 rounded-full bg-gray-100`}
-            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-          >
-            <Ionicons name="arrow-back" size={responsiveValue(18, 20, 20)} color="#10B981" />
-          </TouchableOpacity>
-          <Text className={`${responsiveValue('text-lg', 'text-xl', 'text-xl')} font-bold text-gray-800`}>
-            My Orders
-          </Text>
-        </View>
-
-        {/* Filter Tabs */}
+      <Header
+        showBack={true}
+        title="My Orders"
+        children={
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -662,7 +666,8 @@ export default function OrdersScreen() {
         >
           {filterOptions.map(renderFilterTab)}
         </ScrollView>
-      </View>
+        }
+      />
 
       {/* Orders List */}
       <View className="flex-1">

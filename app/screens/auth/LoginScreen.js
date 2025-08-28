@@ -8,20 +8,8 @@ const LoginScreen = () => {
   const navigation = useNavigation();
 
   const handleLoginSuccess = () => {
-    /*
-      After a successful login, AuthContext already flips
-      `isAuthenticated` to true which causes <AppNavigator /> to
-      switch from <AuthStack /> to <AppStack />. In order to ensure
-      that the Login screen is removed from the navigation history
-      (so the user can’t go back to it) and the first screen of the
-      authenticated stack is shown immediately, we reset the root
-      navigation state to the `MainApp` stack that contains the tab
-      navigator (which itself will land the user on the Home tab).
-    */
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'MainApp' }],
-    });
+    // AuthContext will set isAuthenticated=true and AppNavigator will
+    // automatically swap AuthStack → AppStack. No manual reset needed here.
   };
 
   const handleForgotPassword = () => {

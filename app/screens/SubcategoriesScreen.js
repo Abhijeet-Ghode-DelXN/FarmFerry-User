@@ -1,25 +1,25 @@
 "use client"
 
-import React, { useState, useEffect, useMemo, useRef } from "react"
-import { useAppContext } from "../context/AppContext"
 import { useFocusEffect } from "@react-navigation/native"
+import { LinearGradient } from "expo-linear-gradient"
+import { ArrowLeft, Filter, Heart, MessageCircle, Search as SearchIcon, ShoppingCart, Star } from "lucide-react-native"
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import {
-  View,
-  Text,
-  Image,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
+  ActivityIndicator,
+  Alert,
   Dimensions,
   FlatList,
-  Alert,
+  Image,
   RefreshControl,
-  ActivityIndicator,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native"
-import { productsAPI, categoriesAPI } from "../services/api"
-import { Heart, Search as SearchIcon, Filter, Star, ShoppingCart, ArrowLeft, MessageCircle } from "lucide-react-native"
-import { LinearGradient } from "expo-linear-gradient"
-import { cartAPI } from "../services/api"
+import Header, { HeaderVariants } from "../components/ui/Header"
+import { useAppContext } from "../context/AppContext"
+import { cartAPI, categoriesAPI, productsAPI } from "../services/api"
 
 const { width, height } = Dimensions.get("window")
 
@@ -73,7 +73,7 @@ const SubcategoriesScreen = ({ navigation, route }) => {
     }
 
     if (inStockOnly) {
-      filtered = filtered.filter((product) => product.stock > 0)
+      filtered = filtered.filter((product) => (product.inStock || (product.stockQuantity || 0) > 0))
     }
 
     filtered.sort((a, b) => {
@@ -203,7 +203,8 @@ const SubcategoriesScreen = ({ navigation, route }) => {
         category: p.categoryId?.name || "",
         price: p.discountedPrice ?? p.price,
         originalPrice: p.price,
-        stock: p.stock || 0,
+        stockQuantity: typeof p.stockQuantity === 'number' ? p.stockQuantity : 0,
+        inStock: (typeof p.stockQuantity === 'number' ? p.stockQuantity : 0) > 0,
       }))
 
       console.log("✅ Fetched", fetchedProducts.length, "products for", subcategory.name)
@@ -327,10 +328,10 @@ const SubcategoriesScreen = ({ navigation, route }) => {
         const updatedProducts = prevProducts.map((product) =>
           product._id === productId || product.id === productId
             ? {
-                ...product,
-                rating: updatedProduct.averageRating,
-                reviews: updatedProduct.totalReviews,
-              }
+              ...product,
+              rating: updatedProduct.averageRating,
+              reviews: updatedProduct.totalReviews,
+            }
             : product,
         )
 
@@ -629,6 +630,8 @@ const SubcategoriesScreen = ({ navigation, route }) => {
     const productId = item._id || item.id
     const inWishlist = isInWishlist(productId)
     const inCart = isInCart(productId)
+    const isOutOfStock = !item.inStock && !(item.stockQuantity > 0)
+    const isLowStock = !isOutOfStock && (typeof item.stockQuantity === 'number' ? item.stockQuantity : 0) > 0 && (typeof item.stockQuantity === 'number' ? item.stockQuantity : 0) <= 5
     const isUpdatingRating = updatingRatings.has(productId)
 
     return (
@@ -664,7 +667,28 @@ const SubcategoriesScreen = ({ navigation, route }) => {
             <View
               style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.1)" }}
             />
-            {item.discount && (
+            {isOutOfStock ? (
+              <View
+                style={{
+                  position: "absolute",
+                  top: 8,
+                  left: 8,
+                  backgroundColor: "#dc2626",
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 8,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 2,
+                  elevation: 2,
+                }}
+              >
+                <Text style={{ color: "white", fontSize: 10, fontWeight: "bold" }}>
+                  Out of stock
+                </Text>
+              </View>
+            ) : item.discount && (
               <View
                 style={{
                   position: "absolute",
@@ -683,6 +707,28 @@ const SubcategoriesScreen = ({ navigation, route }) => {
               >
                 <Text style={{ color: "white", fontSize: 10, fontWeight: "bold" }}>
                   {Number(item.discount).toFixed(0)}% OFF
+                </Text>
+              </View>
+            )}
+            {isLowStock && (
+              <View
+                style={{
+                  position: "absolute",
+                  bottom: 8,
+                  left: 8,
+                  backgroundColor: "#f59e0b",
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 8,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 2,
+                  elevation: 2,
+                }}
+              >
+                <Text style={{ color: "white", fontSize: 10, fontWeight: "bold" }}>
+                  Only {item.stockQuantity} left
                 </Text>
               </View>
             )}
@@ -765,7 +811,7 @@ const SubcategoriesScreen = ({ navigation, route }) => {
                 e.stopPropagation()
                 handleAddToCart(item)
               }}
-              disabled={inCart}
+              disabled={inCart || isOutOfStock}
             >
               {inCart ? (
                 <View
@@ -779,6 +825,19 @@ const SubcategoriesScreen = ({ navigation, route }) => {
                   }}
                 >
                   <Text style={{ color: "#6b7280", fontWeight: "600", fontSize: 11 }}>Added to Cart</Text>
+                </View>
+              ) : isOutOfStock ? (
+                <View
+                  style={{
+                    paddingVertical: 6,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#e5e7eb",
+                    borderRadius: 8,
+                  }}
+                >
+                  <Text style={{ color: "#6b7280", fontWeight: "600", fontSize: 11 }}>Out of stock</Text>
                 </View>
               ) : (
                 <LinearGradient
@@ -800,7 +859,7 @@ const SubcategoriesScreen = ({ navigation, route }) => {
               <TouchableOpacity
                 style={{
                   flex: 1,
-                  backgroundColor: buyNowPressedId === productId ? "#10b981" : "#f3f4f6",
+                  backgroundColor: isOutOfStock ? "#e5e7eb" : (buyNowPressedId === productId ? "#10b981" : "#f3f4f6"),
                   paddingVertical: 6,
                   flexDirection: "row",
                   alignItems: "center",
@@ -817,20 +876,22 @@ const SubcategoriesScreen = ({ navigation, route }) => {
                   setBuyNowPressedId(productId)
                   setTimeout(() => {
                     setBuyNowPressedId(null)
+                    if (isOutOfStock) return
                     navigation.navigate("Checkout", {
                       items: [{ ...item, quantity: 1 }],
                     })
                   }, 150)
                 }}
+                disabled={isOutOfStock}
               >
                 <Text
                   style={{
-                    color: buyNowPressedId === productId ? "white" : "#1f2937",
+                    color: isOutOfStock ? "#6b7280" : (buyNowPressedId === productId ? "white" : "#1f2937"),
                     fontWeight: "600",
                     fontSize: 11,
                   }}
                 >
-                  Buy Now
+                  {isOutOfStock ? 'Out of stock' : 'Buy Now'}
                 </Text>
               </TouchableOpacity>
 
@@ -878,76 +939,21 @@ const SubcategoriesScreen = ({ navigation, route }) => {
   )
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#f9fafb" }} classname="pt-2">
+    <View style={{ flex: 1, backgroundColor: "#f9fafb" }} className="pt-2">
       {/* Header */}
-      <View
-        style={{
-          backgroundColor: "white",
-          paddingTop: 25,
-          paddingBottom: 16,
-          paddingHorizontal: 16,
-          borderBottomWidth: 1,
-          borderBottomColor: "#e5e7eb",
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.05,
-          shadowRadius: 2,
-          elevation: 2,
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: "#f3f4f6",
-              justifyContent: "center",
-              alignItems: "center",
-              marginRight: 12,
-            }}
-          >
-            <ArrowLeft width={20} height={20} color="#374151" />
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 18, fontWeight: "bold", color: "#1f2937" }}>{category.name}</Text>
-            <Text style={{ fontSize: 12, color: "#6b7280" }}>
-              {filteredProducts.length} of {products.length} products
-            </Text>
-          </View>
-        </View>
+      <HeaderVariants.BackWithSearchAndFilter
+        title={category.name}
+        subtitle={`${filteredProducts.length} of ${products.length} products`}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search products..."
+        onFilterPress={() => setShowFilters(true)}
+      />
 
-        {/* Search Bar */}
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            backgroundColor: "#f9fafb",
-            borderRadius: 12,
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            borderWidth: 1,
-            borderColor: "#e5e7eb",
-          }}
-        >
-          <SearchIcon width={20} height={20} color="#6b7280" />
-          <TextInput
-            placeholder="Search products..."
-            placeholderTextColor="#94a3b8"
-            style={{ flex: 1, marginLeft: 12, color: "#1f2937", fontSize: 14 }}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          <View style={{ width: 1, height: 20, backgroundColor: "#e5e7eb", marginHorizontal: 12 }} />
-          <TouchableOpacity style={{ padding: 4 }} onPress={() => setShowFilters(true)}>
-            <Filter width={18} height={18} color="#94a3b8" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Active Filters Display */}
-        {(searchQuery || selectedRating > 0 || inStockOnly || sortBy !== "name") && (
-          <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 8, gap: 8 }}>
+      {/* Active Filters Display */}
+      {(searchQuery || selectedRating > 0 || inStockOnly || sortBy !== "name") && (
+        <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
             {searchQuery && (
               <View
                 style={{
@@ -1000,8 +1006,8 @@ const SubcategoriesScreen = ({ navigation, route }) => {
               </View>
             )}
           </View>
-        )}
-      </View>
+        </View>
+      )}
 
       {/* Main Content */}
       <View style={{ flex: 1, flexDirection: "row" }}>
@@ -1110,7 +1116,7 @@ const SubcategoriesScreen = ({ navigation, route }) => {
       {/* Filter Modal */}
       {renderFilterModal()}
     </View>
-  )
+  );
 }
 
-export default SubcategoriesScreen  
+export default SubcategoriesScreen;
