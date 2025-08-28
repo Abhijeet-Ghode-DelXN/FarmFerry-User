@@ -30,7 +30,12 @@
         "ACCESS_NETWORK_STATE",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
-      ]
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBXdP3XIM-0uKS77yHw_YaZpRUSMTKc9xw"
+        }
+      }
     },
     "web": {
       "bundler": "metro",
@@ -46,6 +51,12 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "This app uses location to show delivery addresses."
         }
       ]
     ],
