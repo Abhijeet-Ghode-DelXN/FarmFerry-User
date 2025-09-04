@@ -261,7 +261,7 @@ const LoginForm = ({ onSuccess, onForgotPassword, onRegister }) => {
         disabled={isLoading}
       >
         <Text style={{ color: 'white', fontWeight: '600', fontSize: 16 }}>
-          {isLoading ? 'Signing In...' : 'Sign In'}
+          {isLoading ? 'Signing In...' : 'Sign In'} 
         </Text>
       </TouchableOpacity>
 

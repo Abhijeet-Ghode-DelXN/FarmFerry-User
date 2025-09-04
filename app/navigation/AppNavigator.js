@@ -27,15 +27,14 @@ import MyReviewsScreen from '../screens/MyReviewsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import PaymentMethodsScreen from '../screens/PaymentMethodsScreen';
 import RateReviewScreen from '../screens/RateReviewScreen';
-import SettingsScreen from '../screens/SettingsScreen';
 import SupportScreen from '../screens/SupportScreen';
 
 // Loading Screen
 import AddAddressScreen from '../screens/AddAddressScreen';
-import CheckoutScreen from '../screens/CheckoutScreen';
 import LoadingScreen from '../screens/LoadingScreen';
 import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import OrdersScreen from '../screens/OrdersScreen';
+import OrderSummaryScreen from '../screens/orderSummary';
 import PaymentStatusScreen from '../screens/PaymentStatusScreen';
 import ProductDetailsScreen from '../screens/ProductDetailsScreen';
 import RazorpayTestScreen from '../screens/RazorpayTestScreen';
@@ -105,10 +104,15 @@ const AppStack = () => (
       component={ProductDetailsScreen}
       options={{ headerShown: true }}
     />
-    <Stack.Screen
+    {/* <Stack.Screen
       name="Checkout"
       component={CheckoutScreen}
-      options={{ headerShown: true, title: 'Checkout' }}
+      options={{ headerShown: true, title: 'Add Address' }}
+    /> */}
+    <Stack.Screen
+      name="OrderSummary"
+      component={OrderSummaryScreen}
+      options={{ headerShown: true, title: 'Order Summary' }}
     />
     <Stack.Screen
       name="PaymentStatus"
@@ -145,11 +149,11 @@ const AppStack = () => (
       component={MyReviewsScreen}
       options={{ headerShown: false }}
     />
-    <Stack.Screen
+    {/* <Stack.Screen
       name="Settings"
       component={SettingsScreen}
       options={{ headerShown: true, title: 'Settings' }}
-    />
+    /> */}
     <Stack.Screen
       name="Support"
       component={SupportScreen}

@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, Alert, ActivityIndicator, Dimensions, StatusBar } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { useForm, Controller } from 'react-hook-form';
-import { ArrowLeft } from 'lucide-react-native';
-import { customerAPI } from '../services/api';
-import Input from '../components/ui/Input';
-import Button from '../components/ui/Button';
 import { Picker } from '@react-native-picker/picker';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { ArrowLeft } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { Alert, Dimensions, SafeAreaView, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import { customerAPI } from '../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -23,13 +23,95 @@ const ADDRESS_TYPES = [
 
 const AddAddressScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute();
   const [isLoading, setIsLoading] = useState(false);
   const [generalError, setGeneralError] = useState('');
+
+  // Parse address from navigation params
+  const parseAddressFromString = (addressString) => {
+    if (!addressString) return {};
+    
+    console.log('Parsing address string:', addressString);
+    
+    // Handle coordinate-based addresses
+    if (addressString.startsWith('Location:')) {
+      return { street: addressString };
+    }
+    
+    const parts = addressString.split(', ').filter(Boolean);
+    const parsed = {};
+    
+    console.log('Address parts:', parts);
+    
+    // Try to extract postal code (6 digits for India)
+    const postalCodeMatch = addressString.match(/\b\d{6}\b/);
+    if (postalCodeMatch) {
+      parsed.postalCode = postalCodeMatch[0];
+    }
+    
+    // Common Indian states for matching (including abbreviations)
+    const indianStates = [
+      'Maharashtra', 'MH', 'Karnataka', 'KA', 'Tamil Nadu', 'TN', 'Gujarat', 'GJ', 
+      'Rajasthan', 'RJ', 'Uttar Pradesh', 'UP', 'Madhya Pradesh', 'MP', 
+      'West Bengal', 'WB', 'Andhra Pradesh', 'AP', 'Telangana', 'TS', 
+      'Kerala', 'KL', 'Punjab', 'PB', 'Haryana', 'HR', 'Bihar', 'BR', 
+      'Odisha', 'OR', 'Assam', 'AS', 'Jharkhand', 'JH', 'Chhattisgarh', 'CG',
+      'Uttarakhand', 'UK', 'Himachal Pradesh', 'HP', 'Delhi', 'DL'
+    ];
+    
+    // Find state (case insensitive)
+    const stateMatch = parts.find(part => 
+      indianStates.some(state => 
+        part.toLowerCase().trim() === state.toLowerCase() ||
+        part.toLowerCase().includes(state.toLowerCase())
+      )
+    );
+    if (stateMatch) {
+      parsed.state = stateMatch.trim();
+    }
+    
+    // Find city (usually before state, or second to last if no state found)
+    let cityIndex = -1;
+    if (stateMatch) {
+      cityIndex = parts.findIndex(part => part === stateMatch) - 1;
+    } else {
+      // If no state found, assume city is second to last (before postal code/country)
+      cityIndex = Math.max(0, parts.length - 2);
+    }
+    
+    if (cityIndex >= 0 && parts[cityIndex] && !parts[cityIndex].match(/\d{6}/)) {
+      parsed.city = parts[cityIndex].trim();
+    }
+    
+    // Street address (combine first parts, excluding identified components)
+    const excludeFromStreet = [
+      parsed.city, 
+      parsed.state, 
+      parsed.postalCode,
+      'India'
+    ].filter(Boolean);
+    
+    const streetParts = parts.filter(part => {
+      const trimmedPart = part.trim();
+      return !excludeFromStreet.some(exclude => 
+        trimmedPart.toLowerCase() === exclude.toLowerCase() ||
+        trimmedPart === exclude
+      ) && !trimmedPart.match(/^\d{6}$/); // Exclude standalone postal codes
+    });
+    
+    if (streetParts.length > 0) {
+      parsed.street = streetParts.join(', ').trim();
+    }
+    
+    console.log('Parsed address components:', parsed);
+    return parsed;
+  };
 
   const {
     control,
     handleSubmit,
     setError,
+    setValue,
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -43,13 +125,39 @@ const AddAddressScreen = () => {
     },
   });
 
+  // Populate form fields when component mounts with navigation params
+  useEffect(() => {
+    const { suggestedAddress, latitude, longitude } = route.params || {};
+    
+    if (suggestedAddress) {
+      const parsedAddress = parseAddressFromString(suggestedAddress);
+      
+      // Set form values with parsed address
+      if (parsedAddress.street) setValue('street', parsedAddress.street);
+      if (parsedAddress.city) setValue('city', parsedAddress.city);
+      if (parsedAddress.state) setValue('state', parsedAddress.state);
+      if (parsedAddress.postalCode) setValue('postalCode', parsedAddress.postalCode);
+      
+      // Store coordinates for future use if needed
+      if (latitude && longitude) {
+        console.log('Address coordinates:', { latitude, longitude });
+      }
+    }
+  }, [route.params, setValue]);
+
   const onSubmit = async (data) => {
     setIsLoading(true);
     setGeneralError('');
     try {
       await customerAPI.addAddress(data);
       Alert.alert('Success', 'Address added successfully!', [
-        { text: 'OK', onPress: () => navigation.goBack() },
+        { 
+          text: 'Continue to Order', 
+          onPress: () => {
+            // Navigate to OrderSummary screen to complete the order
+            navigation.navigate('OrderSummary');
+          }
+        },
       ]);
     } catch (error) {
       const backendErrors = error.response?.data?.errors;

@@ -233,7 +233,7 @@ export default function CartScreen({ navigation }) {
       itemsCount: safeCartItems.length
     });
     
-    navigation.navigate('Checkout', {
+    navigation.navigate('OrderSummary', {
       subtotal,
       gst,
       shipping,
