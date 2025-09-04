@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert, Modal } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
+import React, { useState } from 'react';
+import { Modal, Text, TouchableOpacity, View } from 'react-native';
 
 export default function PlaceOrderScreen({ navigation }) {
   const [showSuccess, setShowSuccess] = useState(false);

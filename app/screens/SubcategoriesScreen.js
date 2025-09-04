@@ -877,7 +877,7 @@ const SubcategoriesScreen = ({ navigation, route }) => {
                   setTimeout(() => {
                     setBuyNowPressedId(null)
                     if (isOutOfStock) return
-                    navigation.navigate("Checkout", {
+                    navigation.navigate("OrderSummary", {
                       items: [{ ...item, quantity: 1 }],
                     })
                   }, 150)

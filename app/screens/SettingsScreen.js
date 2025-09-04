@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { View, Text, Switch, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import React, { useState } from 'react';
+import { Alert, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 
 const SettingsScreen = () => {
@@ -24,17 +24,17 @@ const SettingsScreen = () => {
 
   return (
     <View className="flex-1 bg-white p-6">
-      <Text className="text-2xl font-bold text-gray-800 mb-6">Settings</Text>
+      {/* <Text className="text-2xl font-bold text-gray-800 mb-6">Settings</Text> */}
 
       <View className="mb-6">
         <Text className="text-lg font-semibold text-gray-700 mb-2">App Preferences</Text>
-        <View className="flex-row items-center justify-between mb-4">
+        {/* <View className="flex-row items-center justify-between mb-4">
           <Text className="text-base text-gray-800">Dark Mode</Text>
           <Switch
             value={theme === 'dark'}
             onValueChange={v => setTheme(v ? 'dark' : 'light')}
           />
-        </View>
+        </View> */}
         <View className="flex-row items-center justify-between mb-4">
           <Text className="text-base text-gray-800">Notifications</Text>
           <Switch

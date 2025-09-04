@@ -103,16 +103,17 @@ const ProductDetailsScreen = ({ route, navigation }) => {
       Alert.alert('Out of stock', 'This product is currently out of stock.');
       return;
     }
+    
+    const buyNowItems = isInCart ? cartItems : [...cartItems, { ...product, quantity: 1 }];
+    
     if (!isInCart) {
-      updateCartItems([...cartItems, { ...product, quantity: 1 }]);
-      navigation.navigate('Checkout', {
-        items: [...cartItems, { ...product, quantity: 1 }]
-      });
-    } else {
-      navigation.navigate('Checkout', {
-        items: cartItems
-      });
+      updateCartItems(buyNowItems);
     }
+    
+    // Navigate directly to OrderSummary for Buy Now
+    navigation.navigate('OrderSummary', {
+      items: buyNowItems
+    });
   };
 
   // Format date for display
