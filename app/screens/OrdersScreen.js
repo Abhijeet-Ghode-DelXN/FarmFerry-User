@@ -573,8 +573,8 @@ export default function OrdersScreen() {
             </TouchableOpacity>
           )}
 
-          {/* Cancel Button - Only for pending/processing */}
-          {(item.status === 'pending' || item.status === 'processing') && (
+          {/* Cancel Button - Only for pending orders (not packaging or processing) */}
+          {item.status === 'pending' && (
             <TouchableOpacity
               onPress={() => handleCancelOrder(item)}
               disabled={cancellingOrderId === item._id}
@@ -588,20 +588,20 @@ export default function OrdersScreen() {
             </TouchableOpacity>
           )}
 
-            {/* Return Button - Only for delivered orders that are eligible for return */}
-            {item.status === 'delivered' && returnAvailable && (
-              <TouchableOpacity
-                onPress={() => handleOpenReturnModal(item)}
-                disabled={returningOrderId === item._id}
-                className={`w-8 h-8 rounded-full bg-blue-100 items-center justify-center mx-1`}
-              >
-                {returningOrderId === item._id ? (
-                  <ActivityIndicator size="small" color="#3b82f6" />
-                ) : (
-                  <RotateCcw size={16} color="#3b82f6" />
-                )}
-              </TouchableOpacity>
-            )}
+          {/* Return Button - Only for delivered orders that are eligible for return */}
+          {item.status === 'delivered' && returnAvailable && (
+            <TouchableOpacity
+              onPress={() => handleOpenReturnModal(item)}
+              disabled={returningOrderId === item._id}
+              className={`w-8 h-8 rounded-full bg-blue-100 items-center justify-center mx-1`}
+            >
+              {returningOrderId === item._id ? (
+                <ActivityIndicator size="small" color="#3b82f6" />
+              ) : (
+                <RotateCcw size={16} color="#3b82f6" />
+              )}
+            </TouchableOpacity>
+          )}
 
           {/* Invoice Button - Only for delivered */}
           {item.status === 'delivered' && (

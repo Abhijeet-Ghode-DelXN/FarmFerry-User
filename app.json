@@ -35,21 +35,12 @@
         "ACCESS_NETWORK_STATE",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
-<<<<<<< HEAD
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
-      ],
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyBXdP3XIM-0uKS77yHw_YaZpRUSMTKc9xw"
-=======
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ],
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyAvbm16TuIFJry40jxiTXxWKt7qmfqKmgY"
->>>>>>> a39d6b8a37205e12e8e98770402ed90dfdbfe4e6
         }
       }
     },
@@ -72,9 +63,6 @@
       [
         "expo-location",
         {
-<<<<<<< HEAD
-          "locationAlwaysAndWhenInUsePermission": "This app uses location to show delivery addresses."
-=======
           "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location."
         }
       ],
@@ -83,7 +71,6 @@
         {
           "requestLocationPermission": true,
           "locationPermission": "Allow FarmFerry App to use your location"
->>>>>>> a39d6b8a37205e12e8e98770402ed90dfdbfe4e6
         }
       ]
     ],
