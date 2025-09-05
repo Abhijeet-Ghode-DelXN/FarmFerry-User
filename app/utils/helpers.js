@@ -193,4 +193,9 @@ export const retry = async (fn, retries = 3, delay = 1000) => {
     await sleep(delay);
     return retry(fn, retries - 1, delay * 2);
   }
-}; 
+};
+
+// Default export to satisfy Expo Router
+export default function HelpersIndex() {
+  return null;
+}

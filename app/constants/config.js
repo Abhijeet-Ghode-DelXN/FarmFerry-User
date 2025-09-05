@@ -63,4 +63,9 @@ export const CONFIG = {
     PHONE_REGEX: /^[0-9]{10}$/,
     EMAIL_REGEX: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
   },
-}; 
+};
+
+// Default export to satisfy Expo Router
+export default function ConfigIndex() {
+  return null;
+}

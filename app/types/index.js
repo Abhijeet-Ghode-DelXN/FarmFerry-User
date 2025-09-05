@@ -149,4 +149,9 @@ export const SORT_TYPES = {
   DATE_DESC: 'date_desc',
   RATING_ASC: 'rating_asc',
   RATING_DESC: 'rating_desc',
-}; 
+};
+
+// Default export to satisfy Expo Router
+export default function TypesIndex() {
+  return null;
+}
