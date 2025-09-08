@@ -34,10 +34,10 @@ import AddAddressScreen from '../screens/AddAddressScreen';
 import LoadingScreen from '../screens/LoadingScreen';
 import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import OrdersScreen from '../screens/OrdersScreen';
-import OrderSummaryScreen from '../screens/orderSummary';
 import PaymentStatusScreen from '../screens/PaymentStatusScreen';
 import ProductDetailsScreen from '../screens/ProductDetailsScreen';
 import RazorpayTestScreen from '../screens/RazorpayTestScreen';
+import OrderSummaryScreen from '../screens/orderSummary';
 
 
 const Stack = createStackNavigator();
